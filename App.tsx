@@ -40,7 +40,8 @@ import {
   Building2, 
   Atom, 
   AlertCircle, 
-  ChevronDown 
+  ChevronDown,
+  Sparkles
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -68,7 +69,6 @@ const App: React.FC = () => {
     localStorage.setItem('wise_portal_lang', lang);
   }, [lang]);
 
-  // IMPORTANT: If role is ADMIN, ALWAYS force Thai language regardless of previous selection
   const currentT = role === UserRole.ADMIN ? TRANSLATIONS[Language.TH] : TRANSLATIONS[lang];
   const isRtl = lang === Language.AR && role !== UserRole.ADMIN;
 
@@ -76,7 +76,6 @@ const App: React.FC = () => {
     e.preventDefault();
     if (adminPassInput === 'fst111') {
       setRole(UserRole.ADMIN);
-      // Automatically switch to Thai for Admin
       setLang(Language.TH); 
       setShowAdminModal(false);
       setAdminPassInput('');
@@ -96,7 +95,6 @@ const App: React.FC = () => {
   };
 
   const getLocalized = (localized: LocalizedString) => {
-    // Force Thai if admin, otherwise use selected language
     if (role === UserRole.ADMIN) return localized.th;
     return localized[lang] || localized['en'] || localized['th'];
   };
@@ -135,22 +133,41 @@ const App: React.FC = () => {
           <div className="tech-wave tech-wave-1 opacity-20"></div>
           <div className="tech-wave tech-wave-2 opacity-10"></div>
         </div>
+
+        {/* --- Top Left Chic WISE Logo --- */}
+        <header className="absolute top-0 left-0 w-full z-50 px-6 py-6 sm:px-10 sm:py-8 flex items-center justify-between">
+          <div className="flex items-center gap-4 group cursor-default">
+            <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-white/10 backdrop-blur-xl rounded-[1.25rem] flex items-center justify-center border border-white/20 shadow-2xl transition-all duration-500 group-hover:bg-[#D4AF37]/20 group-hover:border-[#D4AF37]/50 group-hover:rotate-[10deg]">
+              <Binary size={24} className="text-[#D4AF37] sm:w-7 sm:h-7" />
+              <div className="absolute -top-2 -right-2">
+                <Sparkles size={16} className="text-white animate-pulse" />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-2xl sm:text-3xl font-black text-white leading-none tracking-normal">WISE</span>
+              <span className="text-[9px] sm:text-[10px] font-bold text-[#D4AF37] uppercase leading-none mt-1 opacity-70">Work Integrated</span>
+            </div>
+          </div>
+        </header>
         
-        <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-10 px-6 py-10 space-y-12 reveal-anim">
-          <div className="flex flex-col items-center space-y-8">
-             <img 
-               src="https://raw.githubusercontent.com/FST-Fatoni/assets/main/fst_logo_full.png" 
-               alt="Faculty Logo" 
-               className="h-24 sm:h-36 md:h-44 w-auto object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.6)]"
-               onError={(e) => { e.currentTarget.style.display = 'none'; }}
-             />
-             <div className="px-6 py-2.5 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl">
-               <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
-                 <span className="text-[11px] sm:text-xs font-bold uppercase text-white leading-none">
+        <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-10 px-6 py-10 space-y-12 reveal-anim pt-28 sm:pt-36">
+          <div className="flex flex-col items-center space-y-12">
+             
+             {/* --- Center Modern WISE Identity (Text Only) --- */}
+             <div className="relative flex flex-col items-center group">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[100px] w-80 h-80 bg-[#D4AF37] rounded-full"></div>
+                <h2 className="relative text-7xl sm:text-[10rem] md:text-[12rem] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-[#D4AF37] leading-none transition-all duration-700 group-hover:scale-105 drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)]">
+                  WISE
+                </h2>
+             </div>
+
+             <div className="px-8 py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl">
+               <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-6">
+                 <span className="text-xs font-bold uppercase text-white tracking-normal">
                    {lang === Language.TH ? "คณะวิทยาศาสตร์และเทคโนโลยี" : (lang === Language.AR ? "كلية العلوم والتكنولوجيا" : "Faculty of Science and Technology")}
                  </span>
-                 <div className="hidden sm:block w-1.5 h-1.5 bg-[#D4AF37] rounded-full opacity-40"></div>
-                 <span className="text-[11px] sm:text-xs font-bold uppercase text-[#D4AF37] leading-none">
+                 <div className="hidden sm:block w-2 h-2 bg-[#D4AF37] rounded-full opacity-40"></div>
+                 <span className="text-xs font-bold uppercase text-[#D4AF37] tracking-normal">
                    {lang === Language.TH ? "มหาวิทยาลัยฟาฏอนี" : (lang === Language.AR ? "جامعة فطاني" : "Fatoni University")}
                  </span>
                </div>
@@ -158,7 +175,7 @@ const App: React.FC = () => {
           </div>
 
           <div className="space-y-4 text-center">
-            <h2 className="text-white/40 font-bold text-[10px] uppercase leading-none">
+            <h2 className="text-white/40 font-bold text-[11px] uppercase tracking-normal">
               {currentT.title}
             </h2>
             <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold text-white leading-[1.2] drop-shadow-lg px-2">
@@ -173,7 +190,7 @@ const App: React.FC = () => {
             <div className="flex flex-col items-center space-y-8">
               <button 
                 onClick={() => setViewState('dashboard')}
-                className="start-btn-glow group relative px-14 sm:px-24 py-5 bg-white text-[#630330] rounded-full font-bold uppercase text-lg sm:text-xl transition-all hover:translate-y-[-5px] active:scale-95 shadow-[0_20px_60px_rgba(0,0,0,0.4)] overflow-hidden"
+                className="start-btn-glow group relative px-16 sm:px-28 py-6 bg-white text-[#630330] rounded-full font-bold uppercase text-lg sm:text-xl transition-all hover:translate-y-[-5px] active:scale-95 shadow-[0_30px_70px_rgba(0,0,0,0.5)] overflow-hidden"
               >
                 <span className="relative z-10 flex items-center gap-4 sm:gap-6">
                   {currentT.startNow} 
@@ -192,7 +209,7 @@ const App: React.FC = () => {
               >
                 <div className="flex flex-col items-center">
                   <LockKeyhole size={20} className="text-[#D4AF37]/70 group-hover:text-[#D4AF37] transition-colors duration-500" />
-                  <span className="text-[8px] font-bold uppercase text-[#D4AF37]/50 group-hover:text-[#D4AF37] mt-1">Admin</span>
+                  <span className="text-[9px] font-bold uppercase text-[#D4AF37]/50 group-hover:text-[#D4AF37] mt-1">Admin</span>
                 </div>
               </button>
             </div>
@@ -203,10 +220,10 @@ const App: React.FC = () => {
           <div className="animate-marquee whitespace-nowrap flex items-center gap-16 sm:gap-32">
             {[...scrollingIcons, ...scrollingIcons].map((item, idx) => (
               <div key={idx} className="flex flex-col items-center gap-3 text-[#D4AF37]">
-                <div className="p-4 rounded-3xl glass-polish border border-white/5 shadow-xl">
+                <div className="p-5 rounded-[2rem] glass-polish border border-white/5 shadow-xl">
                   {item.icon}
                 </div>
-                <span className="text-[10px] font-bold uppercase">{item.label}</span>
+                <span className="text-[11px] font-bold uppercase tracking-normal">{item.label}</span>
               </div>
             ))}
           </div>
@@ -214,16 +231,16 @@ const App: React.FC = () => {
 
         {showAdminModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-2xl reveal-anim">
-            <div className="w-full max-w-[340px] flex flex-col items-center relative p-10 rounded-[2.5rem] border border-white/10 bg-white/5 shadow-3xl">
-              <button onClick={() => setShowAdminModal(false)} className="absolute top-6 right-6 p-2.5 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all">
-                <X size={24} />
+            <div className="w-full max-w-[360px] flex flex-col items-center relative p-12 rounded-[3rem] border border-white/10 bg-white/5 shadow-3xl">
+              <button onClick={() => setShowAdminModal(false)} className="absolute top-8 right-8 p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all">
+                <X size={26} />
               </button>
-              <div className="inline-flex p-6 rounded-3xl bg-[#D4AF37]/10 text-[#D4AF37] mb-6">
-                <Fingerprint size={48} className="animate-pulse" />
+              <div className="inline-flex p-7 rounded-[2rem] bg-[#D4AF37]/10 text-[#D4AF37] mb-8 shadow-[0_0_50px_rgba(212,175,55,0.2)]">
+                <Fingerprint size={56} className="animate-pulse" />
               </div>
-              <h3 className="text-xl font-bold text-white uppercase mb-1">Authorization</h3>
-              <p className="text-[10px] text-[#D4AF37]/50 font-bold uppercase mb-8 text-center">Faculty Personnel Only (Thai Language Interface)</p>
-              <form onSubmit={handleAdminLogin} className="w-full space-y-6">
+              <h3 className="text-2xl font-bold text-white uppercase mb-1">Authorization</h3>
+              <p className="text-[11px] text-[#D4AF37]/50 font-bold uppercase mb-10 text-center tracking-normal">Staff Authentication Required</p>
+              <form onSubmit={handleAdminLogin} className="w-full space-y-8">
                 <div className="relative">
                   <input 
                     type="password" 
@@ -234,16 +251,16 @@ const App: React.FC = () => {
                       setAdminPassInput(e.target.value);
                       if (loginError) setLoginError(false);
                     }} 
-                    className={`w-full px-4 py-4 rounded-2xl bg-white/5 border-2 outline-none font-bold text-center text-4xl transition-all
-                      ${loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10 shadow-[0_0_20px_rgba(244,63,94,0.2)]' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
+                    className={`w-full px-4 py-5 rounded-2xl bg-white/5 border-2 outline-none font-bold text-center text-4xl transition-all tracking-normal
+                      ${loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10 shadow-[0_0_30px_rgba(244,63,94,0.3)]' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
                   />
                   {loginError && (
-                    <div className="absolute -bottom-7 left-0 right-0 flex items-center justify-center gap-2 text-rose-500 text-[10px] font-bold uppercase animate-pulse">
-                      <AlertCircle size={12} /> รหัสผ่านไม่ถูกต้อง
+                    <div className="absolute -bottom-8 left-0 right-0 flex items-center justify-center gap-2 text-rose-500 text-[11px] font-bold uppercase animate-pulse">
+                      <AlertCircle size={14} /> Incorrect Access Key
                     </div>
                   )}
                 </div>
-                <button type="submit" className="w-full bg-[#630330] text-white py-4.5 rounded-2xl font-bold uppercase text-[11px] shadow-2xl hover:bg-[#7a0b3d] transition-all transform active:scale-95">Verify Access</button>
+                <button type="submit" className="w-full bg-[#630330] text-white py-5 rounded-[1.25rem] font-bold uppercase text-[12px] shadow-2xl hover:bg-[#7a0b3d] transition-all transform active:scale-95">Verify & Login</button>
               </form>
             </div>
           </div>
@@ -255,26 +272,25 @@ const App: React.FC = () => {
   return (
     <div className={`min-h-screen flex flex-col bg-[#F9FAFB] ${isRtl ? 'rtl' : ''}`}>
       <nav className="sticky top-0 z-50 px-4 py-4">
-        <div className="container mx-auto h-20 bg-white/95 backdrop-blur-md rounded-3xl px-6 sm:px-8 flex items-center justify-between border border-slate-100 shadow-xl">
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 bg-[#630330] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#63033022]"><Binary size={22} /></div>
+        <div className="container mx-auto h-20 bg-white/95 backdrop-blur-md rounded-3xl px-6 sm:px-10 flex items-center justify-between border border-slate-100 shadow-xl">
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 bg-[#630330] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#63033022] transform transition-transform hover:rotate-6"><Binary size={24} /></div>
             <div className="hidden sm:block">
-              <span className="block text-xl font-bold text-slate-900 leading-none uppercase">WISE</span>
-              <span className="block text-[9px] text-[#D4AF37] font-bold uppercase mt-1">Work-Integrated Education</span>
+              <span className="block text-2xl font-black text-slate-900 leading-none uppercase tracking-normal">WISE</span>
+              <span className="block text-[10px] text-[#D4AF37] font-bold uppercase mt-1 tracking-normal">FST Education Hub</span>
             </div>
           </div>
           
-          <div className="flex items-center gap-3 sm:gap-6">
-            {/* Show Language Switcher ONLY if NOT Admin */}
+          <div className="flex items-center gap-4 sm:gap-8">
             {role !== UserRole.ADMIN && (
               <div className="relative">
-                 <button onClick={() => setIsNavLangOpen(!isNavLangOpen)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700 hover:bg-slate-100 transition-all font-bold shadow-sm">
+                 <button onClick={() => setIsNavLangOpen(!isNavLangOpen)} className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700 hover:bg-slate-100 transition-all font-bold shadow-sm">
                    <Globe size={18} className="text-[#630330]" />
-                   <span className="text-[11px] font-bold uppercase">{lang.toUpperCase()}</span>
+                   <span className="text-[12px] font-bold uppercase tracking-normal">{lang.toUpperCase()}</span>
                    <ChevronDown size={14} className={`transition-transform duration-300 ${isNavLangOpen ? 'rotate-180' : ''}`} />
                  </button>
                  {isNavLangOpen && (
-                   <div className="absolute right-0 top-full mt-3 p-2 bg-white rounded-2xl border border-slate-100 shadow-2xl z-[60] min-w-[160px] reveal-anim">
+                   <div className="absolute right-0 top-full mt-4 p-2.5 bg-white rounded-2xl border border-slate-100 shadow-3xl z-[60] min-w-[180px] reveal-anim">
                      {(Object.keys(Language) as Array<keyof typeof Language>).map((key) => (
                        <button
                          key={key}
@@ -282,87 +298,88 @@ const App: React.FC = () => {
                            setLang(Language[key]);
                            setIsNavLangOpen(false);
                          }}
-                         className={`w-full text-left px-4 py-3 rounded-xl text-[12px] font-bold uppercase transition-all flex items-center justify-between
+                         className={`w-full text-left px-5 py-4 rounded-xl text-[13px] font-bold uppercase transition-all flex items-center justify-between tracking-normal
                            ${lang === Language[key] ? 'bg-[#630330] text-white' : 'text-slate-500 hover:bg-slate-50'}`}
                        >
                          {Language[key].toUpperCase()}
-                         {lang === Language[key] && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                         {lang === Language[key] && <div className="w-2 h-2 bg-white rounded-full"></div>}
                        </button>
                      ))}
                    </div>
                  )}
               </div>
             )}
-            <button onClick={handleLogout} className="w-11 h-11 flex items-center justify-center bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-sm"><LogOut size={20} /></button>
+            <button onClick={handleLogout} className="w-12 h-12 flex items-center justify-center bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-sm"><LogOut size={22} /></button>
           </div>
         </div>
       </nav>
 
-      <main className="container mx-auto px-4 py-6 sm:py-10 flex-grow space-y-12">
-        <section className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl p-6 sm:p-10 space-y-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="flex items-center gap-5">
-              <div className="p-4 bg-[#630330] text-white rounded-2xl shadow-xl"><Database size={24} /></div>
+      <main className="container mx-auto px-4 py-8 sm:py-14 flex-grow space-y-16">
+        <section className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl p-8 sm:p-14 space-y-12">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+            <div className="flex items-center gap-6">
+              <div className="p-5 bg-[#630330] text-white rounded-[1.5rem] shadow-2xl"><Database size={28} /></div>
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 uppercase">{currentT.internshipSites}</h2>
-                <p className="text-[11px] font-bold text-slate-400 uppercase mt-0.5">{currentT.title}</p>
+                <h2 className="text-3xl font-black text-slate-900 uppercase tracking-normal">{currentT.internshipSites}</h2>
+                <p className="text-[12px] font-bold text-slate-400 uppercase mt-1 tracking-normal">{currentT.title}</p>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4 flex-grow max-w-3xl">
+            <div className="flex flex-col sm:flex-row gap-5 flex-grow max-w-4xl">
               <div className="relative flex-grow group">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#630330] transition-colors" size={18} />
-                <input type="text" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-4.5 rounded-[1.25rem] bg-slate-50 border-none text-sm font-bold focus:ring-4 focus:ring-[#63033011] transition-all shadow-sm" />
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#630330] transition-colors" size={20} />
+                <input type="text" placeholder="Search by organization or location..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-16 pr-8 py-5 rounded-[1.5rem] bg-slate-50 border-none text-sm font-bold focus:ring-4 focus:ring-[#63033011] transition-all shadow-sm tracking-normal" />
               </div>
-              <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-[1.25rem]">
-                <button onClick={() => setStatusFilter('active')} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase transition-all ${statusFilter === 'active' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>Recruiting</button>
-                <button onClick={() => setStatusFilter('archived')} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase transition-all ${statusFilter === 'archived' ? 'bg-[#D4AF37] text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>History</button>
-                <button onClick={() => setStatusFilter('all')} className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase transition-all ${statusFilter === 'all' ? 'bg-slate-200 text-slate-600' : 'text-slate-400'}`}><Filter size={14} /></button>
+              <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-[1.5rem]">
+                <button onClick={() => setStatusFilter('active')} className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${statusFilter === 'active' ? 'bg-[#630330] text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>Active</button>
+                <button onClick={() => setStatusFilter('archived')} className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${statusFilter === 'archived' ? 'bg-[#D4AF37] text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>History</button>
+                <button onClick={() => setStatusFilter('all')} className={`flex-1 sm:flex-none px-5 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${statusFilter === 'all' ? 'bg-slate-200 text-slate-600' : 'text-slate-400'}`}><Filter size={16} /></button>
               </div>
             </div>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8">
             {filteredSites.map(site => (
               <InternshipCard key={site.id} site={site} lang={lang} />
             ))}
           </div>
         </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          <div className="lg:col-span-7 space-y-6">
-            <div className="flex items-center gap-3 px-2">
-              <Navigation size={22} className="text-[#630330]" />
-              <h3 className="text-xl font-bold text-slate-900 uppercase">{currentT.schedule}</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          <div className="lg:col-span-7 space-y-8">
+            <div className="flex items-center gap-4 px-4">
+              <Navigation size={26} className="text-[#630330]" />
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-normal">{currentT.schedule}</h3>
             </div>
-            <div className="bg-white p-8 sm:p-12 rounded-[3rem] border border-slate-100 shadow-xl space-y-12">
+            <div className="bg-white p-10 sm:p-16 rounded-[3.5rem] border border-slate-100 shadow-2xl space-y-14">
               {schedule.map((ev, idx) => (
-                <div key={ev.id} className="flex gap-6 items-center">
-                  <div className="w-12 h-12 rounded-2xl bg-[#630330] text-white flex items-center justify-center font-bold text-lg">{idx + 1}</div>
-                  <div className="flex-grow p-6 rounded-[2rem] bg-slate-50 border border-transparent hover:border-[#D4AF37] transition-all">
-                    <span className="text-[11px] font-bold text-[#D4AF37] uppercase">{getLocalized(ev.date)}</span>
-                    <h4 className="text-lg font-bold text-slate-800">{getLocalized(ev.event)}</h4>
+                <div key={ev.id} className="flex gap-8 items-center group">
+                  <div className="w-14 h-14 rounded-2xl bg-[#630330] text-white flex items-center justify-center font-black text-xl shadow-xl transition-all group-hover:scale-110">{idx + 1}</div>
+                  <div className="flex-grow p-8 rounded-[2.5rem] bg-slate-50 border border-transparent group-hover:border-[#D4AF37] group-hover:bg-white transition-all shadow-sm hover:shadow-xl">
+                    <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">{getLocalized(ev.date)}</span>
+                    <h4 className="text-xl font-bold text-slate-800 mt-1">{getLocalized(ev.event)}</h4>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="lg:col-span-5 space-y-6">
-             <div className="flex items-center gap-3 px-2">
-               <ClipboardCheck size={22} className="text-[#D4AF37]" />
-               <h3 className="text-xl font-bold text-slate-900 uppercase">{currentT.forms}</h3>
+          <div className="lg:col-span-5 space-y-8">
+             <div className="flex items-center gap-4 px-4">
+               <ClipboardCheck size={26} className="text-[#D4AF37]" />
+               <h3 className="text-2xl font-black text-slate-900 uppercase tracking-normal">{currentT.forms}</h3>
              </div>
-             <div className="space-y-6">
-                <div className="bg-white p-8 rounded-[2.5rem] border-t-8 border-t-[#630330] shadow-xl space-y-4">
-                  <span className="text-[11px] font-bold text-[#630330] uppercase">{currentT.appForms}</span>
+             <div className="space-y-8">
+                <div className="bg-white p-10 rounded-[3rem] border-t-[10px] border-t-[#630330] shadow-2xl space-y-5">
+                  <span className="text-[12px] font-bold text-[#630330] uppercase tracking-normal">{currentT.appForms}</span>
                   {forms.filter(f => f.category === FormCategory.APPLICATION).map(form => (
-                    <a key={form.id} href={form.url} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl font-bold text-xs hover:bg-[#630330] hover:text-white transition-all">{form.title} <FileDown size={18}/></a>
+                    <a key={form.id} href={form.url} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl font-bold text-sm hover:bg-[#630330] hover:text-white transition-all shadow-sm hover:shadow-lg">{form.title} <FileDown size={20}/></a>
                   ))}
                 </div>
-                <div className="bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl space-y-4">
-                  <span className="text-[11px] font-bold text-[#D4AF37] uppercase">{currentT.monitoringForms}</span>
+                <div className="bg-slate-900 p-10 rounded-[3rem] shadow-3xl space-y-5 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                  <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">{currentT.monitoringForms}</span>
                   {forms.filter(f => f.category === FormCategory.MONITORING).map(form => (
-                    <a key={form.id} href={form.url} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl font-bold text-xs text-white border border-white/5 hover:bg-[#D4AF37] hover:text-[#630330] transition-all">{form.title} <FileDown size={18}/></a>
+                    <a key={form.id} href={form.url} className="flex items-center justify-between p-5 bg-white/5 rounded-2xl font-bold text-sm text-white border border-white/5 hover:bg-[#D4AF37] hover:text-[#630330] transition-all shadow-sm">{form.title} <FileDown size={20}/></a>
                   ))}
                 </div>
              </div>
@@ -370,10 +387,10 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <footer className="py-20 bg-white border-t border-slate-100 mt-20">
-        <div className="container mx-auto px-6 text-center opacity-30">
-          <div className="text-slate-900 font-bold text-2xl uppercase mb-6">WISE</div>
-          <p className="text-slate-400 text-[10px] font-bold uppercase">Faculty of Science and Technology, Fatoni University.</p>
+      <footer className="py-24 bg-white border-t border-slate-100 mt-24">
+        <div className="container mx-auto px-6 text-center">
+          <div className="text-slate-900 font-black text-4xl uppercase mb-8 tracking-normal opacity-20">WISE</div>
+          <p className="text-slate-400 text-[11px] font-bold uppercase tracking-normal opacity-50">Faculty of Science and Technology, Fatoni University.</p>
         </div>
       </footer>
     </div>
