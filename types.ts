@@ -51,7 +51,8 @@ export interface DocumentForm {
 export interface ScheduleEvent {
   id: string;
   event: LocalizedString;
-  date: LocalizedString;
+  startDate: LocalizedString;
+  endDate: LocalizedString;
   status: 'upcoming' | 'past';
 }
 

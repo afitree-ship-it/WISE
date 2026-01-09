@@ -13,6 +13,7 @@ import {
 import { TRANSLATIONS, INITIAL_SITES, INITIAL_FORMS, INITIAL_SCHEDULE } from './constants';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import InternshipCard from './components/InternshipCard';
+import { GoogleGenAI, Type } from "@google/genai";
 import { 
   LogOut, 
   Plus, 
@@ -41,7 +42,11 @@ import {
   Atom, 
   AlertCircle, 
   ChevronDown,
+  Save,
+  Trash,
+  Loader2,
   Sparkles,
+  Calendar,
   ArrowRight
 } from 'lucide-react';
 
@@ -101,7 +106,7 @@ const ModernWaves: React.FC = () => {
       <div className="wave-layer animate-wave-fast bob-fast opacity-40">
         <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
           <path fill="#630330" fillOpacity="1" d="M0,288L48,272C96,256,192,224,288,197.3C384,171,480,149,576,165.3C672,181,768,235,864,250.7C960,267,1056,245,1152,208C1248,171,1344,117,1392,90.7L1440,64V320H0Z"></path>
-          <path fill="#630330" fillOpacity="1" d="M1440,288L1488,272C1536,256,1632,224,1728,197.3C1824,171,1920,149,2016,165.3C2112,181,2208,235,2304,250.7C2400,267,2496,245,2592,208C2688,171,2784,117,2832,90.7L2880,64V320H1440Z"></path>
+          <path fill="#630330" fillOpacity="1" d="M1440,288L1488,272C1536,256,1632,224,1728,197.3C1824,171,1920,149,2016,165.3C2112,181,2208,235,2304,250.7C2400,267,2496,245,2592,208C2688,171,2784,117,2832,90.7L2880,64V320H0Z"></path>
         </svg>
       </div>
     </div>
@@ -122,12 +127,23 @@ const App: React.FC = () => {
   const [activeMajor, setActiveMajor] = useState<Major | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'archived'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
 
-  // Admin States
-  const [showAdminModal, setShowAdminModal] = useState(false);
+  // Admin Modal States
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState('');
   const [loginError, setLoginError] = useState(false);
   const [isNavLangOpen, setIsNavLangOpen] = useState(false);
+
+  // Management States
+  const [showSiteModal, setShowSiteModal] = useState(false);
+  const [editingSite, setEditingSite] = useState<InternshipSite | null>(null);
+  
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<ScheduleEvent | null>(null);
+
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
 
   useEffect(() => {
     localStorage.setItem('wise_portal_lang', lang);
@@ -141,7 +157,7 @@ const App: React.FC = () => {
     if (adminPassInput === 'fst111') {
       setRole(UserRole.ADMIN);
       setLang(Language.TH); 
-      setShowAdminModal(false);
+      setShowAdminLogin(false);
       setAdminPassInput('');
       setLoginError(false);
       setViewState('dashboard');
@@ -154,7 +170,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setRole(UserRole.STUDENT);
     setViewState('landing');
-    setShowAdminModal(false);
+    setShowAdminLogin(false);
     setIsNavLangOpen(false);
   };
 
@@ -163,15 +179,141 @@ const App: React.FC = () => {
     return localized[lang] || localized['en'] || localized['th'];
   };
 
+  const translateViaAI = async (text: string, isDate: boolean = false): Promise<LocalizedString> => {
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const prompt = isDate 
+        ? `Given the ISO date string "${text}", convert it to a human-readable date in these 4 languages. 
+           For Thai (th), use Buddhist Era year (BE). 
+           Return results strictly in JSON with keys: th, en, ar, ms.
+           Example for "2024-06-15": {"th": "15 มิ.ย. 2567", "en": "June 15, 2024", "ar": "١٥ يونيو ٢٠٢٤", "ms": "15 Jun 2024"}`
+        : `Translate the following text from Thai to English (en), Arabic (ar), and Malay (ms). 
+           Return the results strictly in JSON format with keys: th, en, ar, ms. 
+           Text: "${text}"`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              th: { type: Type.STRING },
+              en: { type: Type.STRING },
+              ar: { type: Type.STRING },
+              ms: { type: Type.STRING },
+            },
+            required: ["th", "en", "ar", "ms"],
+          },
+        },
+      });
+      return JSON.parse(response.text);
+    } catch (error) {
+      console.error("AI Translation error:", error);
+      return { th: text, en: text, ar: text, ms: text };
+    }
+  };
+
   const filteredSites = sites.filter(s => {
     const localizedName = getLocalized(s.name).toLowerCase();
-    const localizedLoc = getLocalized(s.location).toLowerCase();
     const matchesMajor = activeMajor === 'all' || s.major === activeMajor;
     const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
-    const matchesSearch = localizedName.includes(searchTerm.toLowerCase()) || 
-                          localizedLoc.includes(searchTerm.toLowerCase());
+    const matchesSearch = localizedName.includes(searchTerm.toLowerCase());
     return matchesMajor && matchesStatus && matchesSearch;
   });
+
+  const handleSaveSite = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsTranslating(true);
+    const formData = new FormData(e.currentTarget);
+    const thName = formData.get('name_th') as string;
+    const thLoc = formData.get('loc_th') as string;
+    const thDesc = formData.get('desc_th') as string;
+
+    const [nameObj, locObj, descObj] = await Promise.all([
+      translateViaAI(thName),
+      translateViaAI(thLoc),
+      translateViaAI(thDesc)
+    ]);
+
+    const newSite: InternshipSite = {
+      id: editingSite?.id || Date.now().toString(),
+      name: nameObj,
+      location: locObj,
+      description: descObj,
+      status: formData.get('status') as 'active' | 'archived',
+      major: formData.get('major') as Major,
+      contactLink: formData.get('url') as string,
+      email: formData.get('email') as string,
+      phone: formData.get('phone') as string,
+    };
+
+    if (editingSite) {
+      setSites(sites.map(s => s.id === editingSite.id ? newSite : s));
+    } else {
+      setSites([newSite, ...sites]);
+    }
+    setIsTranslating(false);
+    setShowSiteModal(false);
+    setEditingSite(null);
+  };
+
+  const handleDeleteSite = (id: string) => {
+    if (confirm('ยืนยันการลบข้อมูลสถานประกอบการนี้?')) {
+      setSites(sites.filter(s => s.id !== id));
+    }
+  };
+
+  const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsTranslating(true);
+    const formData = new FormData(e.currentTarget);
+    const thEvent = formData.get('event_th') as string;
+    const startRaw = formData.get('start_date') as string;
+    const endRaw = formData.get('end_date') as string;
+
+    const [eventObj, startObj, endObj] = await Promise.all([
+      translateViaAI(thEvent),
+      translateViaAI(startRaw, true),
+      translateViaAI(endRaw, true)
+    ]);
+
+    const newEv: ScheduleEvent = {
+      id: editingSchedule?.id || Date.now().toString(),
+      event: eventObj,
+      startDate: startObj,
+      endDate: endObj,
+      status: formData.get('status') as 'upcoming' | 'past',
+    };
+
+    if (editingSchedule) {
+      setSchedule(schedule.map(s => s.id === editingSchedule.id ? newEv : s));
+    } else {
+      setSchedule([...schedule, newEv]);
+    }
+    setIsTranslating(false);
+    setShowScheduleModal(false);
+    setEditingSchedule(null);
+  };
+
+  const handleSaveForm = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const newForm: DocumentForm = {
+      id: editingForm?.id || Date.now().toString(),
+      title: formData.get('title') as string,
+      url: formData.get('url') as string,
+      category: formData.get('category') as FormCategory,
+    };
+    if (editingForm) {
+      setForms(forms.map(f => f.id === editingForm.id ? newForm : f));
+    } else {
+      setForms([...forms, newForm]);
+    }
+    setShowFormModal(false);
+    setEditingForm(null);
+  };
 
   const scrollingIcons = [
     { icon: <Cpu size={24} />, label: 'Tech' },
@@ -192,18 +334,11 @@ const App: React.FC = () => {
         <div className="bg-video-wrap"><video autoPlay loop muted playsInline><source src="https://assets.mixkit.co/videos/preview/mixkit-business-people-working-in-a-busy-office-33824-large.mp4" type="video/mp4" /></video></div>
         <div className="video-overlay"></div>
         <div className="islamic-tech-watermark"></div>
-        
-        {/* --- Tech Meteor Shower (Vertical) - Layer 5 --- */}
         <TechMeteorShower />
-
-        {/* --- Modern Water Waves - Layer 10 --- */}
         <ModernWaves />
         
-        {/* --- Main Content - Layer 20 (Higher than waves and meteors) --- */}
         <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-6 py-4 reveal-anim pt-2 sm:pt-10">
           <div className="flex flex-col items-center space-y-4 sm:space-y-8">
-             
-             {/* University Identity Tag */}
              <div className="px-4 sm:px-8 py-2 sm:py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
                <div className="flex flex-row items-center gap-2 sm:gap-6 whitespace-nowrap overflow-hidden">
                  <span className="text-[8px] sm:text-xs font-bold uppercase text-white tracking-normal opacity-90">
@@ -216,14 +351,11 @@ const App: React.FC = () => {
                </div>
              </div>
 
-             {/* --- Center Modern WISE Identity --- */}
              <div className="relative flex flex-col items-center group text-center max-w-full">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[100px] w-60 h-60 sm:w-80 sm:h-80 bg-[#D4AF37] rounded-full"></div>
-                
                 <h2 className="relative text-6xl sm:text-[10rem] md:text-[11rem] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-[#D4AF37] leading-tight transition-all duration-700 group-hover:scale-105 drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)] select-none">
                   WISE
                 </h2>
-
                 <div className="relative flex flex-col items-center -mt-2 sm:-mt-8 space-y-2 px-4 w-full overflow-hidden">
                   <div className="h-px w-20 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent mb-1"></div>
                   <span className="text-white text-[9px] sm:text-xl md:text-2xl font-extrabold tracking-tight uppercase opacity-95 drop-shadow-lg leading-none whitespace-nowrap">
@@ -248,7 +380,6 @@ const App: React.FC = () => {
               </div>
               
               <div className="flex flex-col items-center space-y-6 sm:space-y-8">
-                {/* --- Adjusted Start Now Button (Slightly smaller) --- */}
                 <button 
                   onClick={() => setViewState('dashboard')}
                   className="group relative px-8 sm:px-16 py-3.5 sm:py-5 bg-white text-[#630330] rounded-full font-black uppercase text-sm sm:text-lg transition-all hover:translate-y-[-5px] active:scale-95 shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden"
@@ -263,11 +394,10 @@ const App: React.FC = () => {
                   <div className="absolute -inset-2 bg-white/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 </button>
 
-                {/* --- Modern Rectangular Admin Button --- */}
                 <button 
                   onClick={() => {
                     setLoginError(false);
-                    setShowAdminModal(true);
+                    setShowAdminLogin(true);
                   }}
                   className="admin-rect-btn group mt-2"
                   title="Admin Access"
@@ -282,7 +412,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Marquee Footer (Icons) */}
         <div className="w-full pb-8 sm:pb-20 mt-auto overflow-hidden opacity-30 z-10">
           <div className="animate-marquee whitespace-nowrap flex items-center gap-12 sm:gap-32">
             {[...scrollingIcons, ...scrollingIcons].map((item, idx) => (
@@ -296,18 +425,18 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {showAdminModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 backdrop-blur-3xl reveal-anim">
-            <div className="w-full max-w-[420px] flex flex-col items-center relative p-10 sm:p-14 rounded-[3rem] border border-white/10 bg-white/5 shadow-3xl">
-              <button onClick={() => setShowAdminModal(false)} className="absolute top-8 right-8 p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all">
-                <X size={26} />
+        {showAdminLogin && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-3xl reveal-anim overflow-y-auto">
+            <div className="w-full max-w-[420px] my-auto flex flex-col items-center relative p-8 sm:p-14 rounded-[2.5rem] sm:rounded-[3rem] border border-white/10 bg-white/5 shadow-3xl">
+              <button onClick={() => setShowAdminLogin(false)} className="absolute top-6 right-6 sm:top-8 sm:right-8 p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all">
+                <X size={24} />
               </button>
-              <div className="inline-flex p-7 rounded-[2rem] bg-[#D4AF37]/10 text-[#D4AF37] mb-8 shadow-[0_0_50px_rgba(212,175,55,0.2)]">
-                <Fingerprint size={52} className="animate-pulse" />
+              <div className="inline-flex p-6 sm:p-7 rounded-[1.5rem] sm:rounded-[2rem] bg-[#D4AF37]/10 text-[#D4AF37] mb-6 sm:mb-8 shadow-[0_0_50px_rgba(212,175,55,0.2)]">
+                <Fingerprint size={48} className="animate-pulse" />
               </div>
-              <h3 className="text-2xl font-bold text-white uppercase mb-1">Staff Terminal</h3>
-              <p className="text-[11px] text-[#D4AF37]/60 font-bold uppercase mb-10 text-center tracking-widest">Verification Sequence Initiated</p>
-              <form onSubmit={handleAdminLogin} className="w-full space-y-8">
+              <h3 className="text-xl sm:text-2xl font-bold text-white uppercase mb-1 text-center">เจ้าหน้าที่ (Staff Access)</h3>
+              <p className="text-[10px] sm:text-[11px] text-[#D4AF37]/60 font-bold uppercase mb-8 sm:mb-10 text-center tracking-widest">การตรวจสอบความปลอดภัย</p>
+              <form onSubmit={handleAdminLogin} className="w-full space-y-6 sm:space-y-8">
                 <div className="relative">
                   <input 
                     type="password" 
@@ -318,22 +447,20 @@ const App: React.FC = () => {
                       setAdminPassInput(e.target.value);
                       if (loginError) setLoginError(false);
                     }} 
-                    className={`w-full px-4 py-7 rounded-2xl bg-white/5 border-2 outline-none font-bold text-center text-6xl transition-all
+                    className={`w-full px-4 py-6 sm:py-7 rounded-2xl bg-white/5 border-2 outline-none font-bold text-center text-5xl sm:text-6xl transition-all
                       ${loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
                   />
                   {loginError && (
-                    <div className="absolute -bottom-8 left-0 right-0 flex items-center justify-center gap-2 text-rose-500 text-[11px] font-bold uppercase animate-bounce">
-                      <AlertCircle size={14} /> Unauthorized Access Denied
+                    <div className="absolute -bottom-6 left-0 right-0 flex items-center justify-center gap-2 text-rose-500 text-[10px] font-bold uppercase animate-bounce">
+                      <AlertCircle size={12} /> รหัสผ่านไม่ถูกต้อง
                     </div>
                   )}
                 </div>
-                
-                {/* --- Improved Verify & Login Button (Better UX/Touch Target) --- */}
                 <button 
                   type="submit" 
-                  className="w-full bg-[#630330] hover:bg-[#7a0b3d] text-white py-6 sm:py-8 rounded-2xl font-black uppercase text-base shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all active:scale-95 active:bg-[#4a0224] transform"
+                  className="w-full bg-[#630330] hover:bg-[#7a0b3d] text-white py-5 sm:py-7 rounded-2xl font-black uppercase text-sm sm:text-base shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all active:scale-[0.97] active:brightness-90 transform outline-none focus:ring-4 focus:ring-[#63033044]"
                 >
-                  Verify & Continue
+                  ยืนยันและดำเนินการต่อ
                 </button>
               </form>
             </div>
@@ -389,7 +516,8 @@ const App: React.FC = () => {
       </nav>
 
       <main className="container mx-auto px-4 py-8 sm:py-14 flex-grow space-y-16">
-        <section className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl p-8 sm:p-14 space-y-12">
+        {/* --- Sites Section --- */}
+        <section className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl p-8 sm:p-14 space-y-12 relative overflow-hidden">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
             <div className="flex items-center gap-6">
               <div className="p-5 bg-[#630330] text-white rounded-[1.5rem] shadow-2xl"><Database size={28} /></div>
@@ -398,25 +526,305 @@ const App: React.FC = () => {
                 <p className="text-[12px] font-bold text-slate-400 uppercase mt-1 tracking-normal">{currentT.title}</p>
               </div>
             </div>
+            
             <div className="flex flex-col sm:flex-row gap-5 flex-grow max-w-4xl">
-              <div className="relative flex-grow group">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#630330] transition-colors" size={20} />
-                <input type="text" placeholder="Search by organization or location..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-16 pr-8 py-5 rounded-[1.5rem] bg-slate-50 border-none text-sm font-bold focus:ring-4 focus:ring-[#63033011] transition-all shadow-sm tracking-normal" />
+              {role === UserRole.ADMIN && (
+                <button 
+                  onClick={() => { setEditingSite(null); setShowSiteModal(true); }}
+                  className="px-8 py-5 rounded-[1.5rem] bg-[#D4AF37] text-white font-black uppercase text-sm flex items-center justify-center gap-3 shadow-lg transform transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
+                >
+                  <Plus size={20} /> เพิ่มสถานประกอบการ
+                </button>
+              )}
+              
+              <div className="flex-grow flex items-center gap-3 bg-slate-50 p-2 rounded-[1.5rem] shadow-inner">
+                <button onClick={() => setActiveMajor('all')} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${activeMajor === 'all' ? 'bg-[#630330] text-white' : 'text-slate-400'}`}>ทุกสาขา</button>
+                <button onClick={() => setActiveMajor(Major.HALAL_FOOD)} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${activeMajor === Major.HALAL_FOOD ? 'bg-[#D4AF37] text-white' : 'text-slate-400'}`}>อาหารฮาลาล</button>
+                <button onClick={() => setActiveMajor(Major.DIGITAL_TECH)} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>ดิจิทัล</button>
               </div>
-              <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-[1.5rem]">
-                <button onClick={() => setStatusFilter('active')} className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${statusFilter === 'active' ? 'bg-[#630330] text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>Active</button>
-                <button onClick={() => setStatusFilter('archived')} className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${statusFilter === 'archived' ? 'bg-[#D4AF37] text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>History</button>
-                <button onClick={() => setStatusFilter('all')} className={`flex-1 sm:flex-none px-5 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${statusFilter === 'all' ? 'bg-slate-200 text-slate-600' : 'text-slate-400'}`}><Filter size={16} /></button>
+
+              <div className="relative flex-grow group max-w-md">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <input type="text" placeholder="ค้นหาชื่อหน่วยงาน..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-16 pr-8 py-5 rounded-[1.5rem] bg-slate-50 border-none text-sm font-bold focus:ring-4 focus:ring-[#63033011]" />
               </div>
             </div>
           </div>
+          
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8">
             {filteredSites.map(site => (
-              <InternshipCard key={site.id} site={site} lang={lang} />
+              <div key={site.id} className="relative group">
+                <InternshipCard site={site} lang={lang} />
+                {role === UserRole.ADMIN && (
+                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <button 
+                      onClick={() => { setEditingSite(site); setShowSiteModal(true); }}
+                      className="p-2.5 bg-white/90 backdrop-blur-md text-[#630330] rounded-xl shadow-lg hover:bg-[#630330] hover:text-white transition-all"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteSite(site.id)}
+                      className="p-2.5 bg-white/90 backdrop-blur-md text-rose-500 rounded-xl shadow-lg hover:bg-rose-500 hover:text-white transition-all"
+                    >
+                      <Trash size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </section>
+
+        {/* --- Schedule & Forms Section --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* Schedule */}
+          <div className="lg:col-span-7 space-y-8">
+            <div className="flex items-center justify-between px-4">
+              <div className="flex items-center gap-4">
+                <Navigation size={26} className="text-[#630330]" />
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-normal">{currentT.schedule}</h3>
+              </div>
+              {role === UserRole.ADMIN && (
+                <button 
+                  onClick={() => { setEditingSchedule(null); setShowScheduleModal(true); }}
+                  className="p-3 bg-[#D4AF37] text-white rounded-2xl hover:bg-[#b8952c] transition-all"
+                >
+                  <Plus size={20} />
+                </button>
+              )}
+            </div>
+            <div className="bg-white p-10 sm:p-14 rounded-[3.5rem] border border-slate-100 shadow-2xl space-y-10">
+              {schedule.map((ev, idx) => (
+                <div key={ev.id} className="flex gap-8 items-center group relative">
+                  <div className="w-14 h-14 rounded-2xl bg-[#630330] text-white flex items-center justify-center font-black text-xl shadow-xl">{idx + 1}</div>
+                  <div className="flex-grow p-8 rounded-[2.5rem] bg-slate-50 border border-transparent hover:border-[#D4AF37] hover:bg-white transition-all shadow-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">
+                        {getLocalized(ev.startDate)}
+                      </span>
+                      {getLocalized(ev.startDate) !== getLocalized(ev.endDate) && (
+                        <>
+                          <ArrowRight size={10} className="text-slate-300" />
+                          <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">
+                            {getLocalized(ev.endDate)}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <h4 className="text-xl font-bold text-slate-800">{getLocalized(ev.event)}</h4>
+                  </div>
+                  {role === UserRole.ADMIN && (
+                    <div className="flex flex-col gap-2 ml-4">
+                      <button onClick={() => { setEditingSchedule(ev); setShowScheduleModal(true); }} className="p-2 text-slate-400 hover:text-[#630330] transition-colors"><Pencil size={18} /></button>
+                      <button onClick={() => setSchedule(schedule.filter(s => s.id !== ev.id))} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash size={18} /></button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Forms */}
+          <div className="lg:col-span-5 space-y-8">
+             <div className="flex items-center justify-between px-4">
+               <div className="flex items-center gap-4">
+                 <ClipboardCheck size={26} className="text-[#D4AF37]" />
+                 <h3 className="text-2xl font-black text-slate-900 uppercase tracking-normal">{currentT.forms}</h3>
+               </div>
+               {role === UserRole.ADMIN && (
+                 <button 
+                   onClick={() => { setEditingForm(null); setShowFormModal(true); }}
+                   className="p-3 bg-[#630330] text-white rounded-2xl hover:bg-[#7a0b3d] transition-all"
+                 >
+                   <Plus size={20} />
+                 </button>
+               )}
+             </div>
+             <div className="space-y-8">
+                {/* Category: Application */}
+                <div className="bg-white p-10 rounded-[3rem] border-t-[10px] border-t-[#630330] shadow-2xl space-y-5">
+                  <span className="text-[12px] font-bold text-[#630330] uppercase tracking-normal">{currentT.appForms}</span>
+                  {forms.filter(f => f.category === FormCategory.APPLICATION).map(form => (
+                    <div key={form.id} className="flex items-center gap-3">
+                      <a href={form.url} target="_blank" rel="noopener noreferrer" className="flex-grow flex items-center justify-between p-5 bg-slate-50 rounded-2xl font-bold text-sm hover:bg-[#630330] hover:text-white transition-all shadow-sm">
+                        {form.title} <FileDown size={20}/>
+                      </a>
+                      {role === UserRole.ADMIN && (
+                        <div className="flex gap-1">
+                          <button onClick={() => { setEditingForm(form); setShowFormModal(true); }} className="p-3 text-slate-400 hover:text-[#630330]"><Pencil size={16}/></button>
+                          <button onClick={() => setForms(forms.filter(f => f.id !== form.id))} className="p-3 text-slate-400 hover:text-rose-500"><Trash size={16}/></button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {/* Category: Monitoring */}
+                <div className="bg-slate-900 p-10 rounded-[3rem] shadow-3xl space-y-5 relative overflow-hidden">
+                  <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">{currentT.monitoringForms}</span>
+                  {forms.filter(f => f.category === FormCategory.MONITORING).map(form => (
+                    <div key={form.id} className="flex items-center gap-3">
+                      <a href={form.url} target="_blank" rel="noopener noreferrer" className="flex-grow flex items-center justify-between p-5 bg-white/5 rounded-2xl font-bold text-sm text-white border border-white/5 hover:bg-[#D4AF37] hover:text-[#630330] transition-all shadow-sm">
+                        {form.title} <FileDown size={20}/>
+                      </a>
+                      {role === UserRole.ADMIN && (
+                        <div className="flex gap-1">
+                          <button onClick={() => { setEditingForm(form); setShowFormModal(true); }} className="p-3 text-white/30 hover:text-[#D4AF37]"><Pencil size={16}/></button>
+                          <button onClick={() => setForms(forms.filter(f => f.id !== form.id))} className="p-3 text-white/30 hover:text-rose-500"><Trash size={16}/></button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+             </div>
+          </div>
+        </div>
       </main>
+
+      {/* --- Management Modals --- */}
+      
+      {/* Site Management Modal */}
+      {showSiteModal && (
+        <div className="fixed inset-0 z-[110] flex items-start sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white w-full max-w-4xl rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-10 shadow-3xl animate-in zoom-in-95 duration-200 my-4 sm:my-8 max-h-[90vh] overflow-y-auto relative">
+            <div className="sticky top-0 bg-white z-20 pb-4 flex items-center justify-between border-b border-slate-100 mb-6 sm:mb-8">
+              <h3 className="text-xl sm:text-2xl font-black text-[#630330] uppercase tracking-normal">{editingSite ? 'แก้ไขข้อมูลหน่วยงาน' : 'เพิ่มสถานประกอบการใหม่'}</h3>
+              <button onClick={() => setShowSiteModal(false)} className="p-2 sm:p-3 rounded-full hover:bg-slate-100 transition-colors"><X /></button>
+            </div>
+            
+            {isTranslating && (
+              <div className="absolute inset-0 z-[30] bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-4">
+                <Loader2 size={40} className="text-[#630330] animate-spin" />
+                <div className="flex items-center gap-2 text-[#630330] font-black uppercase text-sm animate-pulse">
+                  <Sparkles size={16} /> กำลังแปลภาษาด้วย AI...
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveSite} className="space-y-8 sm:space-y-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10">
+                <div className="space-y-6">
+                  <span className="block text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">ข้อมูลทั่วไป (ภาษาไทย)</span>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase text-slate-400">ชื่อหน่วยงาน / องค์กร</label>
+                    <input name="name_th" defaultValue={editingSite?.name.th} required className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold focus:ring-2 focus:ring-[#D4AF37]" placeholder="ระบุชื่อบริษัทหรือหน่วยงาน" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase text-slate-400">สถานที่ตั้ง</label>
+                    <input name="loc_th" defaultValue={editingSite?.location.th} required className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold focus:ring-2 focus:ring-[#D4AF37]" placeholder="ระบุจังหวัด หรือที่อยู่เบื้องต้น" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase text-slate-400">รายละเอียดงาน/สวัสดิการ</label>
+                    <textarea name="desc_th" defaultValue={editingSite?.description.th} required className="w-full h-32 px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" placeholder="ระบุรายละเอียดการฝึกงานเบื้องต้น" />
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <span className="block text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">การตั้งค่าสาขาวิชาและสถานะ</span>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase text-slate-400">เลือกสาขาวิชา</label>
+                    <select name="major" defaultValue={editingSite?.major} className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold">
+                      <option value={Major.HALAL_FOOD}>วิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาล</option>
+                      <option value={Major.DIGITAL_TECH}>เทคโนโลยีและวิทยาการดิจิทัล</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase text-slate-400">สถานะการเปิดรับ</label>
+                    <select name="status" defaultValue={editingSite?.status} className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold">
+                      <option value="active">กำลังเปิดรับสมัคร</option>
+                      <option value="archived">ประวัติการฝึกงาน</option>
+                    </select>
+                  </div>
+                  <div className="space-y-4 pt-4 border-t border-slate-100">
+                    <input name="url" defaultValue={editingSite?.contactLink} placeholder="ลิงก์เว็บไซต์ (https://...)" className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" />
+                    <input name="email" defaultValue={editingSite?.email} placeholder="อีเมลติดต่อ" className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" />
+                    <input name="phone" defaultValue={editingSite?.phone} placeholder="เบอร์โทรศัพท์" className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 pt-6 border-t border-slate-100">
+                <button type="button" onClick={() => setShowSiteModal(false)} className="order-2 sm:order-1 px-8 py-4 rounded-xl font-bold text-slate-400 uppercase text-xs hover:bg-slate-50 transition-colors">ยกเลิก</button>
+                <button type="submit" disabled={isTranslating} className="order-1 sm:order-2 px-12 py-4 rounded-xl bg-[#630330] text-white font-black uppercase text-xs shadow-xl flex items-center justify-center gap-2 hover:bg-[#7a0b3d] active:scale-[0.97] transition-all disabled:opacity-50">
+                  <Save size={16} /> บันทึกและแปลภาษาอัตโนมัติ
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Management Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white w-full max-w-xl rounded-[2rem] p-8 shadow-3xl my-auto animate-in zoom-in-95 duration-200 relative">
+            {isTranslating && (
+              <div className="absolute inset-0 z-[30] bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-4 rounded-[2rem]">
+                <Loader2 size={30} className="text-[#630330] animate-spin" />
+                <span className="text-[#630330] font-bold text-xs animate-pulse">กำลังประมวลผลกำหนดการ...</span>
+              </div>
+            )}
+            <div className="flex items-center gap-3 mb-6">
+               <Calendar size={24} className="text-[#D4AF37]" />
+               <h3 className="text-xl font-black text-[#630330] uppercase">{editingSchedule ? 'แก้ไขกำหนดการ' : 'เพิ่มกำหนดการใหม่'}</h3>
+            </div>
+            
+            <form onSubmit={handleSaveSchedule} className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-2 tracking-widest">หัวข้อกิจกรรม</label>
+                  <input name="event_th" defaultValue={editingSchedule?.event.th} required placeholder="ระบุหัวข้อกิจกรรม" className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all" />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase text-slate-400 ml-2 tracking-widest">วันที่เริ่ม</label>
+                    <input type="date" name="start_date" required className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase text-slate-400 ml-2 tracking-widest">วันที่สิ้นสุด</label>
+                    <input type="date" name="end_date" required className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase text-slate-400 ml-2 tracking-widest">สถานะปัจจุบัน</label>
+                  <select name="status" defaultValue={editingSchedule?.status} className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all">
+                    <option value="upcoming">รอการดำเนินการ (Upcoming)</option>
+                    <option value="past">ดำเนินการเสร็จสิ้น (Past)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-4 pt-4 border-t border-slate-50">
+                <button type="button" onClick={() => setShowScheduleModal(false)} className="text-slate-400 font-bold uppercase text-xs px-4 py-2">ยกเลิก</button>
+                <button type="submit" disabled={isTranslating} className="px-10 py-4 bg-[#630330] text-white rounded-xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all disabled:opacity-50">บันทึกกำหนดการ</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Form Management Modal */}
+      {showFormModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white w-full max-w-xl rounded-[2rem] p-8 shadow-3xl my-auto animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-black text-[#630330] uppercase mb-6">{editingForm ? 'แก้ไขไฟล์เอกสาร' : 'เพิ่มเอกสารใหม่'}</h3>
+            <form onSubmit={handleSaveForm} className="space-y-6">
+              <div className="space-y-4">
+                <input name="title" defaultValue={editingForm?.title} required placeholder="ชื่อเอกสาร" className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold" />
+                <input name="url" defaultValue={editingForm?.url} required placeholder="ลิงก์ไฟล์ (Google Drive, etc.)" className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold" />
+                <select name="category" defaultValue={editingForm?.category} className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold">
+                  <option value={FormCategory.APPLICATION}>เอกสารประกอบการสมัคร</option>
+                  <option value={FormCategory.MONITORING}>เอกสารระหว่างการฝึกงาน</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-4 pt-2">
+                <button type="button" onClick={() => setShowFormModal(false)} className="text-slate-400 font-bold uppercase text-xs px-4 py-2">ยกเลิก</button>
+                <button type="submit" className="px-10 py-4 bg-[#630330] text-white rounded-xl font-black uppercase text-xs shadow-lg">บันทึกข้อมูล</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <footer className="py-24 bg-white border-t border-slate-100 mt-24">
         <div className="container mx-auto px-6 text-center">

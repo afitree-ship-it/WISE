@@ -14,8 +14,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     logout: "ออกจากระบบ",
     internshipSites: "ฐานข้อมูลสถานประกอบการ",
     forms: "ศูนย์บริการเอกสารอิเล็กทรอนิกส์",
-    halalMajor: "วิชาเอกอุตสาหกรรมฮาลาล",
-    digitalMajor: "วิชาเอกเทคโนโลยีดิจิทัล",
+    halalMajor: "วิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาล",
+    digitalMajor: "เทคโนโลยีและวิทยาการดิจิทัล",
     activeSites: "กำลังเปิดรับสมัคร",
     pastSites: "ประวัติการฝึกงาน",
     download: "ดาวน์โหลดเอกสาร",
@@ -54,8 +54,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     logout: "Sign Out",
     internshipSites: "Placement Database",
     forms: "Document Resource Center",
-    halalMajor: "Halal Science & Industry",
-    digitalMajor: "Digital Technology",
+    halalMajor: "Research and Development of Halal Food Product",
+    digitalMajor: "Technology and Digital Science",
     activeSites: "Active Vacancies",
     pastSites: "Placement Records",
     download: "Download",
@@ -94,8 +94,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     logout: "تسجيل الخروج",
     internshipSites: "قاعدة بيانات جهات التدريب",
     forms: "مركز النماذج والوثائق",
-    halalMajor: "علوم وصناعة الحلال",
-    digitalMajor: "التكنولوجيا الرقمية",
+    halalMajor: "البحث والتطوير لمنتجات الأغذية الحلال",
+    digitalMajor: "التكنولوجيا والعلوم الرقمية",
     activeSites: "الفرص المتاحة حالياً",
     pastSites: "سجلات التدريب السابقة",
     download: "تحميل",
@@ -129,13 +129,13 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     loginStudent: "Akses Pelajar",
     loginAdmin: "Terminal Pentadbiran",
     studentIdPlaceholder: "Nombor Matrik Pelajar",
-    adminPasswordPlaceholder: "Kata Laluan Pentadbir",
+    adminPasswordPlaceholder: "Kata Lalu Pentadbir",
     loginButton: "Log Masuk",
     logout: "Log Keluar",
     internshipSites: "Pangkalan Data Latihan Industri",
     forms: "Pusat Sumber Dokumen",
-    halalMajor: "Sains & Industri Halal",
-    digitalMajor: "Teknologi Digital",
+    halalMajor: "Penyelidikan dan Pembangunan Produk Makanan Halal",
+    digitalMajor: "Teknologi dan Sains Digital",
     activeSites: "Pengambilan Terbuka",
     pastSites: "Rekod Penempatan",
     download: "Muat Turun",
@@ -167,77 +167,21 @@ export const TRANSLATIONS: Record<Language, Translation> = {
 export const INITIAL_SITES: InternshipSite[] = [
   {
     id: '1',
-    name: {
-      th: 'บริษัท ซีพี ออลล์ จำกัด (มหาชน)',
-      en: 'CP ALL Public Company Limited',
-      ar: 'شركة سي بي أول المحدودة العامة',
-      ms: 'CP ALL Syarikat Awam Berhad'
-    },
-    location: {
-      th: 'กรุงเทพมหานคร, ประเทศไทย',
-      en: 'Bangkok, Thailand',
-      ar: 'بانكوك، تايلاند',
-      ms: 'Bangkok, Thailand'
-    },
-    description: {
-      th: 'ศึกษาและฝึกงานด้านมาตรฐานความปลอดภัยอาหารฮาลาลและระบบโลจิสติกส์ในร้านสะดวกซื้อระดับประเทศ',
-      en: 'Professional training in Halal food safety standards and nationwide retail logistics operations.',
-      ar: 'تدريب مهني في معايير سلامة الأغذية الحلال وعمليات الخدمات اللوجستية للبيع بالتجزئة على مستوى البلاد.',
-      ms: 'Latihan profesional dalam piawaian keselamatan makanan Halal dan operasi logistik runcit di seluruh negara.'
-    },
+    name: { th: 'บริษัท ซีพี ออลล์ จำกัด (มหาชน)', en: 'CP ALL PLC', ar: 'سي بي أول', ms: 'CP ALL' },
+    location: { th: 'กรุงเทพมหานคร', en: 'Bangkok', ar: 'بانكوك', ms: 'Bangkok' },
+    description: { th: 'ฝึกงานด้านมาตรฐานอาหารฮาลาลและโลจิสติกส์', en: 'Halal safety & logistics', ar: 'لوجستيات الحلال', ms: 'Logistik Halal' },
     status: 'active',
     major: Major.HALAL_FOOD,
     contactLink: 'https://www.cpall.co.th/',
-    email: 'contact@cpall.co.th',
-    phone: '02-071-9000'
-  },
-  {
-    id: '2',
-    name: {
-      th: 'ศูนย์วิทยาศาสตร์ฮาลาล จุฬาลงกรณ์มหาวิทยาลัย',
-      en: 'The Halal Science Center, Chulalongkorn University',
-      ar: 'مركز علوم الحلال بجامعة شولالونغكورน',
-      ms: 'Pusat Sains Halal, Universiti Chulalongkorn'
-    },
-    location: {
-      th: 'กรุงเทพมหานคร, ประเทศไทย',
-      en: 'Bangkok, Thailand',
-      ar: 'بانكوك، تايلاند',
-      ms: 'Bangkok, Thailand'
-    },
-    description: {
-      th: 'วิจัยและทดสอบทางวิทยาศาสตร์ฮาลาลในห้องปฏิบัติการที่ทันสมัย เพื่อการคุ้มครองผู้บริโภคในระดับสากล',
-      en: 'Advanced Halal science research and laboratory testing for global consumer protection standards.',
-      ar: 'أبحاث متقدمة في علوم الحلال واختبارات معملية لمعايير حماية المستهلك العالمية.',
-      ms: 'Penyelidikan sains Halal termaju และ ujian makmal untuk piawaian perlindungan pengguna global.'
-    },
-    status: 'archived',
-    major: Major.HALAL_FOOD,
-    email: 'hsc@chula.ac.th'
+    email: 'contact@cpall.co.th'
   },
   {
     id: '3',
-    name: {
-      th: 'บริษัท การีนา ออนไลน์ (ประเทศไทย) จำกัด',
-      en: 'Garena Online (Thailand) Co., Ltd.',
-      ar: 'شركة غاريนา أونلاين (تايلاند) المحدودة',
-      ms: 'Garena Online (Thailand) Co., Ltd.'
-    },
-    location: {
-      th: 'กรุงเทพมหานคร, ประเทศไทย',
-      en: 'Bangkok, Thailand',
-      ar: 'بانكوك، تايلاند',
-      ms: 'Bangkok, Thailand'
-    },
-    description: {
-      th: 'พัฒนาซอฟต์แวร์ เกม และแพลตฟอร์มอีสปอร์ตระดับสากล สำหรับนักศึกษาเทคโนโลยีดิจิทัล',
-      en: 'Software engineering, game development, and international e-sports platform operations for digital students.',
-      ar: 'هندسة البرمجيات وتطوير الألعاب وعمليات منصات الرياضات الإلكترونية الدولية لطلاب التكنولوجيا الرقمية.',
-      ms: 'Kejuruteraan perisian, pembangunan permainan,และ operasi platform e-sukan antarabangsa untuk pelajar teknologi digital.'
-    },
+    name: { th: 'บริษัท การีนา ออนไลน์ (ประเทศไทย) จำกัด', en: 'Garena Online', ar: 'غارينا', ms: 'Garena' },
+    location: { th: 'กรุงเทพมหานคร', en: 'Bangkok', ar: 'بانكوك', ms: 'Bangkok' },
+    description: { th: 'พัฒนาซอฟต์แวร์และแพลตฟอร์มอีสปอร์ต', en: 'Software & E-sports', ar: 'هندسة البرمجيات', ms: 'Kejuruteraan Perisian' },
     status: 'active',
     major: Major.DIGITAL_TECH,
-    phone: '02-118-9191',
     contactLink: 'https://www.garena.co.th/'
   }
 ];
@@ -245,57 +189,13 @@ export const INITIAL_SITES: InternshipSite[] = [
 export const INITIAL_SCHEDULE: ScheduleEvent[] = [
   { 
     id: 's1', 
-    event: {
-      th: 'ปฐมนิเทศนักศึกษาก่อนฝึกงาน',
-      en: 'Pre-Internship Orientation Session',
-      ar: 'جلسة توจيه الطلاب قبل التدريب',
-      ms: 'Sesi Orientasi Pra-Latihan Industri'
-    }, 
-    date: {
-      th: 'มิถุนายน 2567',
-      en: 'June 2024',
-      ar: 'يونيو ٢٠٢٤',
-      ms: 'Jun 2024'
-    }, 
-    status: 'upcoming' 
-  },
-  { 
-    id: 's2', 
-    event: {
-      th: 'ยื่นเอกสารสมัครสถานประกอบการ',
-      en: 'Placement Application Submission',
-      ar: 'تقديم طلبات الالتحاق بجهات التدريب',
-      ms: 'Penyerahan Dokumen Permohonan Penempatan'
-    }, 
-    date: {
-      th: 'กรกฎาคม 2567',
-      en: 'July 2024',
-      ar: 'ยوليو ٢٠٢٤',
-      ms: 'Jul 2024'
-    }, 
-    status: 'upcoming' 
-  },
-  { 
-    id: 's3', 
-    event: {
-      th: 'เริ่มการฝึกประสบการณ์',
-      en: 'Commencement of Practical Training',
-      ar: 'بدء التدريب มيداني الفعلي',
-      ms: 'Permulaan Latihan Industri Secara Rasmi'
-    }, 
-    date: {
-      th: 'สิงหาคม 2567',
-      en: 'August 2024',
-      ar: 'أغسطس ٢٠٢٤',
-      ms: 'Ogos 2024'
-    }, 
+    event: { th: 'ปฐมนิเทศนักศึกษา', en: 'Orientation', ar: 'توجيه', ms: 'Orientasi' }, 
+    startDate: { th: 'มิถุนายน 2567', en: 'June 2024', ar: 'يونيو 2024', ms: 'Jun 2024' }, 
+    endDate: { th: 'มิถุนายน 2567', en: 'June 2024', ar: 'يونيو 2024', ms: 'Jun 2024' }, 
     status: 'upcoming' 
   },
 ];
 
 export const INITIAL_FORMS: DocumentForm[] = [
-  { id: 'f1', title: 'แบบขออนุมัติฝึกงาน (วบง.01)', category: FormCategory.APPLICATION, url: '#' },
-  { id: 'f2', title: 'หนังสือส่งตัวนักศึกษา', category: FormCategory.APPLICATION, url: '#' },
-  { id: 'f3', title: 'บันทึกการปฏิบัติงานรายสัปดาห์', category: FormCategory.MONITORING, url: '#' },
-  { id: 'f4', title: 'แบบประเมินผลโดยสถานประกอบการ', category: FormCategory.MONITORING, url: '#' },
+  { id: 'f1', title: 'แบบขออนุมัติฝึกงาน (วบง.01)', category: FormCategory.APPLICATION, url: 'https://google.com' },
 ];
