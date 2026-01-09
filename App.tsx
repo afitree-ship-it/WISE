@@ -133,97 +133,98 @@ const App: React.FC = () => {
           <div className="tech-wave tech-wave-1 opacity-20"></div>
           <div className="tech-wave tech-wave-2 opacity-10"></div>
         </div>
-
-        {/* --- Top Left Chic WISE Logo --- */}
-        <header className="absolute top-0 left-0 w-full z-50 px-6 py-6 sm:px-10 sm:py-8 flex items-center justify-between">
-          <div className="flex items-center gap-4 group cursor-default">
-            <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-white/10 backdrop-blur-xl rounded-[1.25rem] flex items-center justify-center border border-white/20 shadow-2xl transition-all duration-500 group-hover:bg-[#D4AF37]/20 group-hover:border-[#D4AF37]/50 group-hover:rotate-[10deg]">
-              <Binary size={24} className="text-[#D4AF37] sm:w-7 sm:h-7" />
-              <div className="absolute -top-2 -right-2">
-                <Sparkles size={16} className="text-white animate-pulse" />
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-2xl sm:text-3xl font-black text-white leading-none tracking-normal">WISE</span>
-              <span className="text-[9px] sm:text-[10px] font-bold text-[#D4AF37] uppercase leading-none mt-1 opacity-70">Work Integrated</span>
-            </div>
-          </div>
-        </header>
         
-        <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-10 px-6 py-10 space-y-12 reveal-anim pt-28 sm:pt-36">
+        <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-10 px-6 py-10 reveal-anim pt-10 sm:pt-20">
           <div className="flex flex-col items-center space-y-12">
              
-             {/* --- Center Modern WISE Identity (Text Only) --- */}
-             <div className="relative flex flex-col items-center group">
+             {/* --- Center Modern WISE Identity (Organized Layout) --- */}
+             <div className="relative flex flex-col items-center group text-center max-w-full">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[100px] w-80 h-80 bg-[#D4AF37] rounded-full"></div>
-                <h2 className="relative text-7xl sm:text-[10rem] md:text-[12rem] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-[#D4AF37] leading-none transition-all duration-700 group-hover:scale-105 drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)]">
+                
+                {/* Main Heading WISE */}
+                <h2 className="relative text-7xl sm:text-[10rem] md:text-[11rem] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-[#D4AF37] leading-tight transition-all duration-700 group-hover:scale-105 drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)] select-none">
                   WISE
                 </h2>
+
+                {/* Subtitles Container - Strict 1 Row per language */}
+                <div className="relative flex flex-col items-center -mt-4 sm:-mt-8 space-y-2 px-4 w-full overflow-hidden">
+                  <div className="h-px w-20 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent mb-1"></div>
+                  
+                  <span className="text-white text-[10px] sm:text-xl md:text-2xl font-extrabold tracking-tight uppercase opacity-95 drop-shadow-lg leading-none whitespace-nowrap">
+                    Work-Integrated Science Education Unit
+                  </span>
+                  
+                  <span className="text-[#D4AF37] text-[9px] sm:text-base md:text-lg font-semibold opacity-90 drop-shadow-md leading-none whitespace-nowrap">
+                    หน่วยจัดการศึกษาวิทยาศาสตร์บูรณาการกับการทำงาน
+                  </span>
+
+                  <div className="h-px w-14 bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent mt-1"></div>
+                </div>
              </div>
 
-             <div className="px-8 py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl">
+             {/* University Identity Tag */}
+             <div className="px-8 py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-transform">
                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-6">
-                 <span className="text-xs font-bold uppercase text-white tracking-normal">
+                 <span className="text-[10px] sm:text-xs font-bold uppercase text-white tracking-widest opacity-90">
                    {lang === Language.TH ? "คณะวิทยาศาสตร์และเทคโนโลยี" : (lang === Language.AR ? "كلية العلوم والتكنولوجيا" : "Faculty of Science and Technology")}
                  </span>
                  <div className="hidden sm:block w-2 h-2 bg-[#D4AF37] rounded-full opacity-40"></div>
-                 <span className="text-xs font-bold uppercase text-[#D4AF37] tracking-normal">
+                 <span className="text-[10px] sm:text-xs font-bold uppercase text-[#D4AF37] tracking-widest">
                    {lang === Language.TH ? "มหาวิทยาลัยฟาฏอนี" : (lang === Language.AR ? "جامعة فطاني" : "Fatoni University")}
                  </span>
                </div>
              </div>
           </div>
 
-          <div className="space-y-4 text-center">
-            <h2 className="text-white/40 font-bold text-[11px] uppercase tracking-normal">
-              {currentT.title}
-            </h2>
-            <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold text-white leading-[1.2] drop-shadow-lg px-2">
+          <div className="mt-16 space-y-10 text-center w-full">
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90">
               {currentT.landingHeading}
             </h1>
-          </div>
 
-          <div className="flex flex-col items-center w-full gap-10">
-            <div className="transform transition-all duration-500">
-              <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} />
-            </div>
-            <div className="flex flex-col items-center space-y-8">
-              <button 
-                onClick={() => setViewState('dashboard')}
-                className="start-btn-glow group relative px-16 sm:px-28 py-6 bg-white text-[#630330] rounded-full font-bold uppercase text-lg sm:text-xl transition-all hover:translate-y-[-5px] active:scale-95 shadow-[0_30px_70px_rgba(0,0,0,0.5)] overflow-hidden"
-              >
-                <span className="relative z-10 flex items-center gap-4 sm:gap-6">
-                  {currentT.startNow} 
-                  <ChevronRight size={24} className={`${isRtl ? 'rotate-180' : ''} group-hover:translate-x-2 transition-transform duration-500`} />
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-100 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-              </button>
+            <div className="flex flex-col items-center w-full gap-12">
+              <div className="transform transition-all duration-500 hover:scale-105">
+                <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} />
+              </div>
+              
+              <div className="flex flex-col items-center space-y-8">
+                <button 
+                  onClick={() => setViewState('dashboard')}
+                  className="start-btn-glow group relative px-16 sm:px-28 py-6 bg-white text-[#630330] rounded-full font-black uppercase text-lg sm:text-xl transition-all hover:translate-y-[-5px] active:scale-95 shadow-[0_30px_70px_rgba(0,0,0,0.5)] overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center gap-4 sm:gap-6">
+                    {currentT.startNow} 
+                    <ChevronRight size={24} className={`${isRtl ? 'rotate-180' : ''} group-hover:translate-x-2 transition-transform duration-500`} />
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-100 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                </button>
 
-              <button 
-                onClick={() => {
-                  setLoginError(false);
-                  setShowAdminModal(true);
-                }}
-                className="hexagon-outline group"
-                title="Admin Access"
-              >
-                <div className="flex flex-col items-center">
-                  <LockKeyhole size={20} className="text-[#D4AF37]/70 group-hover:text-[#D4AF37] transition-colors duration-500" />
-                  <span className="text-[9px] font-bold uppercase text-[#D4AF37]/50 group-hover:text-[#D4AF37] mt-1">Admin</span>
-                </div>
-              </button>
+                <button 
+                  onClick={() => {
+                    setLoginError(false);
+                    setShowAdminModal(true);
+                  }}
+                  className="hexagon-outline group"
+                  title="Admin Access"
+                >
+                  <div className="flex flex-col items-center">
+                    <LockKeyhole size={20} className="text-[#D4AF37]/70 group-hover:text-[#D4AF37] transition-colors duration-500" />
+                    <span className="text-[9px] font-bold uppercase text-[#D4AF37]/50 group-hover:text-[#D4AF37] mt-1">Admin</span>
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="w-full pb-10 sm:pb-16 pt-4 overflow-hidden opacity-30 z-10">
+        {/* Marquee Footer */}
+        <div className="w-full pb-10 sm:pb-16 mt-auto overflow-hidden opacity-30 z-10">
           <div className="animate-marquee whitespace-nowrap flex items-center gap-16 sm:gap-32">
             {[...scrollingIcons, ...scrollingIcons].map((item, idx) => (
               <div key={idx} className="flex flex-col items-center gap-3 text-[#D4AF37]">
                 <div className="p-5 rounded-[2rem] glass-polish border border-white/5 shadow-xl">
                   {item.icon}
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-normal">{item.label}</span>
+                <span className="text-[11px] font-bold uppercase tracking-widest">{item.label}</span>
               </div>
             ))}
           </div>
