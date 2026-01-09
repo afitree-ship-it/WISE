@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Language, 
@@ -43,6 +42,52 @@ import {
   ChevronDown,
   Sparkles
 } from 'lucide-react';
+
+const ModernWaves: React.FC = () => {
+  return (
+    <div className="waves-container">
+      {/* --- Background Thin Line 1 (Slowest & Most Subtle) --- */}
+      <div className="wave-layer animate-wave-slow bob-slow opacity-20">
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
+          <path className="wave-line" stroke="#D4AF37" d="M0,160 C320,300 420,10 720,160 C1020,310 1120,20 1440,160"></path>
+          <path className="wave-line" stroke="#D4AF37" d="M1440,160 C1760,300 1860,10 2160,160 C2460,310 2560,20 2880,160"></path>
+        </svg>
+      </div>
+
+      {/* --- Background Thin Line 2 (Mid Speed) --- */}
+      <div className="wave-layer animate-wave-mid bob-mid opacity-10">
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
+          <path className="wave-line" stroke="#FFFFFF" d="M0,192 C240,120 480,240 720,192 C960,144 1200,240 1440,192"></path>
+          <path className="wave-line" stroke="#FFFFFF" d="M1440,192 C1680,120 1920,240 2160,192 C2400,144 2640,240 2880,192"></path>
+        </svg>
+      </div>
+
+      {/* Deepest Main Layer - Mangosteen Bright */}
+      <div className="wave-layer animate-wave-slow bob-slow opacity-30">
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
+          <path fill="#7A0B3D" fillOpacity="1" d="M0,160L48,176C96,192,192,224,288,224C384,224,480,192,576,165.3C672,139,768,117,864,138.7C960,160,1056,224,1152,245.3C1248,267,1344,245,1392,234.7L1440,224V320H0Z"></path>
+          <path fill="#7A0B3D" fillOpacity="1" d="M1440,160L1488,176C1536,192,1632,224,1728,224C1824,224,1920,192,2016,165.3C2112,139,2208,117,2304,138.7C2400,160,2496,224,2592,245.3C2688,267,2784,245,2832,234.7L2880,224V320H1440Z"></path>
+        </svg>
+      </div>
+
+      {/* Mid Main Layer - Gold Accent */}
+      <div className="wave-layer animate-wave-mid bob-mid opacity-20" style={{ marginBottom: '5px' }}>
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
+          <path fill="#D4AF37" fillOpacity="1" d="M0,224L60,202.7C120,181,240,139,360,144C480,149,600,203,720,202.7C840,203,960,149,1080,128C1200,107,1320,117,1380,122.7L1440,128V320H0Z"></path>
+          <path fill="#D4AF37" fillOpacity="1" d="M1440,224L1500,202.7C1560,181,1680,139,1800,144C1920,149,2040,203,2160,202.7C2280,203,2400,149,2520,128C2640,107,2760,117,2820,122.7L2880,128V320H1440Z"></path>
+        </svg>
+      </div>
+
+      {/* Top Main Layer - Mangosteen Base */}
+      <div className="wave-layer animate-wave-fast bob-fast opacity-40">
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
+          <path fill="#630330" fillOpacity="1" d="M0,288L48,272C96,256,192,224,288,197.3C384,171,480,149,576,165.3C672,181,768,235,864,250.7C960,267,1056,245,1152,208C1248,171,1344,117,1392,90.7L1440,64V320H0Z"></path>
+          <path fill="#630330" fillOpacity="1" d="M1440,288L1488,272C1536,256,1632,224,1728,197.3C1824,171,1920,149,2016,165.3C2112,181,2208,235,2304,250.7C2400,267,2496,245,2592,208C2688,171,2784,117,2832,90.7L2880,64V320H1440Z"></path>
+        </svg>
+      </div>
+    </div>
+  );
+};
 
 const App: React.FC = () => {
   const [lang, setLang] = useState<Language>(() => {
@@ -129,22 +174,20 @@ const App: React.FC = () => {
         <div className="video-overlay"></div>
         <div className="islamic-tech-watermark"></div>
         
-        <div className="tech-waves-container">
-          <div className="tech-wave tech-wave-1 opacity-20"></div>
-          <div className="tech-wave tech-wave-2 opacity-10"></div>
-        </div>
+        {/* --- Modern Water Waves with Vertical Motion --- */}
+        <ModernWaves />
         
         <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-10 px-6 py-10 reveal-anim pt-10 sm:pt-20">
-          <div className="flex flex-col items-center space-y-6 sm:space-y-12">
+          <div className="flex flex-col items-center space-y-8 sm:space-y-12">
              
-             {/* University Identity Tag (Moved to Top) */}
-             <div className="px-6 sm:px-8 py-2.5 sm:py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
+             {/* University Identity Tag - Optimized for 1 row on mobile */}
+             <div className="px-4 sm:px-8 py-2 sm:py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
                <div className="flex flex-row items-center gap-2 sm:gap-6 whitespace-nowrap overflow-hidden">
-                 <span className="text-[8.5px] sm:text-xs font-bold uppercase text-white tracking-normal sm:tracking-widest opacity-90">
+                 <span className="text-[8px] sm:text-xs font-bold uppercase text-white tracking-normal opacity-90">
                    {lang === Language.TH ? "คณะวิทยาศาสตร์และเทคโนโลยี" : (lang === Language.AR ? "كلية العلوم والتكنولوجيا" : "Faculty of Science and Technology")}
                  </span>
                  <div className="w-1 h-1 sm:w-2 sm:h-2 bg-[#D4AF37] rounded-full opacity-40"></div>
-                 <span className="text-[8.5px] sm:text-xs font-bold uppercase text-[#D4AF37] tracking-normal sm:tracking-widest">
+                 <span className="text-[8px] sm:text-xs font-bold uppercase text-[#D4AF37] tracking-normal">
                    {lang === Language.TH ? "มหาวิทยาลัยฟาฏอนี" : (lang === Language.AR ? "جامعة فطاني" : "Fatoni University")}
                  </span>
                </div>
@@ -159,7 +202,7 @@ const App: React.FC = () => {
                   WISE
                 </h2>
 
-                {/* Subtitles Container - Strict 1 Row per language */}
+                {/* Subtitles Container */}
                 <div className="relative flex flex-col items-center -mt-4 sm:-mt-8 space-y-2 px-4 w-full overflow-hidden">
                   <div className="h-px w-20 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent mb-1"></div>
                   

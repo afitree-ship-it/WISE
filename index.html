@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -20,11 +19,6 @@
       background-color: #ffffff;
       color: #1a1a1a;
       line-height: 1.5;
-      letter-spacing: normal !important;
-    }
-
-    .tracking-widest, .tracking-wider, .tracking-wide, .tracking-normal, .tracking-tight, .tracking-tighter {
-      letter-spacing: normal !important;
     }
 
     .luxe-mangosteen-bg {
@@ -66,31 +60,65 @@
       mix-blend-mode: overlay;
     }
 
-    .tech-waves-container {
+    /* --- Modern Wave Animation System --- */
+    .waves-container {
       position: absolute;
       bottom: 0;
+      left: 0;
       width: 100%;
-      height: 350px;
+      height: 140px;
       z-index: 2;
       pointer-events: none;
-      mask-image: linear-gradient(to top, black 30%, transparent 100%);
+      overflow: hidden;
+    }
+    
+    @media (min-width: 640px) {
+      .waves-container { height: 220px; }
     }
 
-    .tech-wave {
+    .wave-layer {
       position: absolute;
-      bottom: 0;
-      width: 200%; 
+      bottom: -2px;
+      left: 0;
+      width: 200%;
       height: 100%;
       background-repeat: repeat-x;
-      background-size: 1000px 300px;
-      animation: fluid-flow 25s linear infinite;
+      transform: translate3d(0, 0, 0);
     }
 
-    @keyframes fluid-flow {
-      from { transform: translateX(0); }
-      to { transform: translateX(-50%); }
+    .wave-svg {
+      width: 100%;
+      height: 100%;
     }
 
+    /* Horizontal Movement */
+    .animate-wave-slow { animation: move-wave 30s linear infinite; }
+    .animate-wave-mid { animation: move-wave 20s linear infinite; }
+    .animate-wave-fast { animation: move-wave 14s linear infinite; }
+
+    /* Vertical Bobbing (Up and Down) */
+    .bob-slow { animation: bob-y 8s ease-in-out infinite; }
+    .bob-mid { animation: bob-y 6s ease-in-out infinite; }
+    .bob-fast { animation: bob-y 4s ease-in-out infinite; }
+
+    @keyframes move-wave {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    @keyframes bob-y {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(12px); }
+    }
+
+    /* Small Thin Lines Style */
+    .wave-line {
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+    }
+
+    /* --- Utilities --- */
     @keyframes marquee {
       0% { transform: translateX(0); }
       100% { transform: translateX(-50%); }
@@ -163,19 +191,18 @@
 <script type="importmap">
 {
   "imports": {
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
 <body class="text-slate-800 min-h-screen">
   <div id="root"></div>
-  <!-- Add main entry point for build tools -->
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
