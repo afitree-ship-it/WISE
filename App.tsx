@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Language, 
   UserRole, 
@@ -40,13 +41,41 @@ import {
   Atom, 
   AlertCircle, 
   ChevronDown,
-  Sparkles
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
+
+const TechMeteorShower: React.FC = () => {
+  // สร้างดาวตก 20 เส้นเพื่อให้ดูมีความเป็น Data flow มากขึ้น
+  const meteors = useMemo(() => {
+    return Array.from({ length: 20 }).map((_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 8}s`,
+      duration: `${2 + Math.random() * 3}s`,
+    }));
+  }, []);
+
+  return (
+    <div className="meteor-container">
+      {meteors.map((m) => (
+        <div 
+          key={m.id} 
+          className="tech-meteor"
+          style={{
+            left: m.left,
+            animation: `tech-shoot-up ${m.duration} ease-out ${m.delay} infinite`,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
 
 const ModernWaves: React.FC = () => {
   return (
     <div className="waves-container">
-      {/* --- Background Thin Line 1 (Slowest & Most Subtle) --- */}
+      {/* --- Background Thin Line 1 --- */}
       <div className="wave-layer animate-wave-slow bob-slow opacity-20">
         <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
           <path className="wave-line" stroke="#D4AF37" d="M0,160 C320,300 420,10 720,160 C1020,310 1120,20 1440,160"></path>
@@ -54,7 +83,7 @@ const ModernWaves: React.FC = () => {
         </svg>
       </div>
 
-      {/* --- Background Thin Line 2 (Mid Speed) --- */}
+      {/* --- Background Thin Line 2 --- */}
       <div className="wave-layer animate-wave-mid bob-mid opacity-10">
         <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
           <path className="wave-line" stroke="#FFFFFF" d="M0,192 C240,120 480,240 720,192 C960,144 1200,240 1440,192"></path>
@@ -62,7 +91,7 @@ const ModernWaves: React.FC = () => {
         </svg>
       </div>
 
-      {/* Deepest Main Layer - Mangosteen Bright */}
+      {/* Deepest Main Layer */}
       <div className="wave-layer animate-wave-slow bob-slow opacity-30">
         <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
           <path fill="#7A0B3D" fillOpacity="1" d="M0,160L48,176C96,192,192,224,288,224C384,224,480,192,576,165.3C672,139,768,117,864,138.7C960,160,1056,224,1152,245.3C1248,267,1344,245,1392,234.7L1440,224V320H0Z"></path>
@@ -70,7 +99,7 @@ const ModernWaves: React.FC = () => {
         </svg>
       </div>
 
-      {/* Mid Main Layer - Gold Accent */}
+      {/* Mid Main Layer */}
       <div className="wave-layer animate-wave-mid bob-mid opacity-20" style={{ marginBottom: '5px' }}>
         <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
           <path fill="#D4AF37" fillOpacity="1" d="M0,224L60,202.7C120,181,240,139,360,144C480,149,600,203,720,202.7C840,203,960,149,1080,128C1200,107,1320,117,1380,122.7L1440,128V320H0Z"></path>
@@ -78,11 +107,11 @@ const ModernWaves: React.FC = () => {
         </svg>
       </div>
 
-      {/* Top Main Layer - Mangosteen Base */}
+      {/* Top Main Layer */}
       <div className="wave-layer animate-wave-fast bob-fast opacity-40">
         <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
           <path fill="#630330" fillOpacity="1" d="M0,288L48,272C96,256,192,224,288,197.3C384,171,480,149,576,165.3C672,181,768,235,864,250.7C960,267,1056,245,1152,208C1248,171,1344,117,1392,90.7L1440,64V320H0Z"></path>
-          <path fill="#630330" fillOpacity="1" d="M1440,288L1488,272C1536,256,1632,224,1728,197.3C1824,171,1920,149,2016,165.3C2112,181,2208,235,2304,250.7C2400,267,2496,245,2592,208C2688,171,2784,117,2832,90.7L2880,64V320H1440Z"></path>
+          <path fill="#630330" fillOpacity="1" d="M1440,288L1488,272C1536,256,1632,224,1728,197.3C1824,171,1920,149,2016,165.3C2112,181,2208,235,2304,250.7C2400,267,2496,245,2592,208C2688,171,2784,117,2832,90.7L2880,64V320H0Z"></path>
         </svg>
       </div>
     </div>
@@ -174,13 +203,16 @@ const App: React.FC = () => {
         <div className="video-overlay"></div>
         <div className="islamic-tech-watermark"></div>
         
-        {/* --- Modern Water Waves with Vertical Motion --- */}
+        {/* --- Tech Meteor Shower (Vertical & Straight) --- */}
+        <TechMeteorShower />
+
+        {/* --- Modern Water Waves --- */}
         <ModernWaves />
         
-        <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-10 px-6 py-10 reveal-anim pt-10 sm:pt-20">
-          <div className="flex flex-col items-center space-y-8 sm:space-y-12">
+        <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-10 px-6 py-6 reveal-anim pt-4 sm:pt-12">
+          <div className="flex flex-col items-center space-y-6 sm:space-y-10">
              
-             {/* University Identity Tag - Optimized for 1 row on mobile */}
+             {/* University Identity Tag */}
              <div className="px-4 sm:px-8 py-2 sm:py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
                <div className="flex flex-row items-center gap-2 sm:gap-6 whitespace-nowrap overflow-hidden">
                  <span className="text-[8px] sm:text-xs font-bold uppercase text-white tracking-normal opacity-90">
@@ -197,12 +229,10 @@ const App: React.FC = () => {
              <div className="relative flex flex-col items-center group text-center max-w-full">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[100px] w-80 h-80 bg-[#D4AF37] rounded-full"></div>
                 
-                {/* Main Heading WISE */}
                 <h2 className="relative text-7xl sm:text-[10rem] md:text-[11rem] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-[#D4AF37] leading-tight transition-all duration-700 group-hover:scale-105 drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)] select-none">
                   WISE
                 </h2>
 
-                {/* Subtitles Container */}
                 <div className="relative flex flex-col items-center -mt-4 sm:-mt-8 space-y-2 px-4 w-full overflow-hidden">
                   <div className="h-px w-20 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent mb-1"></div>
                   
@@ -219,12 +249,12 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          <div className="mt-16 space-y-10 text-center w-full">
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90">
+          <div className="mt-8 sm:mt-10 space-y-8 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight">
               {currentT.landingHeading}
             </h1>
 
-            <div className="flex flex-col items-center w-full gap-12">
+            <div className="flex flex-col items-center w-full gap-10">
               <div className="transform transition-all duration-500 hover:scale-105">
                 <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} />
               </div>
@@ -232,13 +262,16 @@ const App: React.FC = () => {
               <div className="flex flex-col items-center space-y-8">
                 <button 
                   onClick={() => setViewState('dashboard')}
-                  className="start-btn-glow group relative px-16 sm:px-28 py-6 bg-white text-[#630330] rounded-full font-black uppercase text-lg sm:text-xl transition-all hover:translate-y-[-5px] active:scale-95 shadow-[0_30px_70px_rgba(0,0,0,0.5)] overflow-hidden"
+                  className="group relative px-14 sm:px-24 py-6 bg-white text-[#630330] rounded-full font-black uppercase text-lg sm:text-xl transition-all hover:translate-y-[-6px] active:scale-95 shadow-[0_25px_60px_rgba(0,0,0,0.4)] overflow-hidden"
                 >
-                  <span className="relative z-10 flex items-center gap-4 sm:gap-6">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none"></div>
+                  <span className="relative z-10 flex items-center gap-4 sm:gap-6 tracking-wider">
                     {currentT.startNow} 
-                    <ChevronRight size={24} className={`${isRtl ? 'rotate-180' : ''} group-hover:translate-x-2 transition-transform duration-500`} />
+                    <div className="p-1 rounded-full bg-[#630330]/5 group-hover:bg-[#630330] group-hover:text-white transition-all duration-300">
+                      <ChevronRight size={24} className={`${isRtl ? 'rotate-180' : ''} group-hover:translate-x-1 transition-transform duration-500`} />
+                    </div>
                   </span>
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-100 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                  <div className="absolute -inset-2 bg-white/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 </button>
 
                 <button 
@@ -246,12 +279,12 @@ const App: React.FC = () => {
                     setLoginError(false);
                     setShowAdminModal(true);
                   }}
-                  className="hexagon-outline group"
+                  className="hexagon-outline group opacity-60 hover:opacity-100 transition-opacity"
                   title="Admin Access"
                 >
                   <div className="flex flex-col items-center">
                     <LockKeyhole size={20} className="text-[#D4AF37]/70 group-hover:text-[#D4AF37] transition-colors duration-500" />
-                    <span className="text-[9px] font-bold uppercase text-[#D4AF37]/50 group-hover:text-[#D4AF37] mt-1">Admin</span>
+                    <span className="text-[9px] font-bold uppercase text-[#D4AF37]/50 group-hover:text-[#D4AF37] mt-1 tracking-widest">Admin</span>
                   </div>
                 </button>
               </div>

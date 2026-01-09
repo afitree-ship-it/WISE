@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -60,6 +61,48 @@
       mix-blend-mode: overlay;
     }
 
+    /* --- New Vertical Tech Meteor Animation --- */
+    .meteor-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 300px; /* เพิ่มพื้นที่ความสูงเล็กน้อยแต่คุมด้วย Animation */
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .tech-meteor {
+      position: absolute;
+      bottom: -20px;
+      width: 1px;
+      height: 40px;
+      background: linear-gradient(to top, transparent, var(--gold-accent), #fff);
+      opacity: 0;
+      filter: drop-shadow(0 0 3px var(--gold-accent));
+      border-radius: 999px;
+    }
+
+    @keyframes tech-shoot-up {
+      0% {
+        transform: translateY(0) scaleY(0.1);
+        opacity: 0;
+      }
+      15% {
+        opacity: 0.8;
+        transform: translateY(-20px) scaleY(1.2);
+      }
+      70% {
+        opacity: 0.3;
+        transform: translateY(-160px) scaleY(1);
+      }
+      100% {
+        transform: translateY(-200px) scaleY(0.5);
+        opacity: 0;
+      }
+    }
+
     /* --- Modern Wave Animation System --- */
     .waves-container {
       position: absolute;
@@ -91,12 +134,10 @@
       height: 100%;
     }
 
-    /* Horizontal Movement */
     .animate-wave-slow { animation: move-wave 30s linear infinite; }
     .animate-wave-mid { animation: move-wave 20s linear infinite; }
     .animate-wave-fast { animation: move-wave 14s linear infinite; }
 
-    /* Vertical Bobbing (Up and Down) */
     .bob-slow { animation: bob-y 8s ease-in-out infinite; }
     .bob-mid { animation: bob-y 6s ease-in-out infinite; }
     .bob-fast { animation: bob-y 4s ease-in-out infinite; }
@@ -111,14 +152,16 @@
       50% { transform: translateY(12px); }
     }
 
-    /* Small Thin Lines Style */
+    @keyframes shimmer {
+      100% { transform: translateX(100%); }
+    }
+
     .wave-line {
       fill: none;
       stroke-width: 1.5;
       stroke-linecap: round;
     }
 
-    /* --- Utilities --- */
     @keyframes marquee {
       0% { transform: translateX(0); }
       100% { transform: translateX(-50%); }
@@ -143,22 +186,6 @@
       to { opacity: 1; transform: translateY(0); }
     }
     
-    .start-btn-glow::before {
-      content: '';
-      position: absolute;
-      inset: -30px;
-      background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 75%);
-      opacity: 0;
-      transition: opacity 0.5s ease;
-      animation: ambient-pulse 4s infinite ease-in-out;
-      z-index: -1;
-    }
-    
-    @keyframes ambient-pulse {
-      0%, 100% { opacity: 0.2; transform: scale(0.9); }
-      50% { opacity: 0.6; transform: scale(1.1); }
-    }
-
     .hexagon-outline {
       position: relative;
       width: 64px;
