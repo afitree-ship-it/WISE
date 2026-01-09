@@ -1,0 +1,178 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WISE - Work Integrated Science Education Unit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Anuphan:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --mangosteen-deep: #2A0114;
+      --mangosteen-bright: #7A0B3D;
+      --mangosteen-base: #630330;
+      --gold-accent: #D4AF37;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', 'Anuphan', 'Noto Sans Arabic', sans-serif;
+      overflow-x: hidden;
+      background-color: #ffffff;
+      color: #1a1a1a;
+      line-height: 1.5;
+      letter-spacing: normal !important; /* Force normal spacing as requested */
+    }
+
+    /* Override all tracking utilities to prevent wide letter spacing */
+    .tracking-widest, .tracking-wider, .tracking-wide, .tracking-normal, .tracking-tight, .tracking-tighter {
+      letter-spacing: normal !important;
+    }
+
+    .luxe-mangosteen-bg {
+      position: relative;
+      background: var(--mangosteen-deep);
+      overflow: hidden;
+    }
+
+    .bg-video-wrap {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .bg-video-wrap video {
+      min-width: 100%;
+      min-height: 100%;
+      object-fit: cover;
+      opacity: 0.12; 
+      filter: saturate(0.4) brightness(0.3);
+    }
+
+    .video-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 30%, rgba(122, 11, 61, 0.3) 0%, rgba(42, 1, 20, 0.8) 60%, var(--mangosteen-deep) 100%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .islamic-tech-watermark {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      opacity: 0.15; 
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='104' viewBox='0 0 60 104' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 104 L0 87 L0 52 L30 35 L60 52 L60 87 Z M30 35 L0 17 L0 -17 L30 -35 L60 -17 L60 17 Z' fill='none' stroke='%23D4AF37' stroke-width='0.5'/%3E%3C/svg%3E");
+      background-size: 80px 138.6px;
+      mix-blend-mode: overlay;
+    }
+
+    .tech-waves-container {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 350px;
+      z-index: 2;
+      pointer-events: none;
+      mask-image: linear-gradient(to top, black 30%, transparent 100%);
+    }
+
+    .tech-wave {
+      position: absolute;
+      bottom: 0;
+      width: 200%; 
+      height: 100%;
+      background-repeat: repeat-x;
+      background-size: 1000px 300px;
+      animation: fluid-flow 25s linear infinite;
+    }
+
+    @keyframes fluid-flow {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    @keyframes marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .animate-marquee {
+      display: flex;
+      width: fit-content;
+      animation: marquee 45s linear infinite;
+    }
+
+    .glass-polish {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    
+    .reveal-anim {
+      animation: reveal 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes reveal {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .start-btn-glow::before {
+      content: '';
+      position: absolute;
+      inset: -30px;
+      background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 75%);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      animation: ambient-pulse 4s infinite ease-in-out;
+      z-index: -1;
+    }
+    
+    @keyframes ambient-pulse {
+      0%, 100% { opacity: 0.2; transform: scale(0.9); }
+      50% { opacity: 0.6; transform: scale(1.1); }
+    }
+
+    .hexagon-outline {
+      position: relative;
+      width: 64px;
+      height: 72px;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    .hexagon-outline::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      padding: 2px;
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.7), rgba(212, 175, 55, 0.15));
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+
+    .hexagon-outline:hover {
+      background: rgba(212, 175, 55, 0.08);
+      transform: translateY(-5px) scale(1.1);
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3"
+  }
+}
+</script>
+</head>
+<body class="text-slate-800 min-h-screen">
+  <div id="root"></div>
+</body>
+</html>
