@@ -179,13 +179,11 @@ const App: React.FC = () => {
     return localized[lang] || localized['en'] || localized['th'];
   };
 
-  // Ultra-optimized batch translation function
   const performBatchTranslation = async (items: { key: string, value: string, isDate?: boolean }[]) => {
     if (items.length === 0) return {};
     
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      // Minimalistic prompt for maximum speed
       const prompt = `Translate to EN, AR, MS. For isDate:true use human-readable format (TH use BE). Return JSON.
       Items: ${items.map(i => `${i.key}:"${i.value}" (date:${!!i.isDate})`).join(', ')}`;
 
@@ -237,7 +235,6 @@ const App: React.FC = () => {
     const thLoc = formData.get('loc_th') as string;
     const thDesc = formData.get('desc_th') as string;
 
-    // Detect what actually changed to avoid unnecessary AI calls
     const itemsToTranslate = [];
     if (!editingSite || editingSite.name.th !== thName) itemsToTranslate.push({ key: 'name', value: thName });
     if (!editingSite || editingSite.location.th !== thLoc) itemsToTranslate.push({ key: 'loc', value: thLoc });
@@ -284,13 +281,8 @@ const App: React.FC = () => {
     const startRaw = formData.get('start_date') as string;
     const endRaw = formData.get('end_date') as string;
 
-    // Fast check: Only call AI if Thai text or dates actually changed
     const itemsToTranslate = [];
     if (!editingSchedule || editingSchedule.event.th !== thEvent) itemsToTranslate.push({ key: 'event', value: thEvent });
-    // Note: for dates we compare the internal values if stored as localized, 
-    // but here we check against raw form input if we have access to original raw dates. 
-    // Since we don't store raw dates in ScheduleEvent, we'll re-translate dates only if it's a new item or if we really need to.
-    // Optimization: always translate dates for now if it's a simple save, but batch it.
     if (!editingSchedule) {
       itemsToTranslate.push({ key: 'start', value: startRaw, isDate: true });
       itemsToTranslate.push({ key: 'end', value: endRaw, isDate: true });
@@ -493,51 +485,60 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen flex flex-col bg-[#F9FAFB] ${isRtl ? 'rtl' : ''}`}>
-      <nav className="sticky top-0 z-50 px-4 py-4">
-        <div className="container mx-auto h-20 bg-white/95 backdrop-blur-md rounded-3xl px-6 sm:px-10 flex items-center justify-between border border-slate-100 shadow-xl">
-          <div className="flex items-center gap-5">
-            <div className="w-12 h-12 bg-[#630330] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#63033022] transform transition-transform hover:rotate-6"><Binary size={24} /></div>
-            <div className="hidden sm:block">
-              <span className="block text-2xl font-black text-slate-900 leading-none uppercase tracking-normal">WISE</span>
-              <span className="block text-[10px] text-[#D4AF37] font-bold uppercase mt-1 tracking-normal">FST Education Hub</span>
+      {/* Seamless Sticky Header Wrapper */}
+      <div className="sticky top-0 z-50 w-full">
+        {/* Dynamic Blur Mask - This hides the 'seam' and creates the foggy scroll effect */}
+        <div className="absolute inset-0 bg-[#F9FAFB]/60 backdrop-blur-2xl [mask-image:linear-gradient(to_bottom,black_70%,transparent)] pointer-events-none h-32 -mb-32"></div>
+        
+        <nav className="relative px-4 py-4 sm:pt-6 sm:pb-2">
+          <div className="container mx-auto h-auto min-h-[112px] bg-white/95 backdrop-blur-md rounded-[2.5rem] px-6 sm:px-12 flex items-center justify-between border border-slate-100 shadow-2xl py-4 transition-all duration-300">
+            <div className="flex items-center gap-4 sm:gap-10">
+              {/* Optimized Branding with Landing Page Colors */}
+              <div className="flex flex-col transform transition-all duration-300 hover:scale-[1.02]">
+                <span className="block text-4xl font-black leading-none uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#630330] via-[#8B1A4F] to-[#D4AF37]">
+                  WISE
+                </span>
+                <span className="block text-[11px] text-[#D4AF37] font-extrabold uppercase mt-1.5 tracking-tight opacity-95">
+                  Work-Integrated Science Education
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4 sm:gap-8">
+              {role !== UserRole.ADMIN && (
+                <div className="relative">
+                   <button onClick={() => setIsNavLangOpen(!isNavLangOpen)} className="flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700 hover:bg-slate-100 transition-all font-bold shadow-sm">
+                     <Globe size={18} className="text-[#630330]" />
+                     <span className="text-[12px] font-bold uppercase tracking-normal">{lang.toUpperCase()}</span>
+                     <ChevronDown size={14} className={`transition-transform duration-300 ${isNavLangOpen ? 'rotate-180' : ''}`} />
+                   </button>
+                   {isNavLangOpen && (
+                     <div className="absolute right-0 top-full mt-4 p-2.5 bg-white rounded-2xl border border-slate-100 shadow-3xl z-[60] min-w-[180px] reveal-anim">
+                       {(Object.keys(Language) as Array<keyof typeof Language>).map((key) => (
+                         <button
+                           key={key}
+                           onClick={() => {
+                             setLang(Language[key]);
+                             setIsNavLangOpen(false);
+                           }}
+                           className={`w-full text-left px-5 py-4 rounded-xl text-[13px] font-bold uppercase transition-all flex items-center justify-between tracking-normal
+                             ${lang === Language[key] ? 'bg-[#630330] text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+                         >
+                           {Language[key].toUpperCase()}
+                           {lang === Language[key] && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                         </button>
+                       ))}
+                     </div>
+                   )}
+                </div>
+              )}
+              <button onClick={handleLogout} className="w-14 h-14 flex items-center justify-center bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-xl shadow-rose-500/10 active:scale-90"><LogOut size={24} /></button>
             </div>
           </div>
-          
-          <div className="flex items-center gap-4 sm:gap-8">
-            {role !== UserRole.ADMIN && (
-              <div className="relative">
-                 <button onClick={() => setIsNavLangOpen(!isNavLangOpen)} className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700 hover:bg-slate-100 transition-all font-bold shadow-sm">
-                   <Globe size={18} className="text-[#630330]" />
-                   <span className="text-[12px] font-bold uppercase tracking-normal">{lang.toUpperCase()}</span>
-                   <ChevronDown size={14} className={`transition-transform duration-300 ${isNavLangOpen ? 'rotate-180' : ''}`} />
-                 </button>
-                 {isNavLangOpen && (
-                   <div className="absolute right-0 top-full mt-4 p-2.5 bg-white rounded-2xl border border-slate-100 shadow-3xl z-[60] min-w-[180px] reveal-anim">
-                     {(Object.keys(Language) as Array<keyof typeof Language>).map((key) => (
-                       <button
-                         key={key}
-                         onClick={() => {
-                           setLang(Language[key]);
-                           setIsNavLangOpen(false);
-                         }}
-                         className={`w-full text-left px-5 py-4 rounded-xl text-[13px] font-bold uppercase transition-all flex items-center justify-between tracking-normal
-                           ${lang === Language[key] ? 'bg-[#630330] text-white' : 'text-slate-500 hover:bg-slate-50'}`}
-                       >
-                         {Language[key].toUpperCase()}
-                         {lang === Language[key] && <div className="w-2 h-2 bg-white rounded-full"></div>}
-                       </button>
-                     ))}
-                   </div>
-                 )}
-              </div>
-            )}
-            <button onClick={handleLogout} className="w-12 h-12 flex items-center justify-center bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-sm"><LogOut size={22} /></button>
-          </div>
-        </div>
-      </nav>
+        </nav>
+      </div>
 
       <main className="container mx-auto px-4 py-8 sm:py-14 flex-grow space-y-16">
-        {/* --- Sites Section --- */}
         <section className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl p-8 sm:p-14 space-y-12 relative overflow-hidden">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
             <div className="flex items-center gap-6">
@@ -558,13 +559,13 @@ const App: React.FC = () => {
                 </button>
               )}
               
-              <div className="flex-grow flex items-center gap-3 bg-slate-50 p-2 rounded-[1.5rem] shadow-inner">
-                <button onClick={() => setActiveMajor('all')} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${activeMajor === 'all' ? 'bg-[#630330] text-white' : 'text-slate-400'}`}>ทุกสาขา</button>
-                <button onClick={() => setActiveMajor(Major.HALAL_FOOD)} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${activeMajor === Major.HALAL_FOOD ? 'bg-[#D4AF37] text-white' : 'text-slate-400'}`}>อาหารฮาลาล</button>
-                <button onClick={() => setActiveMajor(Major.DIGITAL_TECH)} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>ดิจิทัล</button>
+              <div className="flex-grow flex items-center gap-3 bg-slate-50 p-2 rounded-[1.5rem] shadow-inner overflow-x-auto no-scrollbar">
+                <button onClick={() => setActiveMajor('all')} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal whitespace-nowrap ${activeMajor === 'all' ? 'bg-[#630330] text-white' : 'text-slate-400'}`}>ทุกสาขา</button>
+                <button onClick={() => setActiveMajor(Major.HALAL_FOOD)} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal whitespace-nowrap ${activeMajor === Major.HALAL_FOOD ? 'bg-[#D4AF37] text-white' : 'text-slate-400'}`}>อาหารฮาลาล</button>
+                <button onClick={() => setActiveMajor(Major.DIGITAL_TECH)} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal whitespace-nowrap ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>ดิจิทัล</button>
               </div>
 
-              <div className="relative flex-grow group max-md">
+              <div className="relative flex-grow group max-w-md">
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                 <input type="text" placeholder="ค้นหาชื่อหน่วยงาน..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-16 pr-8 py-5 rounded-[1.5rem] bg-slate-50 border-none text-sm font-bold focus:ring-4 focus:ring-[#63033011]" />
               </div>
@@ -596,9 +597,7 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* --- Schedule & Forms Section --- */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          {/* Schedule */}
           <div className="lg:col-span-7 space-y-8">
             <div className="flex items-center justify-between px-4">
               <div className="flex items-center gap-4">
@@ -645,7 +644,6 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Forms */}
           <div className="lg:col-span-5 space-y-8">
              <div className="flex items-center justify-between px-4">
                <div className="flex items-center gap-4">
@@ -662,7 +660,6 @@ const App: React.FC = () => {
                )}
              </div>
              <div className="space-y-8">
-                {/* Category: Application */}
                 <div className="bg-white p-10 rounded-[3rem] border-t-[10px] border-t-[#630330] shadow-2xl space-y-5">
                   <span className="text-[12px] font-bold text-[#630330] uppercase tracking-normal">{currentT.appForms}</span>
                   {forms.filter(f => f.category === FormCategory.APPLICATION).map(form => (
@@ -679,7 +676,6 @@ const App: React.FC = () => {
                     </div>
                   ))}
                 </div>
-                {/* Category: Monitoring */}
                 <div className="bg-slate-900 p-10 rounded-[3rem] shadow-3xl space-y-5 relative overflow-hidden">
                   <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">{currentT.monitoringForms}</span>
                   {forms.filter(f => f.category === FormCategory.MONITORING).map(form => (
@@ -701,9 +697,6 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* --- Management Modals --- */}
-      
-      {/* Site Management Modal */}
       {showSiteModal && (
         <div className="fixed inset-0 z-[110] flex items-start sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
           <div className="bg-white w-full max-w-4xl rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-10 shadow-3xl animate-in zoom-in-95 duration-200 my-4 sm:my-8 max-h-[90vh] overflow-y-auto relative">
@@ -774,7 +767,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Schedule Management Modal */}
       {showScheduleModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
           <div className="bg-white w-full max-w-xl rounded-[2rem] p-8 shadow-3xl my-auto animate-in zoom-in-95 duration-200 relative">
@@ -826,7 +818,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Form Management Modal */}
       {showFormModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
           <div className="bg-white w-full max-w-xl rounded-[2rem] p-8 shadow-3xl my-auto animate-in zoom-in-95 duration-200">
