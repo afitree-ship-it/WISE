@@ -174,15 +174,14 @@ const App: React.FC = () => {
 
   const getLocalized = (localized: LocalizedString) => {
     if (role === UserRole.ADMIN) return localized.th;
-    return localized[lang] || localized['en'] || localized['th'];
+    return (localized as any)[lang] || localized['en'] || localized['th'];
   };
 
   const performBatchTranslation = async (items: { key: string, value: string, isDate?: boolean }[]) => {
     if (items.length === 0) return {};
     
     try {
-      const apiKey = process.env.API_KEY || '';
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
       const prompt = `Translate to EN, AR, MS. For isDate:true use human-readable format (TH use BE). Return JSON.
       Items: ${items.map(i => `${i.key}:"${i.value}" (date:${!!i.isDate})`).join(', ')}`;
 
@@ -209,7 +208,7 @@ const App: React.FC = () => {
           },
         },
       });
-      return JSON.parse(response.text);
+      return JSON.parse(response.text ?? "{}");
     } catch (error) {
       console.error("Batch AI error:", error);
       return items.reduce((acc, curr) => ({
@@ -329,7 +328,7 @@ const App: React.FC = () => {
     setEditingForm(null);
   };
 
-  const scrollingIcons = [
+  const scrollingIcons: { icon: LucideIcon, label: string }[] = [
     { icon: Cpu, label: 'Tech' },
     { icon: Salad, label: 'Halal Food' },
     { icon: Code, label: 'Digital' },
