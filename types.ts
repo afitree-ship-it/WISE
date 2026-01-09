@@ -70,6 +70,7 @@ export interface Translation {
   forms: string;
   halalMajor: string;
   digitalMajor: string;
+  allMajors: string;
   activeSites: string;
   pastSites: string;
   download: string;
@@ -95,4 +96,5 @@ export interface Translation {
   email: string;
   phone: string;
   visitWebsite: string;
+  searchPlaceholder: string;
 }

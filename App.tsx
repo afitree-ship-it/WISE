@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Language, 
   UserRole, 
@@ -44,6 +45,8 @@ import {
   Sparkles,
   Calendar,
   ArrowRight,
+  Copy,
+  LayoutGrid,
   LucideIcon
 } from 'lucide-react';
 
@@ -112,8 +115,16 @@ const ModernWaves: React.FC = () => {
 
 const App: React.FC = () => {
   const [lang, setLang] = useState<Language>(() => {
-    const savedLang = localStorage.getItem('wise_portal_lang');
-    return (savedLang as Language) || Language.TH;
+    try {
+      const savedLang = localStorage.getItem('wise_portal_lang');
+      const validLangs = Object.values(Language);
+      if (savedLang && validLangs.includes(savedLang as Language)) {
+        return savedLang as Language;
+      }
+    } catch (e) {
+      console.warn("Storage access failed during initialization:", e);
+    }
+    return Language.TH;
   });
 
   const [viewState, setViewState] = useState<'landing' | 'dashboard'>('landing');
@@ -122,9 +133,11 @@ const App: React.FC = () => {
   const [forms, setForms] = useState<DocumentForm[]>(INITIAL_FORMS);
   const [schedule, setSchedule] = useState<ScheduleEvent[]>(INITIAL_SCHEDULE);
   const [activeMajor, setActiveMajor] = useState<Major | 'all'>('all');
-  const [statusFilter] = useState<'all' | 'active' | 'archived'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
+
+  // Custom Context Menu State
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
 
   // Admin Modal States
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -142,11 +155,52 @@ const App: React.FC = () => {
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
 
+  // Security & Custom Menu Logic
   useEffect(() => {
-    localStorage.setItem('wise_portal_lang', lang);
+    const handleKeydown = (e: KeyboardEvent) => {
+      const isDevKey = 
+        e.key === 'F12' || 
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+        (e.ctrlKey && e.key === 'u');
+      
+      if (isDevKey) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY });
+      return false;
+    };
+
+    const handleClick = () => setContextMenu(null);
+
+    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('click', handleClick);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('click', handleClick);
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('wise_portal_lang', lang);
+    } catch (e) {
+      console.warn("Could not save language preference:", e);
+    }
   }, [lang]);
 
-  const currentT = role === UserRole.ADMIN ? TRANSLATIONS[Language.TH] : TRANSLATIONS[lang];
+  const currentT = useMemo(() => {
+    const t = role === UserRole.ADMIN ? TRANSLATIONS[Language.TH] : TRANSLATIONS[lang];
+    return t || TRANSLATIONS[Language.TH];
+  }, [lang, role]);
+
   const isRtl = lang === Language.AR && role !== UserRole.ADMIN;
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -172,8 +226,9 @@ const App: React.FC = () => {
   };
 
   const getLocalized = (localized: LocalizedString) => {
-    if (role === UserRole.ADMIN) return localized.th;
-    return (localized as any)[lang] || localized['en'] || localized['th'];
+    if (!localized) return '';
+    if (role === UserRole.ADMIN) return localized.th || '';
+    return (localized as any)[lang] || localized['en'] || localized['th'] || '';
   };
 
   const performBatchTranslation = async (items: { key: string, value: string, isDate?: boolean }[]) => {
@@ -219,10 +274,14 @@ const App: React.FC = () => {
 
   const filteredSites = sites.filter(s => {
     const localizedName = getLocalized(s.name).toLowerCase();
+    const localizedLoc = getLocalized(s.location).toLowerCase();
+    const majorLabel = s.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor;
+    const searchableString = `${localizedName} ${localizedLoc} ${majorLabel}`.toLowerCase();
+
     const matchesMajor = activeMajor === 'all' || s.major === activeMajor;
-    const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
-    const matchesSearch = localizedName.includes(searchTerm.toLowerCase());
-    return matchesMajor && matchesStatus && matchesSearch;
+    const matchesSearch = searchableString.includes(searchTerm.toLowerCase());
+    
+    return matchesMajor && matchesSearch;
   });
 
   const handleSaveSite = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -325,6 +384,14 @@ const App: React.FC = () => {
     }
     setShowFormModal(false);
     setEditingForm(null);
+  };
+
+  const handleCopy = () => {
+    const text = window.getSelection()?.toString();
+    if (text) {
+      navigator.clipboard.writeText(text);
+    }
+    setContextMenu(null);
   };
 
   const scrollingIcons: { icon: LucideIcon, label: string }[] = [
@@ -485,6 +552,22 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen flex flex-col bg-[#F9FAFB] ${isRtl ? 'rtl' : ''}`}>
+      {/* Custom Context Menu */}
+      {contextMenu && (
+        <div 
+          className="fixed z-[999] bg-white border border-slate-100 shadow-2xl rounded-xl py-2 min-w-[120px] reveal-anim"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          <button 
+            onClick={handleCopy}
+            className="w-full px-4 py-2.5 flex items-center gap-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all"
+          >
+            <Copy size={16} className="text-[#630330]" />
+            คัดลอก (Copy)
+          </button>
+        </div>
+      )}
+
       <div className="sticky top-0 z-50 w-full">
         <div className="absolute inset-0 bg-[#F9FAFB]/60 backdrop-blur-2xl [mask-image:linear-gradient(to_bottom,black_70%,transparent)] pointer-events-none h-32 -mb-32"></div>
         <nav className="relative px-4 py-4 sm:pt-6 sm:pb-2">
@@ -543,26 +626,82 @@ const App: React.FC = () => {
                 <p className="text-[12px] font-bold text-slate-400 uppercase mt-1 tracking-normal">{currentT.title}</p>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-5 flex-grow max-w-4xl">
-              {role === UserRole.ADMIN && (
-                <button 
-                  onClick={() => { setEditingSite(null); setShowSiteModal(true); }}
-                  className="px-8 py-5 rounded-[1.5rem] bg-[#D4AF37] text-white font-black uppercase text-sm flex items-center justify-center gap-3 shadow-lg transform transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
-                >
-                  <Plus size={20} /> เพิ่มสถานประกอบการ
-                </button>
-              )}
-              <div className="flex-grow flex items-center gap-3 bg-slate-50 p-2 rounded-[1.5rem] shadow-inner overflow-x-auto no-scrollbar">
-                <button onClick={() => setActiveMajor('all')} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal whitespace-nowrap ${activeMajor === 'all' ? 'bg-[#630330] text-white' : 'text-slate-400'}`}>ทุกสาขา</button>
-                <button onClick={() => setActiveMajor(Major.HALAL_FOOD)} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal whitespace-nowrap ${activeMajor === Major.HALAL_FOOD ? 'bg-[#D4AF37] text-white' : 'text-slate-400'}`}>อาหารฮาลาล</button>
-                <button onClick={() => setActiveMajor(Major.DIGITAL_TECH)} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal whitespace-nowrap ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>ดิจิทัล</button>
-              </div>
-              <div className="relative flex-grow group max-w-md">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <input type="text" placeholder="ค้นหาชื่อหน่วยงาน..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-16 pr-8 py-5 rounded-[1.5rem] bg-slate-50 border-none text-sm font-bold focus:ring-4 focus:ring-[#63033011]" />
+            
+            <div className="flex flex-col gap-6 flex-grow max-w-4xl">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                {/* Premium Segmented Major Selector - Mobile Friendly & Aesthetic */}
+                <div className="flex flex-col sm:flex-row items-stretch gap-3 flex-grow">
+                  <div className="relative bg-slate-100/80 p-1.5 rounded-[2rem] flex flex-col sm:flex-row gap-1 shadow-inner w-full min-h-[64px]">
+                    {/* Active Background Indicator */}
+                    <div 
+                      className="hidden sm:block absolute top-1.5 bottom-1.5 bg-white rounded-[1.5rem] shadow-lg transition-all duration-300 ease-out z-0"
+                      style={{ 
+                        left: activeMajor === 'all' ? '6px' : activeMajor === Major.HALAL_FOOD ? '33.3%' : '66.6%',
+                        width: '32%' 
+                      }}
+                    />
+                    
+                    <button 
+                      onClick={() => setActiveMajor('all')} 
+                      className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal 
+                        ${activeMajor === 'all' 
+                          ? 'bg-[#630330] sm:bg-transparent text-white sm:text-[#630330] shadow-md sm:shadow-none' 
+                          : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      <LayoutGrid size={16} />
+                      {currentT.allMajors}
+                    </button>
+                    
+                    <button 
+                      onClick={() => setActiveMajor(Major.HALAL_FOOD)} 
+                      className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal
+                        ${activeMajor === Major.HALAL_FOOD 
+                          ? 'bg-[#D4AF37] sm:bg-transparent text-white sm:text-[#D4AF37] shadow-md sm:shadow-none' 
+                          : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      <Salad size={16} />
+                      {currentT.halalMajor}
+                    </button>
+                    
+                    <button 
+                      onClick={() => setActiveMajor(Major.DIGITAL_TECH)} 
+                      className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal
+                        ${activeMajor === Major.DIGITAL_TECH 
+                          ? 'bg-blue-600 sm:bg-transparent text-white sm:text-blue-600 shadow-md sm:shadow-none' 
+                          : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      <Code size={16} />
+                      {currentT.digitalMajor}
+                    </button>
+                  </div>
+
+                  <div className="relative flex-grow flex items-center group sm:max-w-[300px]">
+                    {/* FIXED: Search Icon Alignment - Ensure precise centering */}
+                    <div className="absolute left-6 top-0 bottom-0 flex items-center pointer-events-none">
+                      <Search className="text-slate-400" size={20} />
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder={currentT.searchPlaceholder} 
+                      value={searchTerm} 
+                      onChange={e => setSearchTerm(e.target.value)} 
+                      className="w-full pl-16 pr-8 py-5 rounded-[2rem] bg-slate-50 border-none text-sm font-bold focus:ring-4 focus:ring-[#63033011] transition-all min-h-[64px]" 
+                    />
+                  </div>
+                </div>
+
+                {role === UserRole.ADMIN && (
+                  <button 
+                    onClick={() => { setEditingSite(null); setShowSiteModal(true); }}
+                    className="w-full sm:w-fit px-8 py-5 rounded-[2rem] bg-[#D4AF37] text-white font-black uppercase text-sm flex items-center justify-center gap-3 shadow-lg transform transition-all hover:scale-105 active:scale-95 whitespace-nowrap min-h-[64px]"
+                  >
+                    <Plus size={20} /> {currentT.addSite}
+                  </button>
+                )}
               </div>
             </div>
           </div>
+          
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8">
             {filteredSites.map(site => (
               <div key={site.id} className="relative group">
@@ -587,6 +726,7 @@ const App: React.FC = () => {
             ))}
           </div>
         </section>
+        
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           <div className="lg:col-span-7 space-y-8">
             <div className="flex items-center justify-between px-4">
@@ -633,6 +773,7 @@ const App: React.FC = () => {
               ))}
             </div>
           </div>
+          
           <div className="lg:col-span-5 space-y-8">
              <div className="flex items-center justify-between px-4">
                <div className="flex items-center gap-4">
@@ -686,9 +827,10 @@ const App: React.FC = () => {
         </div>
       </main>
 
+      {/* Modals */}
       {showSiteModal && (
         <div className="fixed inset-0 z-[110] flex items-start sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white w-full max-w-4xl rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-10 shadow-3xl animate-in zoom-in-95 duration-200 my-4 sm:my-8 max-h-[90vh] overflow-y-auto relative">
+          <div className="bg-white w-full max-w-4xl rounded-[2.5rem] p-6 sm:p-10 shadow-3xl animate-in zoom-in-95 duration-200 my-4 sm:my-8 max-h-[90vh] overflow-y-auto relative">
             <div className="sticky top-0 bg-white z-20 pb-4 flex items-center justify-between border-b border-slate-100 mb-6 sm:mb-8">
               <h3 className="text-xl sm:text-2xl font-black text-[#630330] uppercase tracking-normal">{editingSite ? 'แก้ไขข้อมูลหน่วยงาน' : 'เพิ่มสถานประกอบการใหม่'}</h3>
               <button onClick={() => setShowSiteModal(false)} className="p-2 sm:p-3 rounded-full hover:bg-slate-100 transition-colors"><X /></button>
@@ -723,8 +865,8 @@ const App: React.FC = () => {
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase text-slate-400">เลือกสาขาวิชา</label>
                     <select name="major" defaultValue={editingSite?.major} className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold">
-                      <option value={Major.HALAL_FOOD}>วิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาล</option>
-                      <option value={Major.DIGITAL_TECH}>เทคโนโลยีและวิทยาการดิจิทัล</option>
+                      <option value={Major.HALAL_FOOD}>{TRANSLATIONS[Language.TH].halalMajor}</option>
+                      <option value={Major.DIGITAL_TECH}>{TRANSLATIONS[Language.TH].digitalMajor}</option>
                     </select>
                   </div>
                   <div className="space-y-2">

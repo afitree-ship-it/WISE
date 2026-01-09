@@ -16,6 +16,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     forms: "ศูนย์บริการเอกสารอิเล็กทรอนิกส์",
     halalMajor: "วิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาล",
     digitalMajor: "เทคโนโลยีและวิทยาการดิจิทัล",
+    allMajors: "ทุกสาขาวิชา",
     activeSites: "กำลังเปิดรับสมัคร",
     pastSites: "ประวัติการฝึกงาน",
     download: "ดาวน์โหลดเอกสาร",
@@ -40,7 +41,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     monitoringForms: "2. เอกสารระหว่างการฝึกปฏิบัติงาน",
     email: "อีเมลติดต่อ",
     phone: "หมายเลขโทรศัพท์",
-    visitWebsite: "ดูรายละเอียด"
+    visitWebsite: "ดูรายละเอียด",
+    searchPlaceholder: "ค้นหาชื่อหน่วยงาน..."
   },
   [Language.EN]: {
     title: "Work-Integrated Science Education Unit (WISE)",
@@ -56,6 +58,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     forms: "Document Resource Center",
     halalMajor: "Research and Development of Halal Food Product",
     digitalMajor: "Technology and Digital Science",
+    allMajors: "All Disciplines",
     activeSites: "Active Vacancies",
     pastSites: "Placement Records",
     download: "Download",
@@ -80,7 +83,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     monitoringForms: "2. Internship Phase Documents",
     email: "Official Email",
     phone: "Contact Number",
-    visitWebsite: "Full Details"
+    visitWebsite: "Full Details",
+    searchPlaceholder: "Search organization..."
   },
   [Language.AR]: {
     title: "وحدة تعليم العلوم المتكاملة مع العمل (WISE)",
@@ -96,6 +100,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     forms: "مركز النماذج والوثائق",
     halalMajor: "البحث والتطوير لمنتجات الأغذية الحلال",
     digitalMajor: "التكنولوجيا والعلوم الرقمية",
+    allMajors: "جميع التخصصات",
     activeSites: "الفرص المتاحة حالياً",
     pastSites: "سجلات التدريب السابقة",
     download: "تحميل",
@@ -120,7 +125,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     monitoringForms: "٢. مستندات مرحلة التدريب",
     email: "البريد الإلكتروني",
     phone: "رقم الهاتف",
-    visitWebsite: "عرض التفاصيل"
+    visitWebsite: "عرض التفاصيل",
+    searchPlaceholder: "البحث عن جهة..."
   },
   [Language.MS]: {
     title: "Unit Pengurusan Pendidikan Sains Bersepadu Kerja (WISE)",
@@ -136,6 +142,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     forms: "Pusat Sumber Dokumen",
     halalMajor: "Penyelidikan dan Pembangunan Produk Makanan Halal",
     digitalMajor: "Teknologi dan Sains Digital",
+    allMajors: "Semua Bidang",
     activeSites: "Pengambilan Terbuka",
     pastSites: "Rekod Penempatan",
     download: "Muat Turun",
@@ -160,7 +167,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     monitoringForms: "2. Dokumen Fasa Latihan",
     email: "E-mel Rasmi",
     phone: "Talian Perhubungan",
-    visitWebsite: "Maklumat Lanjut"
+    visitWebsite: "Maklumat Lanjut",
+    searchPlaceholder: "Cari organisasi..."
   }
 };
 
