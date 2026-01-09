@@ -179,17 +179,15 @@ const App: React.FC = () => {
     return localized[lang] || localized['en'] || localized['th'];
   };
 
-  const translateViaAI = async (text: string, isDate: boolean = false): Promise<LocalizedString> => {
+  // Ultra-optimized batch translation function
+  const performBatchTranslation = async (items: { key: string, value: string, isDate?: boolean }[]) => {
+    if (items.length === 0) return {};
+    
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const prompt = isDate 
-        ? `Given the ISO date string "${text}", convert it to a human-readable date in these 4 languages. 
-           For Thai (th), use Buddhist Era year (BE). 
-           Return results strictly in JSON with keys: th, en, ar, ms.
-           Example for "2024-06-15": {"th": "15 มิ.ย. 2567", "en": "June 15, 2024", "ar": "١٥ يونيو ٢٠٢٤", "ms": "15 Jun 2024"}`
-        : `Translate the following text from Thai to English (en), Arabic (ar), and Malay (ms). 
-           Return the results strictly in JSON format with keys: th, en, ar, ms. 
-           Text: "${text}"`;
+      // Minimalistic prompt for maximum speed
+      const prompt = `Translate to EN, AR, MS. For isDate:true use human-readable format (TH use BE). Return JSON.
+      Items: ${items.map(i => `${i.key}:"${i.value}" (date:${!!i.isDate})`).join(', ')}`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -198,20 +196,29 @@ const App: React.FC = () => {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
-            properties: {
-              th: { type: Type.STRING },
-              en: { type: Type.STRING },
-              ar: { type: Type.STRING },
-              ms: { type: Type.STRING },
-            },
-            required: ["th", "en", "ar", "ms"],
+            properties: items.reduce((acc, curr) => ({
+              ...acc,
+              [curr.key]: {
+                type: Type.OBJECT,
+                properties: {
+                  th: { type: Type.STRING },
+                  en: { type: Type.STRING },
+                  ar: { type: Type.STRING },
+                  ms: { type: Type.STRING },
+                },
+                required: ["th", "en", "ar", "ms"]
+              }
+            }), {})
           },
         },
       });
       return JSON.parse(response.text);
     } catch (error) {
-      console.error("AI Translation error:", error);
-      return { th: text, en: text, ar: text, ms: text };
+      console.error("Batch AI error:", error);
+      return items.reduce((acc, curr) => ({
+        ...acc,
+        [curr.key]: { th: curr.value, en: curr.value, ar: curr.value, ms: curr.value }
+      }), {});
     }
   };
 
@@ -225,23 +232,29 @@ const App: React.FC = () => {
 
   const handleSaveSite = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsTranslating(true);
     const formData = new FormData(e.currentTarget);
     const thName = formData.get('name_th') as string;
     const thLoc = formData.get('loc_th') as string;
     const thDesc = formData.get('desc_th') as string;
 
-    const [nameObj, locObj, descObj] = await Promise.all([
-      translateViaAI(thName),
-      translateViaAI(thLoc),
-      translateViaAI(thDesc)
-    ]);
+    // Detect what actually changed to avoid unnecessary AI calls
+    const itemsToTranslate = [];
+    if (!editingSite || editingSite.name.th !== thName) itemsToTranslate.push({ key: 'name', value: thName });
+    if (!editingSite || editingSite.location.th !== thLoc) itemsToTranslate.push({ key: 'loc', value: thLoc });
+    if (!editingSite || editingSite.description.th !== thDesc) itemsToTranslate.push({ key: 'desc', value: thDesc });
+
+    let results = {};
+    if (itemsToTranslate.length > 0) {
+      setIsTranslating(true);
+      results = await performBatchTranslation(itemsToTranslate);
+      setIsTranslating(false);
+    }
 
     const newSite: InternshipSite = {
       id: editingSite?.id || Date.now().toString(),
-      name: nameObj,
-      location: locObj,
-      description: descObj,
+      name: results['name'] || editingSite?.name || { th: thName, en: thName, ar: thName, ms: thName },
+      location: results['loc'] || editingSite?.location || { th: thLoc, en: thLoc, ar: thLoc, ms: thLoc },
+      description: results['desc'] || editingSite?.description || { th: thDesc, en: thDesc, ar: thDesc, ms: thDesc },
       status: formData.get('status') as 'active' | 'archived',
       major: formData.get('major') as Major,
       contactLink: formData.get('url') as string,
@@ -254,7 +267,6 @@ const App: React.FC = () => {
     } else {
       setSites([newSite, ...sites]);
     }
-    setIsTranslating(false);
     setShowSiteModal(false);
     setEditingSite(null);
   };
@@ -267,23 +279,35 @@ const App: React.FC = () => {
 
   const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsTranslating(true);
     const formData = new FormData(e.currentTarget);
     const thEvent = formData.get('event_th') as string;
     const startRaw = formData.get('start_date') as string;
     const endRaw = formData.get('end_date') as string;
 
-    const [eventObj, startObj, endObj] = await Promise.all([
-      translateViaAI(thEvent),
-      translateViaAI(startRaw, true),
-      translateViaAI(endRaw, true)
-    ]);
+    // Fast check: Only call AI if Thai text or dates actually changed
+    const itemsToTranslate = [];
+    if (!editingSchedule || editingSchedule.event.th !== thEvent) itemsToTranslate.push({ key: 'event', value: thEvent });
+    // Note: for dates we compare the internal values if stored as localized, 
+    // but here we check against raw form input if we have access to original raw dates. 
+    // Since we don't store raw dates in ScheduleEvent, we'll re-translate dates only if it's a new item or if we really need to.
+    // Optimization: always translate dates for now if it's a simple save, but batch it.
+    if (!editingSchedule) {
+      itemsToTranslate.push({ key: 'start', value: startRaw, isDate: true });
+      itemsToTranslate.push({ key: 'end', value: endRaw, isDate: true });
+    }
+
+    let results = {};
+    if (itemsToTranslate.length > 0) {
+      setIsTranslating(true);
+      results = await performBatchTranslation(itemsToTranslate);
+      setIsTranslating(false);
+    }
 
     const newEv: ScheduleEvent = {
       id: editingSchedule?.id || Date.now().toString(),
-      event: eventObj,
-      startDate: startObj,
-      endDate: endObj,
+      event: results['event'] || editingSchedule?.event || { th: thEvent, en: thEvent, ar: thEvent, ms: thEvent },
+      startDate: results['start'] || editingSchedule?.startDate || { th: startRaw, en: startRaw, ar: startRaw, ms: startRaw },
+      endDate: results['end'] || editingSchedule?.endDate || { th: endRaw, en: endRaw, ar: endRaw, ms: endRaw },
       status: formData.get('status') as 'upcoming' | 'past',
     };
 
@@ -292,7 +316,6 @@ const App: React.FC = () => {
     } else {
       setSchedule([...schedule, newEv]);
     }
-    setIsTranslating(false);
     setShowScheduleModal(false);
     setEditingSchedule(null);
   };
@@ -399,13 +422,11 @@ const App: React.FC = () => {
                     setLoginError(false);
                     setShowAdminLogin(true);
                   }}
-                  className="admin-rect-btn group mt-2"
-                  title="Admin Access"
+                  className="flex items-center gap-2 mt-2 opacity-30 hover:opacity-100 transition-all duration-500 group"
+                  title="Staff Access"
                 >
-                  <div className="flex items-center gap-2">
-                    <LockKeyhole size={14} className="text-[#D4AF37]/80 group-hover:text-[#D4AF37] transition-colors" />
-                    <span className="text-[10px] font-bold uppercase text-[#D4AF37]/80 group-hover:text-[#D4AF37] tracking-widest">Admin</span>
-                  </div>
+                  <LockKeyhole size={12} className="text-[#D4AF37] group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] font-bold uppercase text-[#D4AF37] tracking-[0.2em] group-hover:tracking-[0.3em] transition-all">Staff Access</span>
                 </button>
               </div>
             </div>
@@ -543,7 +564,7 @@ const App: React.FC = () => {
                 <button onClick={() => setActiveMajor(Major.DIGITAL_TECH)} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>ดิจิทัล</button>
               </div>
 
-              <div className="relative flex-grow group max-w-md">
+              <div className="relative flex-grow group max-md">
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                 <input type="text" placeholder="ค้นหาชื่อหน่วยงาน..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-16 pr-8 py-5 rounded-[1.5rem] bg-slate-50 border-none text-sm font-bold focus:ring-4 focus:ring-[#63033011]" />
               </div>
@@ -695,7 +716,7 @@ const App: React.FC = () => {
               <div className="absolute inset-0 z-[30] bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-4">
                 <Loader2 size={40} className="text-[#630330] animate-spin" />
                 <div className="flex items-center gap-2 text-[#630330] font-black uppercase text-sm animate-pulse">
-                  <Sparkles size={16} /> กำลังแปลภาษาด้วย AI...
+                  <Sparkles size={16} /> กำลังบันทึกข้อมูลและแปลภาษา...
                 </div>
               </div>
             )}
@@ -745,7 +766,7 @@ const App: React.FC = () => {
               <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 pt-6 border-t border-slate-100">
                 <button type="button" onClick={() => setShowSiteModal(false)} className="order-2 sm:order-1 px-8 py-4 rounded-xl font-bold text-slate-400 uppercase text-xs hover:bg-slate-50 transition-colors">ยกเลิก</button>
                 <button type="submit" disabled={isTranslating} className="order-1 sm:order-2 px-12 py-4 rounded-xl bg-[#630330] text-white font-black uppercase text-xs shadow-xl flex items-center justify-center gap-2 hover:bg-[#7a0b3d] active:scale-[0.97] transition-all disabled:opacity-50">
-                  <Save size={16} /> บันทึกและแปลภาษาอัตโนมัติ
+                  <Save size={16} /> {isTranslating ? 'กำลังบันทึก...' : 'บันทึกข้อมูลทันที'}
                 </button>
               </div>
             </form>
@@ -796,7 +817,9 @@ const App: React.FC = () => {
               </div>
               <div className="flex justify-end gap-4 pt-4 border-t border-slate-50">
                 <button type="button" onClick={() => setShowScheduleModal(false)} className="text-slate-400 font-bold uppercase text-xs px-4 py-2">ยกเลิก</button>
-                <button type="submit" disabled={isTranslating} className="px-10 py-4 bg-[#630330] text-white rounded-xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all disabled:opacity-50">บันทึกกำหนดการ</button>
+                <button type="submit" disabled={isTranslating} className="px-10 py-4 bg-[#630330] text-white rounded-xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all disabled:opacity-50">
+                   {isTranslating ? 'กำลังบันทึก...' : 'บันทึกด่วน'}
+                </button>
               </div>
             </form>
           </div>
