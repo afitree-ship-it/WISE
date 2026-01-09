@@ -19,8 +19,6 @@ import {
   Plus, 
   FileDown, 
   Pencil, 
-  Trash2, 
-  Binary, 
   Fingerprint, 
   LockKeyhole, 
   X, 
@@ -29,7 +27,6 @@ import {
   ChevronRight, 
   ClipboardCheck, 
   Navigation, 
-  Filter, 
   Cpu, 
   Globe, 
   Briefcase, 
@@ -47,7 +44,8 @@ import {
   Loader2,
   Sparkles,
   Calendar,
-  ArrowRight
+  ArrowRight,
+  LucideIcon
 } from 'lucide-react';
 
 const TechMeteorShower: React.FC = () => {
@@ -106,7 +104,7 @@ const ModernWaves: React.FC = () => {
       <div className="wave-layer animate-wave-fast bob-fast opacity-40">
         <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
           <path fill="#630330" fillOpacity="1" d="M0,288L48,272C96,256,192,224,288,197.3C384,171,480,149,576,165.3C672,181,768,235,864,250.7C960,267,1056,245,1152,208C1248,171,1344,117,1392,90.7L1440,64V320H0Z"></path>
-          <path fill="#630330" fillOpacity="1" d="M1440,288L1488,272C1536,256,1632,224,1728,197.3C1824,171,1920,149,2016,165.3C2112,181,2208,235,2304,250.7C2400,267,2496,245,2592,208C2688,171,2784,117,2832,90.7L2880,64V320H0Z"></path>
+          <path fill="#630330" fillOpacity="1" d="M1440,288L1488,272C1536,256,1632,224,1728,197.3C1824,171,1920,149,2016,165.3C2112,181,2208,235,2304,250.7C2400,267,2496,245,2592,208C2688,171,2784,117,2832,90.7L2880,64V320H1440Z"></path>
         </svg>
       </div>
     </div>
@@ -125,7 +123,7 @@ const App: React.FC = () => {
   const [forms, setForms] = useState<DocumentForm[]>(INITIAL_FORMS);
   const [schedule, setSchedule] = useState<ScheduleEvent[]>(INITIAL_SCHEDULE);
   const [activeMajor, setActiveMajor] = useState<Major | 'all'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'archived'>('all');
+  const [statusFilter] = useState<'all' | 'active' | 'archived'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
 
@@ -183,7 +181,8 @@ const App: React.FC = () => {
     if (items.length === 0) return {};
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const apiKey = process.env.API_KEY || '';
+      const ai = new GoogleGenAI({ apiKey });
       const prompt = `Translate to EN, AR, MS. For isDate:true use human-readable format (TH use BE). Return JSON.
       Items: ${items.map(i => `${i.key}:"${i.value}" (date:${!!i.isDate})`).join(', ')}`;
 
@@ -240,7 +239,7 @@ const App: React.FC = () => {
     if (!editingSite || editingSite.location.th !== thLoc) itemsToTranslate.push({ key: 'loc', value: thLoc });
     if (!editingSite || editingSite.description.th !== thDesc) itemsToTranslate.push({ key: 'desc', value: thDesc });
 
-    let results = {};
+    let results: Record<string, any> = {};
     if (itemsToTranslate.length > 0) {
       setIsTranslating(true);
       results = await performBatchTranslation(itemsToTranslate);
@@ -288,7 +287,7 @@ const App: React.FC = () => {
       itemsToTranslate.push({ key: 'end', value: endRaw, isDate: true });
     }
 
-    let results = {};
+    let results: Record<string, any> = {};
     if (itemsToTranslate.length > 0) {
       setIsTranslating(true);
       results = await performBatchTranslation(itemsToTranslate);
@@ -331,16 +330,16 @@ const App: React.FC = () => {
   };
 
   const scrollingIcons = [
-    { icon: <Cpu size={24} />, label: 'Tech' },
-    { icon: <Salad size={24} />, label: 'Halal Food' },
-    { icon: <Code size={24} />, label: 'Digital' },
-    { icon: <Microscope size={24} />, label: 'Research' },
-    { icon: <Briefcase size={24} />, label: 'Internship' },
-    { icon: <ShieldCheck size={24} />, label: 'Safety' },
-    { icon: <GraduationCap size={24} />, label: 'Education' },
-    { icon: <Building2 size={24} />, label: 'Enterprise' },
-    { icon: <Atom size={24} />, label: 'Science' },
-    { icon: <Globe size={24} />, label: 'Standard' },
+    { icon: Cpu, label: 'Tech' },
+    { icon: Salad, label: 'Halal Food' },
+    { icon: Code, label: 'Digital' },
+    { icon: Microscope, label: 'Research' },
+    { icon: Briefcase, label: 'Internship' },
+    { icon: ShieldCheck, label: 'Safety' },
+    { icon: GraduationCap, label: 'Education' },
+    { icon: Building2, label: 'Enterprise' },
+    { icon: Atom, label: 'Science' },
+    { icon: Globe, label: 'Standard' },
   ];
 
   if (viewState === 'landing') {
@@ -427,14 +426,17 @@ const App: React.FC = () => {
 
         <div className="w-full pb-8 sm:pb-20 mt-auto overflow-hidden opacity-30 z-10">
           <div className="animate-marquee whitespace-nowrap flex items-center gap-12 sm:gap-32">
-            {[...scrollingIcons, ...scrollingIcons].map((item, idx) => (
-              <div key={idx} className="flex flex-col items-center gap-2 sm:gap-3 text-[#D4AF37]">
-                <div className="p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] glass-polish border border-white/5 shadow-xl">
-                  {React.cloneElement(item.icon as React.ReactElement, { size: 20 })}
+            {[...scrollingIcons, ...scrollingIcons].map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <div key={idx} className="flex flex-col items-center gap-2 sm:gap-3 text-[#D4AF37]">
+                  <div className="p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] glass-polish border border-white/5 shadow-xl">
+                    <Icon size={20} />
+                  </div>
+                  <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-widest">{item.label}</span>
                 </div>
-                <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-widest">{item.label}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -485,15 +487,11 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen flex flex-col bg-[#F9FAFB] ${isRtl ? 'rtl' : ''}`}>
-      {/* Seamless Sticky Header Wrapper */}
       <div className="sticky top-0 z-50 w-full">
-        {/* Dynamic Blur Mask - This hides the 'seam' and creates the foggy scroll effect */}
         <div className="absolute inset-0 bg-[#F9FAFB]/60 backdrop-blur-2xl [mask-image:linear-gradient(to_bottom,black_70%,transparent)] pointer-events-none h-32 -mb-32"></div>
-        
         <nav className="relative px-4 py-4 sm:pt-6 sm:pb-2">
           <div className="container mx-auto h-auto min-h-[112px] bg-white/95 backdrop-blur-md rounded-[2.5rem] px-6 sm:px-12 flex items-center justify-between border border-slate-100 shadow-2xl py-4 transition-all duration-300">
             <div className="flex items-center gap-4 sm:gap-10">
-              {/* Optimized Branding with Landing Page Colors */}
               <div className="flex flex-col transform transition-all duration-300 hover:scale-[1.02]">
                 <span className="block text-4xl font-black leading-none uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#630330] via-[#8B1A4F] to-[#D4AF37]">
                   WISE
@@ -503,7 +501,6 @@ const App: React.FC = () => {
                 </span>
               </div>
             </div>
-            
             <div className="flex items-center gap-4 sm:gap-8">
               {role !== UserRole.ADMIN && (
                 <div className="relative">
@@ -548,7 +545,6 @@ const App: React.FC = () => {
                 <p className="text-[12px] font-bold text-slate-400 uppercase mt-1 tracking-normal">{currentT.title}</p>
               </div>
             </div>
-            
             <div className="flex flex-col sm:flex-row gap-5 flex-grow max-w-4xl">
               {role === UserRole.ADMIN && (
                 <button 
@@ -558,20 +554,17 @@ const App: React.FC = () => {
                   <Plus size={20} /> เพิ่มสถานประกอบการ
                 </button>
               )}
-              
               <div className="flex-grow flex items-center gap-3 bg-slate-50 p-2 rounded-[1.5rem] shadow-inner overflow-x-auto no-scrollbar">
                 <button onClick={() => setActiveMajor('all')} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal whitespace-nowrap ${activeMajor === 'all' ? 'bg-[#630330] text-white' : 'text-slate-400'}`}>ทุกสาขา</button>
                 <button onClick={() => setActiveMajor(Major.HALAL_FOOD)} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal whitespace-nowrap ${activeMajor === Major.HALAL_FOOD ? 'bg-[#D4AF37] text-white' : 'text-slate-400'}`}>อาหารฮาลาล</button>
                 <button onClick={() => setActiveMajor(Major.DIGITAL_TECH)} className={`px-6 py-3 rounded-xl text-[11px] font-bold uppercase transition-all tracking-normal whitespace-nowrap ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>ดิจิทัล</button>
               </div>
-
               <div className="relative flex-grow group max-w-md">
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                 <input type="text" placeholder="ค้นหาชื่อหน่วยงาน..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-16 pr-8 py-5 rounded-[1.5rem] bg-slate-50 border-none text-sm font-bold focus:ring-4 focus:ring-[#63033011]" />
               </div>
             </div>
           </div>
-          
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8">
             {filteredSites.map(site => (
               <div key={site.id} className="relative group">
@@ -596,7 +589,6 @@ const App: React.FC = () => {
             ))}
           </div>
         </section>
-
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           <div className="lg:col-span-7 space-y-8">
             <div className="flex items-center justify-between px-4">
@@ -643,7 +635,6 @@ const App: React.FC = () => {
               ))}
             </div>
           </div>
-
           <div className="lg:col-span-5 space-y-8">
              <div className="flex items-center justify-between px-4">
                <div className="flex items-center gap-4">
@@ -704,7 +695,6 @@ const App: React.FC = () => {
               <h3 className="text-xl sm:text-2xl font-black text-[#630330] uppercase tracking-normal">{editingSite ? 'แก้ไขข้อมูลหน่วยงาน' : 'เพิ่มสถานประกอบการใหม่'}</h3>
               <button onClick={() => setShowSiteModal(false)} className="p-2 sm:p-3 rounded-full hover:bg-slate-100 transition-colors"><X /></button>
             </div>
-            
             {isTranslating && (
               <div className="absolute inset-0 z-[30] bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-4">
                 <Loader2 size={40} className="text-[#630330] animate-spin" />
@@ -713,7 +703,6 @@ const App: React.FC = () => {
                 </div>
               </div>
             )}
-
             <form onSubmit={handleSaveSite} className="space-y-8 sm:space-y-10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10">
                 <div className="space-y-6">
@@ -731,7 +720,6 @@ const App: React.FC = () => {
                     <textarea name="desc_th" defaultValue={editingSite?.description.th} required className="w-full h-32 px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" placeholder="ระบุรายละเอียดการฝึกงานเบื้องต้น" />
                   </div>
                 </div>
-
                 <div className="space-y-6">
                   <span className="block text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">การตั้งค่าสาขาวิชาและสถานะ</span>
                   <div className="space-y-2">
@@ -755,7 +743,6 @@ const App: React.FC = () => {
                   </div>
                 </div>
               </div>
-
               <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 pt-6 border-t border-slate-100">
                 <button type="button" onClick={() => setShowSiteModal(false)} className="order-2 sm:order-1 px-8 py-4 rounded-xl font-bold text-slate-400 uppercase text-xs hover:bg-slate-50 transition-colors">ยกเลิก</button>
                 <button type="submit" disabled={isTranslating} className="order-1 sm:order-2 px-12 py-4 rounded-xl bg-[#630330] text-white font-black uppercase text-xs shadow-xl flex items-center justify-center gap-2 hover:bg-[#7a0b3d] active:scale-[0.97] transition-all disabled:opacity-50">
@@ -780,14 +767,12 @@ const App: React.FC = () => {
                <Calendar size={24} className="text-[#D4AF37]" />
                <h3 className="text-xl font-black text-[#630330] uppercase">{editingSchedule ? 'แก้ไขกำหนดการ' : 'เพิ่มกำหนดการใหม่'}</h3>
             </div>
-            
             <form onSubmit={handleSaveSchedule} className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-2 tracking-widest">หัวข้อกิจกรรม</label>
                   <input name="event_th" defaultValue={editingSchedule?.event.th} required placeholder="ระบุหัวข้อกิจกรรม" className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all" />
                 </div>
-                
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase text-slate-400 ml-2 tracking-widest">วันที่เริ่ม</label>
@@ -798,7 +783,6 @@ const App: React.FC = () => {
                     <input type="date" name="end_date" required className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all" />
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-2 tracking-widest">สถานะปัจจุบัน</label>
                   <select name="status" defaultValue={editingSchedule?.status} className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all">
