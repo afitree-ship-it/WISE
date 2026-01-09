@@ -3,7 +3,6 @@ export enum Language {
   TH = 'th',
   EN = 'en',
   AR = 'ar',
-  ID = 'id',
   MS = 'ms'
 }
 
@@ -27,7 +26,6 @@ export interface LocalizedString {
   th: string;
   en: string;
   ar: string;
-  id: string;
   ms: string;
 }
 

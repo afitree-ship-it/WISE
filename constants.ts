@@ -122,46 +122,6 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     phone: "رقم الهاتف",
     visitWebsite: "عرض التفاصيل"
   },
-  [Language.ID]: {
-    title: "Unit Pengelola Pendidikan Sains Terintegrasi Kerja (WISE)",
-    subtitle: "Fakultas Sains dan Teknologi, Universitas Fatoni",
-    landingHeading: "Magang & Pendidikan Kooperatif",
-    loginStudent: "Akses Mahasiswa",
-    loginAdmin: "Terminal Administrasi",
-    studentIdPlaceholder: "Nomor Induk Mahasiswa (NIM)",
-    adminPasswordPlaceholder: "Kata Sandi Administrator",
-    loginButton: "Autentikasi",
-    logout: "Keluar",
-    internshipSites: "Database Penempatan Magang",
-    forms: "Pusat Dokumen Digital",
-    halalMajor: "Sains & Industri Halal",
-    digitalMajor: "Teknologi Digital",
-    activeSites: "Pendaftaran Aktif",
-    pastSites: "Riwayat Penempatan",
-    download: "Unduh",
-    adminPanel: "Dasbor Admin",
-    addSite: "Tambah Entitas Penempatan",
-    edit: "Sunting",
-    delete: "Hapus",
-    save: "Simpan",
-    cancel: "Batal",
-    name: "Nama Lembaga",
-    location: "Lokasi",
-    description: "Deskripsi Kerja",
-    status: "Status",
-    major: "Program Studi",
-    urlLabel: "Situs Web Resmi",
-    selectMajorTitle: "Pilihan Program Studi",
-    selectMajorSubtitle: "Akses informasi berdasarkan kurikulum Anda",
-    startNow: "Masuk Sistem",
-    selectLanguagePrompt: "Pilih Bahasa",
-    schedule: "Prosedur dan Jadwal Pelaksanaan",
-    appForms: "1. Dokumen Tahap Pendaftaran",
-    monitoringForms: "2. Dokumen Tahap Pelaksanaan",
-    email: "Email Kontak",
-    phone: "Nomor Telepon",
-    visitWebsite: "Detail Lengkap"
-  },
   [Language.MS]: {
     title: "Unit Pengurusan Pendidikan Sains Bersepadu Kerja (WISE)",
     subtitle: "Fakulti Sains dan Teknologi, Universiti Fatoni",
@@ -211,21 +171,18 @@ export const INITIAL_SITES: InternshipSite[] = [
       th: 'บริษัท ซีพี ออลล์ จำกัด (มหาชน)',
       en: 'CP ALL Public Company Limited',
       ar: 'شركة سي بي أول المحدودة العامة',
-      id: 'CP ALL Perusahaan Terbuka',
       ms: 'CP ALL Syarikat Awam Berhad'
     },
     location: {
       th: 'กรุงเทพมหานคร, ประเทศไทย',
       en: 'Bangkok, Thailand',
       ar: 'بانكوك، تايلاند',
-      id: 'Bangkok, Thailand',
       ms: 'Bangkok, Thailand'
     },
     description: {
       th: 'ศึกษาและฝึกงานด้านมาตรฐานความปลอดภัยอาหารฮาลาลและระบบโลจิสติกส์ในร้านสะดวกซื้อระดับประเทศ',
       en: 'Professional training in Halal food safety standards and nationwide retail logistics operations.',
       ar: 'تدريب مهني في معايير سلامة الأغذية الحلال وعمليات الخدمات اللوجستية للبيع بالتجزئة على مستوى البلاد.',
-      id: 'Pelatihan profesional dalam standar keamanan pangan Halal dan operasi logistik ritel nasional.',
       ms: 'Latihan profesional dalam piawaian keselamatan makanan Halal dan operasi logistik runcit di seluruh negara.'
     },
     status: 'active',
@@ -240,21 +197,18 @@ export const INITIAL_SITES: InternshipSite[] = [
       th: 'ศูนย์วิทยาศาสตร์ฮาลาล จุฬาลงกรณ์มหาวิทยาลัย',
       en: 'The Halal Science Center, Chulalongkorn University',
       ar: 'مركز علوم الحلال بجامعة شولالونغكورน',
-      id: 'Pusat Sains Halal, Universitas Chulalongkorn',
       ms: 'Pusat Sains Halal, Universiti Chulalongkorn'
     },
     location: {
       th: 'กรุงเทพมหานคร, ประเทศไทย',
       en: 'Bangkok, Thailand',
       ar: 'بانكوك، تايلاند',
-      id: 'Bangkok, Thailand',
       ms: 'Bangkok, Thailand'
     },
     description: {
       th: 'วิจัยและทดสอบทางวิทยาศาสตร์ฮาลาลในห้องปฏิบัติการที่ทันสมัย เพื่อการคุ้มครองผู้บริโภคในระดับสากล',
       en: 'Advanced Halal science research and laboratory testing for global consumer protection standards.',
       ar: 'أبحاث متقدمة في علوم الحلال واختبارات معملية لمعايير حماية المستهلك العالمية.',
-      id: 'Penelitian sains Halal tingkat lanjut dan pengujian laboratorium untuk standar perlindungan konsumen global.',
       ms: 'Penyelidikan sains Halal termaju และ ujian makmal untuk piawaian perlindungan pengguna global.'
     },
     status: 'archived',
@@ -266,23 +220,20 @@ export const INITIAL_SITES: InternshipSite[] = [
     name: {
       th: 'บริษัท การีนา ออนไลน์ (ประเทศไทย) จำกัด',
       en: 'Garena Online (Thailand) Co., Ltd.',
-      ar: 'شركة غارينا أونلاين (تايلاند) المحدودة',
-      id: 'Garena Online (Thailand) Co., Ltd.',
+      ar: 'شركة غاريนา أونلاين (تايلاند) المحدودة',
       ms: 'Garena Online (Thailand) Co., Ltd.'
     },
     location: {
       th: 'กรุงเทพมหานคร, ประเทศไทย',
       en: 'Bangkok, Thailand',
       ar: 'بانكوك، تايلاند',
-      id: 'Bangkok, Thailand',
       ms: 'Bangkok, Thailand'
     },
     description: {
       th: 'พัฒนาซอฟต์แวร์ เกม และแพลตฟอร์มอีสปอร์ตระดับสากล สำหรับนักศึกษาเทคโนโลยีดิจิทัล',
       en: 'Software engineering, game development, and international e-sports platform operations for digital students.',
       ar: 'هندسة البرمجيات وتطوير الألعاب وعمليات منصات الرياضات الإلكترونية الدولية لطلاب التكنولوجيا الرقمية.',
-      id: 'Teknik perangkat lunak, pengembangan game, dan operasi platform e-sports internasional untuk mahasiswa teknologi digital.',
-      ms: 'Kejuruteraan perisian, pembangunan permainan, dan operasi platform e-sukan antarabangsa untuk pelajar teknologi digital.'
+      ms: 'Kejuruteraan perisian, pembangunan permainan,และ operasi platform e-sukan antarabangsa untuk pelajar teknologi digital.'
     },
     status: 'active',
     major: Major.DIGITAL_TECH,
@@ -297,15 +248,13 @@ export const INITIAL_SCHEDULE: ScheduleEvent[] = [
     event: {
       th: 'ปฐมนิเทศนักศึกษาก่อนฝึกงาน',
       en: 'Pre-Internship Orientation Session',
-      ar: 'جلسة توجيه الطلاب قبل التدريب',
-      id: 'Sesi Orientasi Pra-Magang',
+      ar: 'جلسة توจيه الطلاب قبل التدريب',
       ms: 'Sesi Orientasi Pra-Latihan Industri'
     }, 
     date: {
       th: 'มิถุนายน 2567',
       en: 'June 2024',
       ar: 'يونيو ٢٠٢٤',
-      id: 'Juni 2024',
       ms: 'Jun 2024'
     }, 
     status: 'upcoming' 
@@ -316,14 +265,12 @@ export const INITIAL_SCHEDULE: ScheduleEvent[] = [
       th: 'ยื่นเอกสารสมัครสถานประกอบการ',
       en: 'Placement Application Submission',
       ar: 'تقديم طلبات الالتحاق بجهات التدريب',
-      id: 'Pengajuan Berkas Pendaftaran Tempat PKL',
       ms: 'Penyerahan Dokumen Permohonan Penempatan'
     }, 
     date: {
       th: 'กรกฎาคม 2567',
       en: 'July 2024',
       ar: 'ยوليو ٢٠٢٤',
-      id: 'Juli 2024',
       ms: 'Jul 2024'
     }, 
     status: 'upcoming' 
@@ -334,14 +281,12 @@ export const INITIAL_SCHEDULE: ScheduleEvent[] = [
       th: 'เริ่มการฝึกประสบการณ์',
       en: 'Commencement of Practical Training',
       ar: 'بدء التدريب มيداني الفعلي',
-      id: 'Awal Pelaksanaan Praktik Kerja Lapangan',
       ms: 'Permulaan Latihan Industri Secara Rasmi'
     }, 
     date: {
       th: 'สิงหาคม 2567',
       en: 'August 2024',
       ar: 'أغسطس ٢٠٢٤',
-      id: 'Agustus 2024',
       ms: 'Ogos 2024'
     }, 
     status: 'upcoming' 

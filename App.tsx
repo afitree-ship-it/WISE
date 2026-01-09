@@ -135,9 +135,22 @@ const App: React.FC = () => {
         </div>
         
         <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-10 px-6 py-10 reveal-anim pt-10 sm:pt-20">
-          <div className="flex flex-col items-center space-y-12">
+          <div className="flex flex-col items-center space-y-6 sm:space-y-12">
              
-             {/* --- Center Modern WISE Identity (Organized Layout) --- */}
+             {/* University Identity Tag (Moved to Top) */}
+             <div className="px-6 sm:px-8 py-2.5 sm:py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
+               <div className="flex flex-row items-center gap-2 sm:gap-6 whitespace-nowrap overflow-hidden">
+                 <span className="text-[8.5px] sm:text-xs font-bold uppercase text-white tracking-normal sm:tracking-widest opacity-90">
+                   {lang === Language.TH ? "คณะวิทยาศาสตร์และเทคโนโลยี" : (lang === Language.AR ? "كلية العلوم والتكنولوجيا" : "Faculty of Science and Technology")}
+                 </span>
+                 <div className="w-1 h-1 sm:w-2 sm:h-2 bg-[#D4AF37] rounded-full opacity-40"></div>
+                 <span className="text-[8.5px] sm:text-xs font-bold uppercase text-[#D4AF37] tracking-normal sm:tracking-widest">
+                   {lang === Language.TH ? "มหาวิทยาลัยฟาฏอนี" : (lang === Language.AR ? "جامعة فطاني" : "Fatoni University")}
+                 </span>
+               </div>
+             </div>
+
+             {/* --- Center Modern WISE Identity --- */}
              <div className="relative flex flex-col items-center group text-center max-w-full">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[100px] w-80 h-80 bg-[#D4AF37] rounded-full"></div>
                 
@@ -160,19 +173,6 @@ const App: React.FC = () => {
 
                   <div className="h-px w-14 bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent mt-1"></div>
                 </div>
-             </div>
-
-             {/* University Identity Tag */}
-             <div className="px-8 py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-transform">
-               <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-6">
-                 <span className="text-[10px] sm:text-xs font-bold uppercase text-white tracking-widest opacity-90">
-                   {lang === Language.TH ? "คณะวิทยาศาสตร์และเทคโนโลยี" : (lang === Language.AR ? "كلية العلوم والتكنولوجيا" : "Faculty of Science and Technology")}
-                 </span>
-                 <div className="hidden sm:block w-2 h-2 bg-[#D4AF37] rounded-full opacity-40"></div>
-                 <span className="text-[10px] sm:text-xs font-bold uppercase text-[#D4AF37] tracking-widest">
-                   {lang === Language.TH ? "มหาวิทยาลัยฟาฏอนี" : (lang === Language.AR ? "جامعة فطاني" : "Fatoni University")}
-                 </span>
-               </div>
              </div>
           </div>
 

@@ -13,7 +13,6 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ currentLang, onLang
     { code: Language.TH, label: 'TH', flag: '🇹🇭' },
     { code: Language.EN, label: 'EN', flag: '🇺🇸' },
     { code: Language.AR, label: 'AR', flag: '🇸🇦' },
-    { code: Language.ID, label: 'ID', flag: '🇮🇩' },
     { code: Language.MS, label: 'MS', flag: '🇲🇾' },
   ];
 
