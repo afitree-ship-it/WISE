@@ -53,7 +53,7 @@
     .islamic-tech-watermark {
       position: absolute;
       inset: 0;
-      z-index: 1;
+      z-index: 2;
       opacity: 0.15; 
       pointer-events: none;
       background-image: url("data:image/svg+xml,%3Csvg width='60' height='104' viewBox='0 0 60 104' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 104 L0 87 L0 52 L30 35 L60 52 L60 87 Z M30 35 L0 17 L0 -17 L30 -35 L60 -17 L60 17 Z' fill='none' stroke='%23D4AF37' stroke-width='0.5'/%3E%3C/svg%3E");
@@ -61,56 +61,60 @@
       mix-blend-mode: overlay;
     }
 
-    /* --- New Vertical Tech Meteor Animation --- */
+    /* --- Layered Tech Meteor Shower (Fireworks) --- */
     .meteor-container {
       position: absolute;
       bottom: 0;
       left: 0;
       width: 100%;
-      height: 300px; /* เพิ่มพื้นที่ความสูงเล็กน้อยแต่คุมด้วย Animation */
+      height: 180px;
       overflow: hidden;
       pointer-events: none;
-      z-index: 1;
+      z-index: 5; /* พลุอยู่เลเยอร์หลังคลื่น */
+    }
+    
+    @media (min-width: 640px) {
+      .meteor-container { height: 300px; }
     }
 
     .tech-meteor {
       position: absolute;
-      bottom: -20px;
+      bottom: -30px;
       width: 1px;
-      height: 40px;
+      height: 35px;
       background: linear-gradient(to top, transparent, var(--gold-accent), #fff);
       opacity: 0;
       filter: drop-shadow(0 0 3px var(--gold-accent));
       border-radius: 999px;
     }
 
+    /* Desktop Animation */
     @keyframes tech-shoot-up {
-      0% {
-        transform: translateY(0) scaleY(0.1);
-        opacity: 0;
-      }
-      15% {
-        opacity: 0.8;
-        transform: translateY(-20px) scaleY(1.2);
-      }
-      70% {
-        opacity: 0.3;
-        transform: translateY(-160px) scaleY(1);
-      }
-      100% {
-        transform: translateY(-200px) scaleY(0.5);
-        opacity: 0;
+      0% { transform: translateY(0) scaleY(0.1); opacity: 0; }
+      15% { opacity: 0.8; transform: translateY(-20px) scaleY(1.2); }
+      70% { opacity: 0.3; transform: translateY(-160px) scaleY(1); }
+      100% { transform: translateY(-240px) scaleY(0.5); opacity: 0; }
+    }
+
+    /* Mobile specific animation: Shorter to avoid blocking Admin button */
+    @media (max-width: 639px) {
+      .meteor-container { height: 120px; } 
+      @keyframes tech-shoot-up {
+        0% { transform: translateY(0) scaleY(0.1); opacity: 0; }
+        15% { opacity: 0.6; transform: translateY(-10px) scaleY(1.1); }
+        50% { opacity: 0.2; transform: translateY(-50px) scaleY(0.8); }
+        100% { transform: translateY(-80px) scaleY(0.3); opacity: 0; }
       }
     }
 
-    /* --- Modern Wave Animation System --- */
+    /* --- Water Waves Layer --- */
     .waves-container {
       position: absolute;
       bottom: 0;
       left: 0;
       width: 100%;
-      height: 140px;
-      z-index: 2;
+      height: 120px;
+      z-index: 10; /* คลื่นอยู่หน้าพลุ */
       pointer-events: none;
       overflow: hidden;
     }
@@ -129,48 +133,21 @@
       transform: translate3d(0, 0, 0);
     }
 
-    .wave-svg {
-      width: 100%;
-      height: 100%;
-    }
-
+    .wave-svg { width: 100%; height: 100%; }
     .animate-wave-slow { animation: move-wave 30s linear infinite; }
     .animate-wave-mid { animation: move-wave 20s linear infinite; }
     .animate-wave-fast { animation: move-wave 14s linear infinite; }
-
     .bob-slow { animation: bob-y 8s ease-in-out infinite; }
     .bob-mid { animation: bob-y 6s ease-in-out infinite; }
     .bob-fast { animation: bob-y 4s ease-in-out infinite; }
 
-    @keyframes move-wave {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
+    @keyframes move-wave { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    @keyframes bob-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(12px); } }
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
 
-    @keyframes bob-y {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(12px); }
-    }
-
-    @keyframes shimmer {
-      100% { transform: translateX(100%); }
-    }
-
-    .wave-line {
-      fill: none;
-      stroke-width: 1.5;
-      stroke-linecap: round;
-    }
-
-    @keyframes marquee {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
-    .animate-marquee {
-      display: flex;
-      width: fit-content;
-      animation: marquee 45s linear infinite;
-    }
+    .wave-line { fill: none; stroke-width: 1.5; stroke-linecap: round; }
+    @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    .animate-marquee { display: flex; width: fit-content; animation: marquee 45s linear infinite; }
 
     .glass-polish {
       background: rgba(255, 255, 255, 0.08);
@@ -178,41 +155,45 @@
       border: 1px solid rgba(255, 255, 255, 0.12);
     }
     
-    .reveal-anim {
-      animation: reveal 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    @keyframes reveal {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    .reveal-anim { animation: reveal 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes reveal { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     
-    .hexagon-outline {
+    /* --- New Modern Rectangular Admin Button --- */
+    .admin-rect-btn {
       position: relative;
-      width: 64px;
-      height: 72px;
-      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      width: 110px;
+      height: 38px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: transparent;
       transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-    
-    .hexagon-outline::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      padding: 2px;
-      background: linear-gradient(135deg, rgba(212, 175, 55, 0.7), rgba(212, 175, 55, 0.15));
-      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
+      backdrop-filter: blur(8px);
     }
 
-    .hexagon-outline:hover {
-      background: rgba(212, 175, 55, 0.08);
-      transform: translateY(-5px) scale(1.1);
+    .admin-rect-btn:hover {
+      background: rgba(212, 175, 55, 0.1);
+      border-color: var(--gold-accent);
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(212, 175, 55, 0.2);
+    }
+
+    .admin-rect-btn::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 0%;
+      height: 2px;
+      background: var(--gold-accent);
+      transition: all 0.3s ease;
+      transform: translateX(-50%);
+    }
+
+    .admin-rect-btn:hover::after {
+      width: 40%;
     }
   </style>
 <script type="importmap">

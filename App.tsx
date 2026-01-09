@@ -46,13 +46,12 @@ import {
 } from 'lucide-react';
 
 const TechMeteorShower: React.FC = () => {
-  // สร้างดาวตก 20 เส้นเพื่อให้ดูมีความเป็น Data flow มากขึ้น
   const meteors = useMemo(() => {
-    return Array.from({ length: 20 }).map((_, i) => ({
+    return Array.from({ length: 18 }).map((_, i) => ({
       id: i,
       left: `${Math.random() * 100}%`,
       delay: `${Math.random() * 8}s`,
-      duration: `${2 + Math.random() * 3}s`,
+      duration: `${2.5 + Math.random() * 3}s`,
     }));
   }, []);
 
@@ -75,43 +74,34 @@ const TechMeteorShower: React.FC = () => {
 const ModernWaves: React.FC = () => {
   return (
     <div className="waves-container">
-      {/* --- Background Thin Line 1 --- */}
       <div className="wave-layer animate-wave-slow bob-slow opacity-20">
         <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
           <path className="wave-line" stroke="#D4AF37" d="M0,160 C320,300 420,10 720,160 C1020,310 1120,20 1440,160"></path>
           <path className="wave-line" stroke="#D4AF37" d="M1440,160 C1760,300 1860,10 2160,160 C2460,310 2560,20 2880,160"></path>
         </svg>
       </div>
-
-      {/* --- Background Thin Line 2 --- */}
       <div className="wave-layer animate-wave-mid bob-mid opacity-10">
         <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
           <path className="wave-line" stroke="#FFFFFF" d="M0,192 C240,120 480,240 720,192 C960,144 1200,240 1440,192"></path>
           <path className="wave-line" stroke="#FFFFFF" d="M1440,192 C1680,120 1920,240 2160,192 C2400,144 2640,240 2880,192"></path>
         </svg>
       </div>
-
-      {/* Deepest Main Layer */}
       <div className="wave-layer animate-wave-slow bob-slow opacity-30">
         <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
           <path fill="#7A0B3D" fillOpacity="1" d="M0,160L48,176C96,192,192,224,288,224C384,224,480,192,576,165.3C672,139,768,117,864,138.7C960,160,1056,224,1152,245.3C1248,267,1344,245,1392,234.7L1440,224V320H0Z"></path>
           <path fill="#7A0B3D" fillOpacity="1" d="M1440,160L1488,176C1536,192,1632,224,1728,224C1824,224,1920,192,2016,165.3C2112,139,2208,117,2304,138.7C2400,160,2496,224,2592,245.3C2688,267,2784,245,2832,234.7L2880,224V320H1440Z"></path>
         </svg>
       </div>
-
-      {/* Mid Main Layer */}
       <div className="wave-layer animate-wave-mid bob-mid opacity-20" style={{ marginBottom: '5px' }}>
         <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
           <path fill="#D4AF37" fillOpacity="1" d="M0,224L60,202.7C120,181,240,139,360,144C480,149,600,203,720,202.7C840,203,960,149,1080,128C1200,107,1320,117,1380,122.7L1440,128V320H0Z"></path>
           <path fill="#D4AF37" fillOpacity="1" d="M1440,224L1500,202.7C1560,181,1680,139,1800,144C1920,149,2040,203,2160,202.7C2280,203,2400,149,2520,128C2640,107,2760,117,2820,122.7L2880,128V320H1440Z"></path>
         </svg>
       </div>
-
-      {/* Top Main Layer */}
       <div className="wave-layer animate-wave-fast bob-fast opacity-40">
         <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
           <path fill="#630330" fillOpacity="1" d="M0,288L48,272C96,256,192,224,288,197.3C384,171,480,149,576,165.3C672,181,768,235,864,250.7C960,267,1056,245,1152,208C1248,171,1344,117,1392,90.7L1440,64V320H0Z"></path>
-          <path fill="#630330" fillOpacity="1" d="M1440,288L1488,272C1536,256,1632,224,1728,197.3C1824,171,1920,149,2016,165.3C2112,181,2208,235,2304,250.7C2400,267,2496,245,2592,208C2688,171,2784,117,2832,90.7L2880,64V320H0Z"></path>
+          <path fill="#630330" fillOpacity="1" d="M1440,288L1488,272C1536,256,1632,224,1728,197.3C1824,171,1920,149,2016,165.3C2112,181,2208,235,2304,250.7C2400,267,2496,245,2592,208C2688,171,2784,117,2832,90.7L2880,64V320H1440Z"></path>
         </svg>
       </div>
     </div>
@@ -203,14 +193,15 @@ const App: React.FC = () => {
         <div className="video-overlay"></div>
         <div className="islamic-tech-watermark"></div>
         
-        {/* --- Tech Meteor Shower (Vertical & Straight) --- */}
+        {/* --- Tech Meteor Shower (Vertical) - Layer 5 --- */}
         <TechMeteorShower />
 
-        {/* --- Modern Water Waves --- */}
+        {/* --- Modern Water Waves - Layer 10 --- */}
         <ModernWaves />
         
-        <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-10 px-6 py-6 reveal-anim pt-4 sm:pt-12">
-          <div className="flex flex-col items-center space-y-6 sm:space-y-10">
+        {/* --- Main Content - Layer 20 (Higher than waves and meteors) --- */}
+        <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-6 py-4 reveal-anim pt-2 sm:pt-10">
+          <div className="flex flex-col items-center space-y-4 sm:space-y-8">
              
              {/* University Identity Tag */}
              <div className="px-4 sm:px-8 py-2 sm:py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
@@ -227,64 +218,63 @@ const App: React.FC = () => {
 
              {/* --- Center Modern WISE Identity --- */}
              <div className="relative flex flex-col items-center group text-center max-w-full">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[100px] w-80 h-80 bg-[#D4AF37] rounded-full"></div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[100px] w-60 h-60 sm:w-80 sm:h-80 bg-[#D4AF37] rounded-full"></div>
                 
-                <h2 className="relative text-7xl sm:text-[10rem] md:text-[11rem] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-[#D4AF37] leading-tight transition-all duration-700 group-hover:scale-105 drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)] select-none">
+                <h2 className="relative text-6xl sm:text-[10rem] md:text-[11rem] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-[#D4AF37] leading-tight transition-all duration-700 group-hover:scale-105 drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)] select-none">
                   WISE
                 </h2>
 
-                <div className="relative flex flex-col items-center -mt-4 sm:-mt-8 space-y-2 px-4 w-full overflow-hidden">
+                <div className="relative flex flex-col items-center -mt-2 sm:-mt-8 space-y-2 px-4 w-full overflow-hidden">
                   <div className="h-px w-20 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent mb-1"></div>
-                  
-                  <span className="text-white text-[10px] sm:text-xl md:text-2xl font-extrabold tracking-tight uppercase opacity-95 drop-shadow-lg leading-none whitespace-nowrap">
+                  <span className="text-white text-[9px] sm:text-xl md:text-2xl font-extrabold tracking-tight uppercase opacity-95 drop-shadow-lg leading-none whitespace-nowrap">
                     Work-Integrated Science Education Unit
                   </span>
-                  
-                  <span className="text-[#D4AF37] text-[9px] sm:text-base md:text-lg font-semibold opacity-90 drop-shadow-md leading-none whitespace-nowrap">
+                  <span className="text-[#D4AF37] text-[8px] sm:text-base md:text-lg font-semibold opacity-90 drop-shadow-md leading-none whitespace-nowrap">
                     หน่วยจัดการศึกษาวิทยาศาสตร์บูรณาการกับการทำงาน
                   </span>
-
                   <div className="h-px w-14 bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent mt-1"></div>
                 </div>
              </div>
           </div>
 
-          <div className="mt-8 sm:mt-10 space-y-8 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight">
+          <div className="mt-4 sm:mt-8 space-y-6 sm:space-y-8 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            <h1 className="text-2xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight">
               {currentT.landingHeading}
             </h1>
 
-            <div className="flex flex-col items-center w-full gap-10">
-              <div className="transform transition-all duration-500 hover:scale-105">
+            <div className="flex flex-col items-center w-full gap-6 sm:gap-10">
+              <div className="transform transition-all duration-500 hover:scale-105 scale-90 sm:scale-100">
                 <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} />
               </div>
               
-              <div className="flex flex-col items-center space-y-8">
+              <div className="flex flex-col items-center space-y-6 sm:space-y-8">
+                {/* --- Adjusted Start Now Button (Slightly smaller) --- */}
                 <button 
                   onClick={() => setViewState('dashboard')}
-                  className="group relative px-14 sm:px-24 py-6 bg-white text-[#630330] rounded-full font-black uppercase text-lg sm:text-xl transition-all hover:translate-y-[-6px] active:scale-95 shadow-[0_25px_60px_rgba(0,0,0,0.4)] overflow-hidden"
+                  className="group relative px-8 sm:px-16 py-3.5 sm:py-5 bg-white text-[#630330] rounded-full font-black uppercase text-sm sm:text-lg transition-all hover:translate-y-[-5px] active:scale-95 shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none"></div>
-                  <span className="relative z-10 flex items-center gap-4 sm:gap-6 tracking-wider">
+                  <span className="relative z-10 flex items-center gap-3 sm:gap-5 tracking-wider">
                     {currentT.startNow} 
                     <div className="p-1 rounded-full bg-[#630330]/5 group-hover:bg-[#630330] group-hover:text-white transition-all duration-300">
-                      <ChevronRight size={24} className={`${isRtl ? 'rotate-180' : ''} group-hover:translate-x-1 transition-transform duration-500`} />
+                      <ChevronRight size={18} className={`${isRtl ? 'rotate-180' : ''} group-hover:translate-x-1 transition-transform duration-500`} />
                     </div>
                   </span>
-                  <div className="absolute -inset-2 bg-white/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="absolute -inset-2 bg-white/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 </button>
 
+                {/* --- Modern Rectangular Admin Button --- */}
                 <button 
                   onClick={() => {
                     setLoginError(false);
                     setShowAdminModal(true);
                   }}
-                  className="hexagon-outline group opacity-60 hover:opacity-100 transition-opacity"
+                  className="admin-rect-btn group mt-2"
                   title="Admin Access"
                 >
-                  <div className="flex flex-col items-center">
-                    <LockKeyhole size={20} className="text-[#D4AF37]/70 group-hover:text-[#D4AF37] transition-colors duration-500" />
-                    <span className="text-[9px] font-bold uppercase text-[#D4AF37]/50 group-hover:text-[#D4AF37] mt-1 tracking-widest">Admin</span>
+                  <div className="flex items-center gap-2">
+                    <LockKeyhole size={14} className="text-[#D4AF37]/80 group-hover:text-[#D4AF37] transition-colors" />
+                    <span className="text-[10px] font-bold uppercase text-[#D4AF37]/80 group-hover:text-[#D4AF37] tracking-widest">Admin</span>
                   </div>
                 </button>
               </div>
@@ -292,31 +282,31 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Marquee Footer */}
-        <div className="w-full pb-10 sm:pb-16 mt-auto overflow-hidden opacity-30 z-10">
-          <div className="animate-marquee whitespace-nowrap flex items-center gap-16 sm:gap-32">
+        {/* Marquee Footer (Icons) */}
+        <div className="w-full pb-8 sm:pb-20 mt-auto overflow-hidden opacity-30 z-10">
+          <div className="animate-marquee whitespace-nowrap flex items-center gap-12 sm:gap-32">
             {[...scrollingIcons, ...scrollingIcons].map((item, idx) => (
-              <div key={idx} className="flex flex-col items-center gap-3 text-[#D4AF37]">
-                <div className="p-5 rounded-[2rem] glass-polish border border-white/5 shadow-xl">
-                  {item.icon}
+              <div key={idx} className="flex flex-col items-center gap-2 sm:gap-3 text-[#D4AF37]">
+                <div className="p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] glass-polish border border-white/5 shadow-xl">
+                  {React.cloneElement(item.icon as React.ReactElement, { size: 20 })}
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-widest">{item.label}</span>
+                <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-widest">{item.label}</span>
               </div>
             ))}
           </div>
         </div>
 
         {showAdminModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-2xl reveal-anim">
-            <div className="w-full max-w-[360px] flex flex-col items-center relative p-12 rounded-[3rem] border border-white/10 bg-white/5 shadow-3xl">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 backdrop-blur-3xl reveal-anim">
+            <div className="w-full max-w-[420px] flex flex-col items-center relative p-10 sm:p-14 rounded-[3rem] border border-white/10 bg-white/5 shadow-3xl">
               <button onClick={() => setShowAdminModal(false)} className="absolute top-8 right-8 p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all">
                 <X size={26} />
               </button>
               <div className="inline-flex p-7 rounded-[2rem] bg-[#D4AF37]/10 text-[#D4AF37] mb-8 shadow-[0_0_50px_rgba(212,175,55,0.2)]">
-                <Fingerprint size={56} className="animate-pulse" />
+                <Fingerprint size={52} className="animate-pulse" />
               </div>
-              <h3 className="text-2xl font-bold text-white uppercase mb-1">Authorization</h3>
-              <p className="text-[11px] text-[#D4AF37]/50 font-bold uppercase mb-10 text-center tracking-normal">Staff Authentication Required</p>
+              <h3 className="text-2xl font-bold text-white uppercase mb-1">Staff Terminal</h3>
+              <p className="text-[11px] text-[#D4AF37]/60 font-bold uppercase mb-10 text-center tracking-widest">Verification Sequence Initiated</p>
               <form onSubmit={handleAdminLogin} className="w-full space-y-8">
                 <div className="relative">
                   <input 
@@ -328,16 +318,23 @@ const App: React.FC = () => {
                       setAdminPassInput(e.target.value);
                       if (loginError) setLoginError(false);
                     }} 
-                    className={`w-full px-4 py-5 rounded-2xl bg-white/5 border-2 outline-none font-bold text-center text-4xl transition-all tracking-normal
-                      ${loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10 shadow-[0_0_30px_rgba(244,63,94,0.3)]' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
+                    className={`w-full px-4 py-7 rounded-2xl bg-white/5 border-2 outline-none font-bold text-center text-6xl transition-all
+                      ${loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
                   />
                   {loginError && (
-                    <div className="absolute -bottom-8 left-0 right-0 flex items-center justify-center gap-2 text-rose-500 text-[11px] font-bold uppercase animate-pulse">
-                      <AlertCircle size={14} /> Incorrect Access Key
+                    <div className="absolute -bottom-8 left-0 right-0 flex items-center justify-center gap-2 text-rose-500 text-[11px] font-bold uppercase animate-bounce">
+                      <AlertCircle size={14} /> Unauthorized Access Denied
                     </div>
                   )}
                 </div>
-                <button type="submit" className="w-full bg-[#630330] text-white py-5 rounded-[1.25rem] font-bold uppercase text-[12px] shadow-2xl hover:bg-[#7a0b3d] transition-all transform active:scale-95">Verify & Login</button>
+                
+                {/* --- Improved Verify & Login Button (Better UX/Touch Target) --- */}
+                <button 
+                  type="submit" 
+                  className="w-full bg-[#630330] hover:bg-[#7a0b3d] text-white py-6 sm:py-8 rounded-2xl font-black uppercase text-base shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all active:scale-95 active:bg-[#4a0224] transform"
+                >
+                  Verify & Continue
+                </button>
               </form>
             </div>
           </div>
@@ -413,55 +410,12 @@ const App: React.FC = () => {
               </div>
             </div>
           </div>
-          
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8">
             {filteredSites.map(site => (
               <InternshipCard key={site.id} site={site} lang={lang} />
             ))}
           </div>
         </section>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          <div className="lg:col-span-7 space-y-8">
-            <div className="flex items-center gap-4 px-4">
-              <Navigation size={26} className="text-[#630330]" />
-              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-normal">{currentT.schedule}</h3>
-            </div>
-            <div className="bg-white p-10 sm:p-16 rounded-[3.5rem] border border-slate-100 shadow-2xl space-y-14">
-              {schedule.map((ev, idx) => (
-                <div key={ev.id} className="flex gap-8 items-center group">
-                  <div className="w-14 h-14 rounded-2xl bg-[#630330] text-white flex items-center justify-center font-black text-xl shadow-xl transition-all group-hover:scale-110">{idx + 1}</div>
-                  <div className="flex-grow p-8 rounded-[2.5rem] bg-slate-50 border border-transparent group-hover:border-[#D4AF37] group-hover:bg-white transition-all shadow-sm hover:shadow-xl">
-                    <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">{getLocalized(ev.date)}</span>
-                    <h4 className="text-xl font-bold text-slate-800 mt-1">{getLocalized(ev.event)}</h4>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="lg:col-span-5 space-y-8">
-             <div className="flex items-center gap-4 px-4">
-               <ClipboardCheck size={26} className="text-[#D4AF37]" />
-               <h3 className="text-2xl font-black text-slate-900 uppercase tracking-normal">{currentT.forms}</h3>
-             </div>
-             <div className="space-y-8">
-                <div className="bg-white p-10 rounded-[3rem] border-t-[10px] border-t-[#630330] shadow-2xl space-y-5">
-                  <span className="text-[12px] font-bold text-[#630330] uppercase tracking-normal">{currentT.appForms}</span>
-                  {forms.filter(f => f.category === FormCategory.APPLICATION).map(form => (
-                    <a key={form.id} href={form.url} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl font-bold text-sm hover:bg-[#630330] hover:text-white transition-all shadow-sm hover:shadow-lg">{form.title} <FileDown size={20}/></a>
-                  ))}
-                </div>
-                <div className="bg-slate-900 p-10 rounded-[3rem] shadow-3xl space-y-5 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-                  <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">{currentT.monitoringForms}</span>
-                  {forms.filter(f => f.category === FormCategory.MONITORING).map(form => (
-                    <a key={form.id} href={form.url} className="flex items-center justify-between p-5 bg-white/5 rounded-2xl font-bold text-sm text-white border border-white/5 hover:bg-[#D4AF37] hover:text-[#630330] transition-all shadow-sm">{form.title} <FileDown size={20}/></a>
-                  ))}
-                </div>
-             </div>
-          </div>
-        </div>
       </main>
 
       <footer className="py-24 bg-white border-t border-slate-100 mt-24">
