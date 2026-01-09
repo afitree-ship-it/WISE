@@ -68,7 +68,7 @@ const App: React.FC = () => {
     localStorage.setItem('wise_portal_lang', lang);
   }, [lang]);
 
-  // Admin forces Thai context; Users see their selected language
+  // IMPORTANT: If role is ADMIN, ALWAYS force Thai language regardless of previous selection
   const currentT = role === UserRole.ADMIN ? TRANSLATIONS[Language.TH] : TRANSLATIONS[lang];
   const isRtl = lang === Language.AR && role !== UserRole.ADMIN;
 
@@ -76,6 +76,7 @@ const App: React.FC = () => {
     e.preventDefault();
     if (adminPassInput === 'fst111') {
       setRole(UserRole.ADMIN);
+      // Automatically switch to Thai for Admin
       setLang(Language.TH); 
       setShowAdminModal(false);
       setAdminPassInput('');
@@ -95,6 +96,8 @@ const App: React.FC = () => {
   };
 
   const getLocalized = (localized: LocalizedString) => {
+    // Force Thai if admin, otherwise use selected language
+    if (role === UserRole.ADMIN) return localized.th;
     return localized[lang] || localized['en'] || localized['th'];
   };
 
@@ -144,7 +147,7 @@ const App: React.FC = () => {
              <div className="px-6 py-2.5 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl">
                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
                  <span className="text-[11px] sm:text-xs font-bold uppercase text-white leading-none">
-                   {lang === Language.TH ? "คณะวิทยาศาสตร์และเทคโนโลยี" : "Faculty of Science and Technology"}
+                   {lang === Language.TH ? "คณะวิทยาศาสตร์และเทคโนโลยี" : (lang === Language.AR ? "كلية العلوم والتكنولوجيا" : "Faculty of Science and Technology")}
                  </span>
                  <div className="hidden sm:block w-1.5 h-1.5 bg-[#D4AF37] rounded-full opacity-40"></div>
                  <span className="text-[11px] sm:text-xs font-bold uppercase text-[#D4AF37] leading-none">
@@ -219,7 +222,7 @@ const App: React.FC = () => {
                 <Fingerprint size={48} className="animate-pulse" />
               </div>
               <h3 className="text-xl font-bold text-white uppercase mb-1">Authorization</h3>
-              <p className="text-[10px] text-[#D4AF37]/50 font-bold uppercase mb-8 text-center">Faculty Personnel Only (Thai Only)</p>
+              <p className="text-[10px] text-[#D4AF37]/50 font-bold uppercase mb-8 text-center">Faculty Personnel Only (Thai Language Interface)</p>
               <form onSubmit={handleAdminLogin} className="w-full space-y-6">
                 <div className="relative">
                   <input 
@@ -256,12 +259,13 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
             <div className="w-11 h-11 bg-[#630330] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#63033022]"><Binary size={22} /></div>
             <div className="hidden sm:block">
-              <span className="block text-xl font-bold text-slate-900 leading-none uppercase">WISE Portal</span>
-              <span className="block text-[9px] text-[#D4AF37] font-bold uppercase mt-1">Fatoni University</span>
+              <span className="block text-xl font-bold text-slate-900 leading-none uppercase">WISE</span>
+              <span className="block text-[9px] text-[#D4AF37] font-bold uppercase mt-1">Work-Integrated Education</span>
             </div>
           </div>
           
           <div className="flex items-center gap-3 sm:gap-6">
+            {/* Show Language Switcher ONLY if NOT Admin */}
             {role !== UserRole.ADMIN && (
               <div className="relative">
                  <button onClick={() => setIsNavLangOpen(!isNavLangOpen)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700 hover:bg-slate-100 transition-all font-bold shadow-sm">
@@ -301,7 +305,7 @@ const App: React.FC = () => {
               <div className="p-4 bg-[#630330] text-white rounded-2xl shadow-xl"><Database size={24} /></div>
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 uppercase">{currentT.internshipSites}</h2>
-                <p className="text-[11px] font-bold text-slate-400 uppercase mt-0.5">Database of Academic Placements</p>
+                <p className="text-[11px] font-bold text-slate-400 uppercase mt-0.5">{currentT.title}</p>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-4 flex-grow max-w-3xl">
@@ -319,7 +323,7 @@ const App: React.FC = () => {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {filteredSites.map(site => (
-              <InternshipCard key={site.id} site={site} lang={role === UserRole.ADMIN ? Language.TH : lang} />
+              <InternshipCard key={site.id} site={site} lang={lang} />
             ))}
           </div>
         </section>
@@ -368,7 +372,7 @@ const App: React.FC = () => {
 
       <footer className="py-20 bg-white border-t border-slate-100 mt-20">
         <div className="container mx-auto px-6 text-center opacity-30">
-          <div className="text-slate-900 font-bold text-2xl uppercase mb-6 tracking-widest">WISE PORTAL</div>
+          <div className="text-slate-900 font-bold text-2xl uppercase mb-6">WISE</div>
           <p className="text-slate-400 text-[10px] font-bold uppercase">Faculty of Science and Technology, Fatoni University.</p>
         </div>
       </footer>
