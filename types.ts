@@ -34,7 +34,7 @@ export interface InternshipSite {
   name: LocalizedString;
   location: LocalizedString;
   description: LocalizedString;
-  position: LocalizedString;
+  position: LocalizedString; // Changed from positions array to single localized string for UI consistency
   status: 'active' | 'archived';
   major: Major;
   contactLink?: string;
