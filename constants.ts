@@ -34,7 +34,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     urlLabel: "ลิงก์เว็บไซต์",
     selectMajorTitle: "เลือกสาขาวิชาของคุณ",
     selectMajorSubtitle: "เพื่อดูข้อมูลที่ตรงกับความต้องการ",
-    startNow: "เริ่มต้นใช้งาน",
+    startNow: "เข้าสู่เว็บไซต์",
     selectLanguagePrompt: "กรุณาเลือกภาษา",
     schedule: "กำหนดการสำคัญ",
     appForms: "เอกสารสมัครงาน",
@@ -76,7 +76,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     urlLabel: "Website URL",
     selectMajorTitle: "Select Your Major",
     selectMajorSubtitle: "To view relevant information",
-    startNow: "Start Journey",
+    startNow: "Enter Website",
     selectLanguagePrompt: "Select Language",
     schedule: "Key Schedule",
     appForms: "Application Forms",
@@ -118,7 +118,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     urlLabel: "رابط الموقع",
     selectMajorTitle: "اختر تخصصك",
     selectMajorSubtitle: "لعرض المعلومات ذات الصلة",
-    startNow: "ابدأ الآن",
+    startNow: "الدخول إلى الموقع",
     selectLanguagePrompt: "اختر اللغة",
     schedule: "الجدول الزمني",
     appForms: "نماذج التقديم",
@@ -160,7 +160,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     urlLabel: "Pautan Laman Web",
     selectMajorTitle: "Pilih Bidang Anda",
     selectMajorSubtitle: "Untuk melihat maklumat yang berkaitan",
-    startNow: "Mula Sekarang",
+    startNow: "Masuk ke Laman Web",
     selectLanguagePrompt: "Sila Pilih Bahasa",
     schedule: "Jadual Penting",
     appForms: "Borang Permohonan",
@@ -168,7 +168,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     email: "Emel",
     phone: "Telefon",
     visitWebsite: "Layari Laman Web",
-    searchPlaceholder: "Cari nama, jawatan, atau lokasi..."
+    searchPlaceholder: "Cari nama, jawatan, หรือตำแหน่งงาน..."
   }
 };
 
@@ -189,7 +189,7 @@ export const INITIAL_SITES: InternshipSite[] = [
     name: { th: "เทคโพร โซลูชั่น", en: "TechPro Solutions", ar: "حلول تيك برو", ms: "TechPro Solutions" },
     location: { th: "ภูเก็ต", en: "Phuket", ar: "بوكيت", ms: "Phuket" },
     description: { th: "บริษัทพัฒนาซอฟต์แวร์และระบบคลาวด์", en: "Software development and cloud solutions company.", ar: "شركة تطوير البرمجيات وحلول السحابة.", ms: "Syarikat pembangunan perisian dan penyelesaian awan." },
-    position: { th: "Full Stack Developer", en: "Full Stack Developer", ar: "مطور فول ستاك", ms: "Pembangun Full Stack" },
+    position: { th: "Full Stack Developer", en: "Full Stack Developer", ar: "มطور فولสตาค", ms: "Pembangun Full Stack" },
     status: 'active',
     major: Major.DIGITAL_TECH,
     email: "careers@techpro.io",
