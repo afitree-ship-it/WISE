@@ -82,38 +82,37 @@ const TechMeteorShower: React.FC = () => {
 const ModernWaves: React.FC = () => {
   return (
     <div className="waves-container">
-      {/* Layer 1: Distant Golden Ripples */}
+      {/* Background layer - slow moving strokes */}
       <div className="wave-layer animate-wave-slow bob-slow opacity-20">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path className="wave-line" stroke="#D4AF37" d="M0,160 C360,260 540,10 720,160 C900,310 1080,20 1440,160 C1800,260 1980,10 2160,160 C2340,310 2520,20 2880,160" />
+          <path className="wave-line" stroke="#D4AF37" d="M0,160 C320,300 420,10 720,160 C1020,310 1120,20 1440,160 C1760,300 1860,10 2160,160 C2460,310 2560,20 2880,160"></path>
         </svg>
       </div>
       
-      {/* Layer 2: White Mist Lines */}
+      {/* Middle layer - white outlines */}
       <div className="wave-layer animate-wave-mid bob-mid opacity-10">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path className="wave-line" stroke="#FFFFFF" d="M0,192 C240,140 480,240 720,192 C960,144 1200,240 1440,192 C1680,140 1920,240 2160,192 C2400,144 2640,240 2880,192" />
+          <path className="wave-line" stroke="#FFFFFF" d="M0,192 C240,120 480,240 720,192 C960,144 1200,240 1440,192 C1680,120 1920,240 2160,192 C2400,144 2640,240 2880,192"></path>
         </svg>
       </div>
 
-      {/* Layer 3: Organic Mangosteen Body */}
+      {/* Main color layers - mangosteen & gold fills */}
       <div className="wave-layer animate-wave-slow bob-slow opacity-30">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path fill="#7A0B3D" d="M0,160 C360,190 480,240 720,200 C960,160 1200,180 1440,160 C1800,190 1920,240 2160,200 C2400,160 2640,180 2880,160 V320 H0 Z" />
+          <path fill="#7A0B3D" fillOpacity="1" d="M0,160 L120,170.7 C240,181,480,203,720,202.7 C960,203,1200,181,1320,170.7 L1440,160 L1560,170.7 C1680,181,1920,203,2160,202.7 C2400,203,2640,181,2760,170.7 L2880,160 V320 H0 Z"></path>
         </svg>
       </div>
 
-      {/* Layer 4: Floating Gold Surface */}
-      <div className="wave-layer animate-wave-mid bob-mid opacity-20" style={{ marginBottom: '4px' }}>
+      <div className="wave-layer animate-wave-mid bob-mid opacity-20" style={{ marginBottom: '2px' }}>
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path fill="#D4AF37" d="M0,224 C120,240 240,160 360,180 C480,200 600,230 720,210 C840,190 960,170 1080,190 C1200,210 1320,230 1440,224 C1560,240 1680,160 1800,180 C1920,200 2040,230 2160,210 C2280,190 2400,170 2520,190 C2640,210 2760,230 2880,224 V320 H0 Z" />
+          <path fill="#D4AF37" fillOpacity="1" d="M0,224 L120,213.3 C240,203,480,181,720,181.3 C960,181,1200,203,1320,213.3 L1440,224 L1560,213.3 C1680,203,1920,181,2160,181.3 C2400,181,2640,203,2760,213.3 L2880,224 V320 H0 Z"></path>
         </svg>
       </div>
 
-      {/* Layer 5: Strong Foreground Current */}
-      <div className="wave-layer animate-wave-fast bob-fast opacity-60">
+      {/* Front layer - deep mangosteen solid */}
+      <div className="wave-layer animate-wave-fast bob-fast opacity-50">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path fill="#630330" d="M0,288 C180,260 360,220 540,240 C720,260 900,300 1080,280 C1260,260 1380,270 1440,288 C1620,260 1800,220 1980,240 C2160,260 2340,300 2520,280 C2700,260 2820,270 2880,288 V320 H0 Z" />
+          <path fill="#630330" fillOpacity="1" d="M0,288 L120,277.3 C240,267,480,245,720,245.3 C960,245,1200,267,1320,277.3 L1440,288 L1560,277.3 C1680,267,1920,245,2160,245.3 C2400,245,2640,267,2760,277.3 L2880,288 V320 H0 Z"></path>
         </svg>
       </div>
     </div>
