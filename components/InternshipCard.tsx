@@ -18,6 +18,17 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
   const getLocalized = (localized: LocalizedString) => {
     return localized[lang] || localized['en'] || localized['th'];
   };
+
+  // FIX: Safety helper to ensure URLs are absolute and don't trigger 404s
+  const getSafeUrl = (url?: string) => {
+    if (!url) return undefined;
+    const trimmed = url.trim();
+    if (!trimmed) return undefined;
+    // Check if it starts with http:// or https://
+    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  };
+
+  const safeContactLink = getSafeUrl(site.contactLink);
   
   return (
     <div className="group relative overflow-hidden rounded-2xl bg-white border border-slate-100 transition-all hover:border-[#63033044] hover:shadow-xl p-5 flex flex-col h-full">
@@ -68,9 +79,9 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
       </div>
 
       <div className="mt-auto">
-        {site.contactLink ? (
+        {safeContactLink ? (
           <a 
-            href={site.contactLink} 
+            href={safeContactLink} 
             target="_blank" 
             rel="noopener noreferrer"
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#630330] text-white text-[9px] font-bold uppercase hover:bg-[#7a0b3d] transition-all shadow-md group-hover:shadow-[#63033044]"

@@ -290,6 +290,12 @@ const App: React.FC = () => {
     const thName = formData.get('name_th') as string;
     const thLoc = formData.get('loc_th') as string;
     const thDesc = formData.get('desc_th') as string;
+    
+    // FIX: URL Sanitization to prevent 404 errors
+    let rawUrl = (formData.get('url') as string).trim();
+    if (rawUrl && !/^https?:\/\//i.test(rawUrl)) {
+      rawUrl = `https://${rawUrl}`;
+    }
 
     const itemsToTranslate = [];
     if (!editingSite || editingSite.name.th !== thName) itemsToTranslate.push({ key: 'name', value: thName });
@@ -310,7 +316,7 @@ const App: React.FC = () => {
       description: results['desc'] || editingSite?.description || { th: thDesc, en: thDesc, ar: thDesc, ms: thDesc },
       status: formData.get('status') as 'active' | 'archived',
       major: formData.get('major') as Major,
-      contactLink: formData.get('url') as string,
+      contactLink: rawUrl,
       email: formData.get('email') as string,
       phone: formData.get('phone') as string,
     };
@@ -629,10 +635,8 @@ const App: React.FC = () => {
             
             <div className="flex flex-col gap-6 flex-grow max-w-4xl">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                {/* Premium Segmented Major Selector - Mobile Friendly & Aesthetic */}
                 <div className="flex flex-col sm:flex-row items-stretch gap-3 flex-grow">
                   <div className="relative bg-slate-100/80 p-1.5 rounded-[2rem] flex flex-col sm:flex-row gap-1 shadow-inner w-full min-h-[64px]">
-                    {/* Active Background Indicator */}
                     <div 
                       className="hidden sm:block absolute top-1.5 bottom-1.5 bg-white rounded-[1.5rem] shadow-lg transition-all duration-300 ease-out z-0"
                       style={{ 
@@ -676,8 +680,7 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="relative flex-grow flex items-center group sm:max-w-[300px]">
-                    {/* FIXED: Search Icon Alignment - Ensure precise centering */}
-                    <div className="absolute left-6 top-0 bottom-0 flex items-center pointer-events-none">
+                    <div className="absolute left-6 top-0 bottom-0 flex items-center pointer-events-none z-10">
                       <Search className="text-slate-400" size={20} />
                     </div>
                     <input 
@@ -685,7 +688,7 @@ const App: React.FC = () => {
                       placeholder={currentT.searchPlaceholder} 
                       value={searchTerm} 
                       onChange={e => setSearchTerm(e.target.value)} 
-                      className="w-full pl-16 pr-8 py-5 rounded-[2rem] bg-slate-50 border-none text-sm font-bold focus:ring-4 focus:ring-[#63033011] transition-all min-h-[64px]" 
+                      className="w-full pl-16 pr-8 py-5 rounded-[2rem] bg-slate-50 border-none text-sm font-bold focus:ring-4 focus:ring-[#63033011] transition-all min-h-[64px] flex items-center" 
                     />
                   </div>
                 </div>
@@ -877,7 +880,7 @@ const App: React.FC = () => {
                     </select>
                   </div>
                   <div className="space-y-4 pt-4 border-t border-slate-100">
-                    <input name="url" defaultValue={editingSite?.contactLink} placeholder="ลิงก์เว็บไซต์ (https://...)" className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" />
+                    <input name="url" defaultValue={editingSite?.contactLink} placeholder="ลิงก์เว็บไซต์ (www.example.com)" className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" />
                     <input name="email" defaultValue={editingSite?.email} placeholder="อีเมลติดต่อ" className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" />
                     <input name="phone" defaultValue={editingSite?.phone} placeholder="เบอร์โทรศัพท์" className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" />
                   </div>
