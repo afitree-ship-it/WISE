@@ -31,12 +31,12 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
   const safeContactLink = getSafeUrl(site.contactLink);
   
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-white border border-slate-100 transition-all hover:border-[#63033044] hover:shadow-xl p-5 flex flex-col h-full">
+    <div className="group relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 transition-all hover:border-[#63033044] dark:hover:border-[#D4AF3744] hover:shadow-xl p-5 flex flex-col h-full">
       <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
         <span className={`px-2 py-0.5 rounded-md text-[8px] font-bold uppercase ${
           isActive 
-            ? 'bg-emerald-100 text-emerald-700' 
-            : 'bg-slate-100 text-slate-500'
+            ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400' 
+            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
         }`}>
           {isActive ? (
             <span className="flex items-center gap-1"><Flame size={10} /> {t.activeSites}</span>
@@ -45,34 +45,34 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
           )}
         </span>
         <span className={`px-2 py-0.5 rounded-md text-[8px] font-bold uppercase ${
-          isHalal ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+          isHalal ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400' : 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400'
         }`}>
           {isHalal ? t.halalMajor : t.digitalMajor}
         </span>
       </div>
       
-      <h3 className="text-sm font-bold text-slate-900 mb-1 leading-tight group-hover:text-[#630330] transition-colors line-clamp-2">
+      <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1 leading-tight group-hover:text-[#630330] dark:group-hover:text-[#D4AF37] transition-colors line-clamp-2">
         {getLocalized(site.name)}
       </h3>
-      <div className="flex items-center text-slate-400 text-[9px] font-bold mb-3">
-        <MapPin size={10} className="mr-1 text-[#630330]" />
+      <div className="flex items-center text-slate-400 dark:text-slate-500 text-[9px] font-bold mb-3">
+        <MapPin size={10} className="mr-1 text-[#630330] dark:text-[#D4AF37]" />
         {getLocalized(site.location)}
       </div>
       
-      <p className="text-slate-500 text-[10px] leading-relaxed mb-4 flex-grow line-clamp-3">
+      <p className="text-slate-500 dark:text-slate-400 text-[10px] leading-relaxed mb-4 flex-grow line-clamp-3">
         {getLocalized(site.description)}
       </p>
 
       <div className="flex flex-col gap-1.5 mb-4">
         {site.email && (
-          <div className="flex items-center gap-2 text-[9px] text-slate-500 bg-slate-50 px-2 py-1 rounded-md overflow-hidden">
-            <Mail size={10} className="text-[#630330] flex-shrink-0" />
+          <div className="flex items-center gap-2 text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 px-2 py-1 rounded-md overflow-hidden">
+            <Mail size={10} className="text-[#630330] dark:text-[#D4AF37] flex-shrink-0" />
             <span className="truncate">{site.email}</span>
           </div>
         )}
         {site.phone && (
-          <div className="flex items-center gap-2 text-[9px] text-slate-500 bg-slate-50 px-2 py-1 rounded-md">
-            <Phone size={10} className="text-[#630330] flex-shrink-0" />
+          <div className="flex items-center gap-2 text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 px-2 py-1 rounded-md">
+            <Phone size={10} className="text-[#630330] dark:text-[#D4AF37] flex-shrink-0" />
             <span>{site.phone}</span>
           </div>
         )}
@@ -84,12 +84,12 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
             href={safeContactLink} 
             target="_blank" 
             rel="noopener noreferrer"
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#630330] text-white text-[9px] font-bold uppercase hover:bg-[#7a0b3d] transition-all shadow-md group-hover:shadow-[#63033044]"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#630330] dark:bg-[#7a0b3d] text-white text-[9px] font-bold uppercase hover:bg-[#7a0b3d] dark:hover:bg-[#630330] transition-all shadow-md group-hover:shadow-[#63033044] dark:group-hover:shadow-[#D4AF3722]"
           >
             {t.visitWebsite} <ExternalLink size={10} />
           </a>
         ) : (
-          <div className="w-full text-center py-2.5 text-[8px] text-slate-300 font-bold uppercase border border-slate-50 rounded-xl">
+          <div className="w-full text-center py-2.5 text-[8px] text-slate-300 dark:text-slate-600 font-bold uppercase border border-slate-50 dark:border-slate-800 rounded-xl">
             {lang === 'th' ? 'ไม่มีเว็บไซต์' : 'No Website'}
           </div>
         )}

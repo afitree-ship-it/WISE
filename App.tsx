@@ -47,6 +47,8 @@ import {
   ArrowRight,
   Copy,
   LayoutGrid,
+  Sun,
+  Moon,
   LucideIcon
 } from 'lucide-react';
 
@@ -127,6 +129,15 @@ const App: React.FC = () => {
     return Language.TH;
   });
 
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const savedTheme = localStorage.getItem('wise_portal_theme');
+      return (savedTheme === 'dark' || savedTheme === 'light') ? savedTheme : 'light';
+    } catch (e) {
+      return 'light';
+    }
+  });
+
   const [viewState, setViewState] = useState<'landing' | 'dashboard'>('landing');
   const [role, setRole] = useState<UserRole>(UserRole.STUDENT);
   const [sites, setSites] = useState<InternshipSite[]>(INITIAL_SITES);
@@ -154,6 +165,17 @@ const App: React.FC = () => {
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
+
+  // Theme Sync
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('wise_portal_theme', theme);
+  }, [theme]);
 
   // Security & Custom Menu Logic
   useEffect(() => {
@@ -208,6 +230,7 @@ const App: React.FC = () => {
     if (adminPassInput === 'fst111') {
       setRole(UserRole.ADMIN);
       setLang(Language.TH); 
+      setTheme('light'); // Admin defaults to light for standard brand appearance
       setShowAdminLogin(false);
       setAdminPassInput('');
       setLoginError(false);
@@ -291,7 +314,6 @@ const App: React.FC = () => {
     const thLoc = formData.get('loc_th') as string;
     const thDesc = formData.get('desc_th') as string;
     
-    // FIX: URL Sanitization to prevent 404 errors
     let rawUrl = (formData.get('url') as string).trim();
     if (rawUrl && !/^https?:\/\//i.test(rawUrl)) {
       rawUrl = `https://${rawUrl}`;
@@ -557,27 +579,27 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col bg-[#F9FAFB] ${isRtl ? 'rtl' : ''}`}>
+    <div className={`min-h-screen flex flex-col bg-[#F9FAFB] dark:bg-slate-950 transition-colors duration-300 ${isRtl ? 'rtl' : ''}`}>
       {/* Custom Context Menu */}
       {contextMenu && (
         <div 
-          className="fixed z-[999] bg-white border border-slate-100 shadow-2xl rounded-xl py-2 min-w-[120px] reveal-anim"
+          className="fixed z-[999] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl rounded-xl py-2 min-w-[120px] reveal-anim"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
           <button 
             onClick={handleCopy}
-            className="w-full px-4 py-2.5 flex items-center gap-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all"
+            className="w-full px-4 py-2.5 flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
           >
-            <Copy size={16} className="text-[#630330]" />
+            <Copy size={16} className="text-[#630330] dark:text-[#D4AF37]" />
             คัดลอก (Copy)
           </button>
         </div>
       )}
 
       <div className="sticky top-0 z-50 w-full">
-        <div className="absolute inset-0 bg-[#F9FAFB]/60 backdrop-blur-2xl [mask-image:linear-gradient(to_bottom,black_70%,transparent)] pointer-events-none h-32 -mb-32"></div>
+        <div className="absolute inset-0 bg-[#F9FAFB]/60 dark:bg-slate-950/60 backdrop-blur-2xl [mask-image:linear-gradient(to_bottom,black_70%,transparent)] pointer-events-none h-32 -mb-32"></div>
         <nav className="relative px-4 py-4 sm:pt-6 sm:pb-2">
-          <div className="container mx-auto h-auto min-h-[112px] bg-white/95 backdrop-blur-md rounded-[2.5rem] px-6 sm:px-12 flex items-center justify-between border border-slate-100 shadow-2xl py-4 transition-all duration-300">
+          <div className="container mx-auto h-auto min-h-[112px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-[2.5rem] px-6 sm:px-12 flex items-center justify-between border border-slate-100 dark:border-slate-800 shadow-2xl py-4 transition-all duration-300">
             <div className="flex items-center gap-4 sm:gap-10">
               <div className="flex flex-col transform transition-all duration-300 hover:scale-[1.02]">
                 <span className="block text-4xl font-black leading-none uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#630330] via-[#8B1A4F] to-[#D4AF37]">
@@ -588,57 +610,68 @@ const App: React.FC = () => {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-4 sm:gap-8">
+            <div className="flex items-center gap-3 sm:gap-8">
               {role !== UserRole.ADMIN && (
-                <div className="relative">
-                   <button onClick={() => setIsNavLangOpen(!isNavLangOpen)} className="flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700 hover:bg-slate-100 transition-all font-bold shadow-sm">
-                     <Globe size={18} className="text-[#630330]" />
-                     <span className="text-[12px] font-bold uppercase tracking-normal">{lang.toUpperCase()}</span>
-                     <ChevronDown size={14} className={`transition-transform duration-300 ${isNavLangOpen ? 'rotate-180' : ''}`} />
-                   </button>
-                   {isNavLangOpen && (
-                     <div className="absolute right-0 top-full mt-4 p-2.5 bg-white rounded-2xl border border-slate-100 shadow-3xl z-[60] min-w-[180px] reveal-anim">
-                       {(Object.keys(Language) as Array<keyof typeof Language>).map((key) => (
-                         <button
-                           key={key}
-                           onClick={() => {
-                             setLang(Language[key]);
-                             setIsNavLangOpen(false);
-                           }}
-                           className={`w-full text-left px-5 py-4 rounded-xl text-[13px] font-bold uppercase transition-all flex items-center justify-between tracking-normal
-                             ${lang === Language[key] ? 'bg-[#630330] text-white' : 'text-slate-500 hover:bg-slate-50'}`}
-                         >
-                           {Language[key].toUpperCase()}
-                           {lang === Language[key] && <div className="w-2 h-2 bg-white rounded-full"></div>}
-                         </button>
-                       ))}
-                     </div>
-                   )}
+                <div className="flex items-center gap-2 sm:gap-4">
+                  {/* Theme Toggle */}
+                  <button 
+                    onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                    className="w-14 h-14 flex items-center justify-center bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
+                    title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+                  >
+                    {theme === 'light' ? <Moon size={22} /> : <Sun size={22} />}
+                  </button>
+
+                  <div className="relative">
+                    <button onClick={() => setIsNavLangOpen(!isNavLangOpen)} className="flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all font-bold shadow-sm">
+                      <Globe size={18} className="text-[#630330] dark:text-[#D4AF37]" />
+                      <span className="text-[12px] font-bold uppercase hidden sm:inline">{lang.toUpperCase()}</span>
+                      <ChevronDown size={14} className={`transition-transform duration-300 ${isNavLangOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isNavLangOpen && (
+                      <div className="absolute right-0 top-full mt-4 p-2.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-3xl z-[60] min-w-[180px] reveal-anim">
+                        {(Object.keys(Language) as Array<keyof typeof Language>).map((key) => (
+                          <button
+                            key={key}
+                            onClick={() => {
+                              setLang(Language[key]);
+                              setIsNavLangOpen(false);
+                            }}
+                            className={`w-full text-left px-5 py-4 rounded-xl text-[13px] font-bold uppercase transition-all flex items-center justify-between tracking-normal
+                              ${lang === Language[key] ? 'bg-[#630330] text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                          >
+                            {Language[key].toUpperCase()}
+                            {lang === Language[key] && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
-              <button onClick={handleLogout} className="w-14 h-14 flex items-center justify-center bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-xl shadow-rose-500/10 active:scale-90"><LogOut size={24} /></button>
+              <button onClick={handleLogout} className="w-14 h-14 flex items-center justify-center bg-rose-50 dark:bg-rose-950/30 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-xl shadow-rose-500/10 active:scale-90"><LogOut size={24} /></button>
             </div>
           </div>
         </nav>
       </div>
 
       <main className="container mx-auto px-4 py-8 sm:py-14 flex-grow space-y-16">
-        <section className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl p-8 sm:p-14 space-y-12 relative overflow-hidden">
+        <section className="bg-white dark:bg-slate-900/50 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-2xl p-8 sm:p-14 space-y-12 relative overflow-hidden transition-colors">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
             <div className="flex items-center gap-6">
-              <div className="p-5 bg-[#630330] text-white rounded-[1.5rem] shadow-2xl"><Database size={28} /></div>
+              <div className="p-5 bg-[#630330] dark:bg-[#7a0b3d] text-white rounded-[1.5rem] shadow-2xl"><Database size={28} /></div>
               <div>
-                <h2 className="text-3xl font-black text-slate-900 uppercase tracking-normal">{currentT.internshipSites}</h2>
-                <p className="text-[12px] font-bold text-slate-400 uppercase mt-1 tracking-normal">{currentT.title}</p>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-normal">{currentT.internshipSites}</h2>
+                <p className="text-[12px] font-bold text-slate-400 dark:text-slate-500 uppercase mt-1 tracking-normal">{currentT.title}</p>
               </div>
             </div>
             
             <div className="flex flex-col gap-6 flex-grow max-w-4xl">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                 <div className="flex flex-col sm:flex-row items-stretch gap-3 flex-grow">
-                  <div className="relative bg-slate-100/80 p-1.5 rounded-[2rem] flex flex-col sm:flex-row gap-1 shadow-inner w-full min-h-[64px]">
+                  <div className="relative bg-slate-100/80 dark:bg-slate-800/80 p-1.5 rounded-[2rem] flex flex-col sm:flex-row gap-1 shadow-inner w-full min-h-[64px] transition-colors">
                     <div 
-                      className="hidden sm:block absolute top-1.5 bottom-1.5 bg-white rounded-[1.5rem] shadow-lg transition-all duration-300 ease-out z-0"
+                      className="hidden sm:block absolute top-1.5 bottom-1.5 bg-white dark:bg-slate-700 rounded-[1.5rem] shadow-lg transition-all duration-300 ease-out z-0"
                       style={{ 
                         left: activeMajor === 'all' ? '6px' : activeMajor === Major.HALAL_FOOD ? '33.3%' : '66.6%',
                         width: '32%' 
@@ -649,8 +682,8 @@ const App: React.FC = () => {
                       onClick={() => setActiveMajor('all')} 
                       className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal 
                         ${activeMajor === 'all' 
-                          ? 'bg-[#630330] sm:bg-transparent text-white sm:text-[#630330] shadow-md sm:shadow-none' 
-                          : 'text-slate-400 hover:text-slate-600'}`}
+                          ? 'bg-[#630330] sm:bg-transparent text-white sm:text-[#630330] dark:sm:text-white shadow-md sm:shadow-none' 
+                          : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
                     >
                       <LayoutGrid size={16} />
                       {currentT.allMajors}
@@ -660,8 +693,8 @@ const App: React.FC = () => {
                       onClick={() => setActiveMajor(Major.HALAL_FOOD)} 
                       className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal
                         ${activeMajor === Major.HALAL_FOOD 
-                          ? 'bg-[#D4AF37] sm:bg-transparent text-white sm:text-[#D4AF37] shadow-md sm:shadow-none' 
-                          : 'text-slate-400 hover:text-slate-600'}`}
+                          ? 'bg-[#D4AF37] sm:bg-transparent text-white sm:text-[#D4AF37] dark:sm:text-[#D4AF37] shadow-md sm:shadow-none' 
+                          : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
                     >
                       <Salad size={16} />
                       {currentT.halalMajor}
@@ -671,8 +704,8 @@ const App: React.FC = () => {
                       onClick={() => setActiveMajor(Major.DIGITAL_TECH)} 
                       className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal
                         ${activeMajor === Major.DIGITAL_TECH 
-                          ? 'bg-blue-600 sm:bg-transparent text-white sm:text-blue-600 shadow-md sm:shadow-none' 
-                          : 'text-slate-400 hover:text-slate-600'}`}
+                          ? 'bg-blue-600 sm:bg-transparent text-white sm:text-blue-600 dark:sm:text-blue-400 shadow-md sm:shadow-none' 
+                          : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
                     >
                       <Code size={16} />
                       {currentT.digitalMajor}
@@ -681,14 +714,14 @@ const App: React.FC = () => {
 
                   <div className="relative flex-grow flex items-center group sm:max-w-[300px]">
                     <div className="absolute left-6 top-0 bottom-0 flex items-center pointer-events-none z-10">
-                      <Search className="text-slate-400" size={20} />
+                      <Search className="text-slate-400 dark:text-slate-500" size={20} />
                     </div>
                     <input 
                       type="text" 
                       placeholder={currentT.searchPlaceholder} 
                       value={searchTerm} 
                       onChange={e => setSearchTerm(e.target.value)} 
-                      className="w-full pl-16 pr-8 py-5 rounded-[2rem] bg-slate-50 border-none text-sm font-bold focus:ring-4 focus:ring-[#63033011] transition-all min-h-[64px] flex items-center" 
+                      className="w-full pl-16 pr-8 py-5 rounded-[2rem] bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-[#63033011] transition-all min-h-[64px] flex items-center" 
                     />
                   </div>
                 </div>
@@ -713,13 +746,13 @@ const App: React.FC = () => {
                   <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <button 
                       onClick={() => { setEditingSite(site); setShowSiteModal(true); }}
-                      className="p-2.5 bg-white/90 backdrop-blur-md text-[#630330] rounded-xl shadow-lg hover:bg-[#630330] hover:text-white transition-all"
+                      className="p-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-[#630330] dark:text-[#D4AF37] rounded-xl shadow-lg hover:bg-[#630330] dark:hover:bg-[#D4AF37] hover:text-white dark:hover:text-slate-950 transition-all"
                     >
                       <Pencil size={14} />
                     </button>
                     <button 
                       onClick={() => handleDeleteSite(site.id)}
-                      className="p-2.5 bg-white/90 backdrop-blur-md text-rose-500 rounded-xl shadow-lg hover:bg-rose-500 hover:text-white transition-all"
+                      className="p-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-rose-500 rounded-xl shadow-lg hover:bg-rose-500 hover:text-white transition-all"
                     >
                       <Trash size={14} />
                     </button>
@@ -734,8 +767,8 @@ const App: React.FC = () => {
           <div className="lg:col-span-7 space-y-8">
             <div className="flex items-center justify-between px-4">
               <div className="flex items-center gap-4">
-                <Navigation size={26} className="text-[#630330]" />
-                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-normal">{currentT.schedule}</h3>
+                <Navigation size={26} className="text-[#630330] dark:text-[#D4AF37]" />
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-normal">{currentT.schedule}</h3>
               </div>
               {role === UserRole.ADMIN && (
                 <button 
@@ -746,25 +779,25 @@ const App: React.FC = () => {
                 </button>
               )}
             </div>
-            <div className="bg-white p-10 sm:p-14 rounded-[3.5rem] border border-slate-100 shadow-2xl space-y-10">
+            <div className="bg-white dark:bg-slate-900/50 p-10 sm:p-14 rounded-[3.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl space-y-10 transition-colors">
               {schedule.map((ev, idx) => (
                 <div key={ev.id} className="flex gap-8 items-center group relative">
-                  <div className="w-14 h-14 rounded-2xl bg-[#630330] text-white flex items-center justify-center font-black text-xl shadow-xl">{idx + 1}</div>
-                  <div className="flex-grow p-8 rounded-[2.5rem] bg-slate-50 border border-transparent hover:border-[#D4AF37] hover:bg-white transition-all shadow-sm">
+                  <div className="w-14 h-14 rounded-2xl bg-[#630330] dark:bg-[#7a0b3d] text-white flex items-center justify-center font-black text-xl shadow-xl flex-shrink-0">{idx + 1}</div>
+                  <div className="flex-grow p-8 rounded-[2.5rem] bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-[#D4AF37] dark:hover:border-[#D4AF37] hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">
                         {getLocalized(ev.startDate)}
                       </span>
                       {getLocalized(ev.startDate) !== getLocalized(ev.endDate) && (
                         <>
-                          <ArrowRight size={10} className="text-slate-300" />
+                          <ArrowRight size={10} className="text-slate-300 dark:text-slate-600" />
                           <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">
                             {getLocalized(ev.endDate)}
                           </span>
                         </>
                       )}
                     </div>
-                    <h4 className="text-xl font-bold text-slate-800">{getLocalized(ev.event)}</h4>
+                    <h4 className="text-xl font-bold text-slate-800 dark:text-white">{getLocalized(ev.event)}</h4>
                   </div>
                   {role === UserRole.ADMIN && (
                     <div className="flex flex-col gap-2 ml-4">
@@ -781,7 +814,7 @@ const App: React.FC = () => {
              <div className="flex items-center justify-between px-4">
                <div className="flex items-center gap-4">
                  <ClipboardCheck size={26} className="text-[#D4AF37]" />
-                 <h3 className="text-2xl font-black text-slate-900 uppercase tracking-normal">{currentT.forms}</h3>
+                 <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-normal">{currentT.forms}</h3>
                </div>
                {role === UserRole.ADMIN && (
                  <button 
@@ -793,11 +826,11 @@ const App: React.FC = () => {
                )}
              </div>
              <div className="space-y-8">
-                <div className="bg-white p-10 rounded-[3rem] border-t-[10px] border-t-[#630330] shadow-2xl space-y-5">
-                  <span className="text-[12px] font-bold text-[#630330] uppercase tracking-normal">{currentT.appForms}</span>
+                <div className="bg-white dark:bg-slate-900/50 p-10 rounded-[3rem] border-t-[10px] border-t-[#630330] dark:border-t-[#7a0b3d] shadow-2xl space-y-5 transition-colors">
+                  <span className="text-[12px] font-bold text-[#630330] dark:text-[#D4AF37] uppercase tracking-normal">{currentT.appForms}</span>
                   {forms.filter(f => f.category === FormCategory.APPLICATION).map(form => (
                     <div key={form.id} className="flex items-center gap-3">
-                      <a href={form.url} target="_blank" rel="noopener noreferrer" className="flex-grow flex items-center justify-between p-5 bg-slate-50 rounded-2xl font-bold text-sm hover:bg-[#630330] hover:text-white transition-all shadow-sm">
+                      <a href={form.url} target="_blank" rel="noopener noreferrer" className="flex-grow flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl font-bold text-sm text-slate-800 dark:text-white hover:bg-[#630330] dark:hover:bg-[#7a0b3d] hover:text-white transition-all shadow-sm">
                         {form.title} <FileDown size={20}/>
                       </a>
                       {role === UserRole.ADMIN && (
@@ -809,7 +842,7 @@ const App: React.FC = () => {
                     </div>
                   ))}
                 </div>
-                <div className="bg-slate-900 p-10 rounded-[3rem] shadow-3xl space-y-5 relative overflow-hidden">
+                <div className="bg-slate-900 dark:bg-slate-950 p-10 rounded-[3rem] shadow-3xl space-y-5 relative overflow-hidden border border-white/5 transition-colors">
                   <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">{currentT.monitoringForms}</span>
                   {forms.filter(f => f.category === FormCategory.MONITORING).map(form => (
                     <div key={form.id} className="flex items-center gap-3">
@@ -833,15 +866,15 @@ const App: React.FC = () => {
       {/* Modals */}
       {showSiteModal && (
         <div className="fixed inset-0 z-[110] flex items-start sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white w-full max-w-4xl rounded-[2.5rem] p-6 sm:p-10 shadow-3xl animate-in zoom-in-95 duration-200 my-4 sm:my-8 max-h-[90vh] overflow-y-auto relative">
-            <div className="sticky top-0 bg-white z-20 pb-4 flex items-center justify-between border-b border-slate-100 mb-6 sm:mb-8">
-              <h3 className="text-xl sm:text-2xl font-black text-[#630330] uppercase tracking-normal">{editingSite ? 'แก้ไขข้อมูลหน่วยงาน' : 'เพิ่มสถานประกอบการใหม่'}</h3>
-              <button onClick={() => setShowSiteModal(false)} className="p-2 sm:p-3 rounded-full hover:bg-slate-100 transition-colors"><X /></button>
+          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[2.5rem] p-6 sm:p-10 shadow-3xl animate-in zoom-in-95 duration-200 my-4 sm:my-8 max-h-[90vh] overflow-y-auto relative">
+            <div className="sticky top-0 bg-white dark:bg-slate-900 z-20 pb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 mb-6 sm:mb-8">
+              <h3 className="text-xl sm:text-2xl font-black text-[#630330] dark:text-[#D4AF37] uppercase tracking-normal">{editingSite ? 'แก้ไขข้อมูลหน่วยงาน' : 'เพิ่มสถานประกอบการใหม่'}</h3>
+              <button onClick={() => setShowSiteModal(false)} className="p-2 sm:p-3 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-white transition-colors"><X /></button>
             </div>
             {isTranslating && (
-              <div className="absolute inset-0 z-[30] bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-4">
-                <Loader2 size={40} className="text-[#630330] animate-spin" />
-                <div className="flex items-center gap-2 text-[#630330] font-black uppercase text-sm animate-pulse">
+              <div className="absolute inset-0 z-[30] bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-4">
+                <Loader2 size={40} className="text-[#630330] dark:text-[#D4AF37] animate-spin" />
+                <div className="flex items-center gap-2 text-[#630330] dark:text-[#D4AF37] font-black uppercase text-sm animate-pulse">
                   <Sparkles size={16} /> กำลังบันทึกข้อมูลและแปลภาษา...
                 </div>
               </div>
@@ -852,42 +885,42 @@ const App: React.FC = () => {
                   <span className="block text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">ข้อมูลทั่วไป (ภาษาไทย)</span>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase text-slate-400">ชื่อหน่วยงาน / องค์กร</label>
-                    <input name="name_th" defaultValue={editingSite?.name.th} required className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold focus:ring-2 focus:ring-[#D4AF37]" placeholder="ระบุชื่อบริษัทหรือหน่วยงาน" />
+                    <input name="name_th" defaultValue={editingSite?.name.th} required className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#D4AF37]" placeholder="ระบุชื่อบริษัทหรือหน่วยงาน" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase text-slate-400">สถานที่ตั้ง</label>
-                    <input name="loc_th" defaultValue={editingSite?.location.th} required className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold focus:ring-2 focus:ring-[#D4AF37]" placeholder="ระบุจังหวัด หรือที่อยู่เบื้องต้น" />
+                    <input name="loc_th" defaultValue={editingSite?.location.th} required className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#D4AF37]" placeholder="ระบุจังหวัด หรือที่อยู่เบื้องต้น" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase text-slate-400">รายละเอียดงาน/สวัสดิการ</label>
-                    <textarea name="desc_th" defaultValue={editingSite?.description.th} required className="w-full h-32 px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" placeholder="ระบุรายละเอียดการฝึกงานเบื้องต้น" />
+                    <textarea name="desc_th" defaultValue={editingSite?.description.th} required className="w-full h-32 px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white" placeholder="ระบุรายละเอียดการฝึกงานเบื้องต้น" />
                   </div>
                 </div>
                 <div className="space-y-6">
                   <span className="block text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">การตั้งค่าสาขาวิชาและสถานะ</span>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase text-slate-400">เลือกสาขาวิชา</label>
-                    <select name="major" defaultValue={editingSite?.major} className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold">
+                    <select name="major" defaultValue={editingSite?.major} className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white">
                       <option value={Major.HALAL_FOOD}>{TRANSLATIONS[Language.TH].halalMajor}</option>
                       <option value={Major.DIGITAL_TECH}>{TRANSLATIONS[Language.TH].digitalMajor}</option>
                     </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase text-slate-400">สถานะการเปิดรับ</label>
-                    <select name="status" defaultValue={editingSite?.status} className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold">
+                    <select name="status" defaultValue={editingSite?.status} className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white">
                       <option value="active">กำลังเปิดรับสมัคร</option>
                       <option value="archived">ประวัติการฝึกงาน</option>
                     </select>
                   </div>
-                  <div className="space-y-4 pt-4 border-t border-slate-100">
-                    <input name="url" defaultValue={editingSite?.contactLink} placeholder="ลิงก์เว็บไซต์ (www.example.com)" className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" />
-                    <input name="email" defaultValue={editingSite?.email} placeholder="อีเมลติดต่อ" className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" />
-                    <input name="phone" defaultValue={editingSite?.phone} placeholder="เบอร์โทรศัพท์" className="w-full px-5 py-4 rounded-xl bg-slate-50 border-none text-sm font-bold" />
+                  <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <input name="url" defaultValue={editingSite?.contactLink} placeholder="ลิงก์เว็บไซต์ (www.example.com)" className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white" />
+                    <input name="email" defaultValue={editingSite?.email} placeholder="อีเมลติดต่อ" className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white" />
+                    <input name="phone" defaultValue={editingSite?.phone} placeholder="เบอร์โทรศัพท์" className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white" />
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 pt-6 border-t border-slate-100">
-                <button type="button" onClick={() => setShowSiteModal(false)} className="order-2 sm:order-1 px-8 py-4 rounded-xl font-bold text-slate-400 uppercase text-xs hover:bg-slate-50 transition-colors">ยกเลิก</button>
+              <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 pt-6 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" onClick={() => setShowSiteModal(false)} className="order-2 sm:order-1 px-8 py-4 rounded-xl font-bold text-slate-400 uppercase text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">ยกเลิก</button>
                 <button type="submit" disabled={isTranslating} className="order-1 sm:order-2 px-12 py-4 rounded-xl bg-[#630330] text-white font-black uppercase text-xs shadow-xl flex items-center justify-center gap-2 hover:bg-[#7a0b3d] active:scale-[0.97] transition-all disabled:opacity-50">
                   <Save size={16} /> {isTranslating ? 'กำลังบันทึก...' : 'บันทึกข้อมูลทันที'}
                 </button>
@@ -899,42 +932,42 @@ const App: React.FC = () => {
 
       {showScheduleModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white w-full max-w-xl rounded-[2rem] p-8 shadow-3xl my-auto animate-in zoom-in-95 duration-200 relative">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2rem] p-8 shadow-3xl my-auto animate-in zoom-in-95 duration-200 relative">
             {isTranslating && (
-              <div className="absolute inset-0 z-[30] bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-4 rounded-[2rem]">
-                <Loader2 size={30} className="text-[#630330] animate-spin" />
-                <span className="text-[#630330] font-bold text-xs animate-pulse">กำลังประมวลผลกำหนดการ...</span>
+              <div className="absolute inset-0 z-[30] bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-4 rounded-[2rem]">
+                <Loader2 size={30} className="text-[#630330] dark:text-[#D4AF37] animate-spin" />
+                <span className="text-[#630330] dark:text-[#D4AF37] font-bold text-xs animate-pulse">กำลังประมวลผลกำหนดการ...</span>
               </div>
             )}
             <div className="flex items-center gap-3 mb-6">
                <Calendar size={24} className="text-[#D4AF37]" />
-               <h3 className="text-xl font-black text-[#630330] uppercase">{editingSchedule ? 'แก้ไขกำหนดการ' : 'เพิ่มกำหนดการใหม่'}</h3>
+               <h3 className="text-xl font-black text-[#630330] dark:text-[#D4AF37] uppercase">{editingSchedule ? 'แก้ไขกำหนดการ' : 'เพิ่มกำหนดการใหม่'}</h3>
             </div>
             <form onSubmit={handleSaveSchedule} className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-2 tracking-widest">หัวข้อกิจกรรม</label>
-                  <input name="event_th" defaultValue={editingSchedule?.event.th} required placeholder="ระบุหัวข้อกิจกรรม" className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all" />
+                  <input name="event_th" defaultValue={editingSchedule?.event.th} required placeholder="ระบุหัวข้อกิจกรรม" className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase text-slate-400 ml-2 tracking-widest">วันที่เริ่ม</label>
-                    <input type="date" name="start_date" required className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all" />
+                    <input type="date" name="start_date" required className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase text-slate-400 ml-2 tracking-widest">วันที่สิ้นสุด</label>
-                    <input type="date" name="end_date" required className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all" />
+                    <input type="date" name="end_date" required className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase text-slate-400 ml-2 tracking-widest">สถานะปัจจุบัน</label>
-                  <select name="status" defaultValue={editingSchedule?.status} className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all">
+                  <select name="status" defaultValue={editingSchedule?.status} className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold border-2 border-transparent focus:border-[#D4AF37] outline-none transition-all">
                     <option value="upcoming">รอการดำเนินการ (Upcoming)</option>
                     <option value="past">ดำเนินการเสร็จสิ้น (Past)</option>
                   </select>
                 </div>
               </div>
-              <div className="flex justify-end gap-4 pt-4 border-t border-slate-50">
+              <div className="flex justify-end gap-4 pt-4 border-t border-slate-50 dark:border-slate-800">
                 <button type="button" onClick={() => setShowScheduleModal(false)} className="text-slate-400 font-bold uppercase text-xs px-4 py-2">ยกเลิก</button>
                 <button type="submit" disabled={isTranslating} className="px-10 py-4 bg-[#630330] text-white rounded-xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all disabled:opacity-50">
                    {isTranslating ? 'กำลังบันทึก...' : 'บันทึกด่วน'}
@@ -947,13 +980,13 @@ const App: React.FC = () => {
 
       {showFormModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white w-full max-w-xl rounded-[2rem] p-8 shadow-3xl my-auto animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-black text-[#630330] uppercase mb-6">{editingForm ? 'แก้ไขไฟล์เอกสาร' : 'เพิ่มเอกสารใหม่'}</h3>
+          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2rem] p-8 shadow-3xl my-auto animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-black text-[#630330] dark:text-[#D4AF37] uppercase mb-6">{editingForm ? 'แก้ไขไฟล์เอกสาร' : 'เพิ่มเอกสารใหม่'}</h3>
             <form onSubmit={handleSaveForm} className="space-y-6">
               <div className="space-y-4">
-                <input name="title" defaultValue={editingForm?.title} required placeholder="ชื่อเอกสาร" className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold" />
-                <input name="url" defaultValue={editingForm?.url} required placeholder="ลิงก์ไฟล์ (Google Drive, etc.)" className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold" />
-                <select name="category" defaultValue={editingForm?.category} className="w-full px-5 py-4 rounded-xl bg-slate-50 text-sm font-bold">
+                <input name="title" defaultValue={editingForm?.title} required placeholder="ชื่อเอกสาร" className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold" />
+                <input name="url" defaultValue={editingForm?.url} required placeholder="ลิงก์ไฟล์ (Google Drive, etc.)" className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold" />
+                <select name="category" defaultValue={editingForm?.category} className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold">
                   <option value={FormCategory.APPLICATION}>เอกสารประกอบการสมัคร</option>
                   <option value={FormCategory.MONITORING}>เอกสารระหว่างการฝึกงาน</option>
                 </select>
@@ -967,10 +1000,10 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <footer className="py-24 bg-white border-t border-slate-100 mt-24">
+      <footer className="py-24 bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 mt-24 transition-colors">
         <div className="container mx-auto px-6 text-center">
-          <div className="text-slate-900 font-black text-4xl uppercase mb-8 tracking-normal opacity-20">WISE</div>
-          <p className="text-slate-400 text-[11px] font-bold uppercase tracking-normal opacity-50">Faculty of Science and Technology, Fatoni University.</p>
+          <div className="text-slate-900 dark:text-white font-black text-4xl uppercase mb-8 tracking-normal opacity-20 dark:opacity-10">WISE</div>
+          <p className="text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-normal opacity-50">Faculty of Science and Technology, Fatoni University.</p>
         </div>
       </footer>
     </div>

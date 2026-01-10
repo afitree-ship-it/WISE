@@ -6,6 +6,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WISE - Work Integrated Science Education Unit</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Anuphan', 'Noto Sans Arabic', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Anuphan:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -20,6 +32,7 @@
       background-color: #ffffff;
       color: #1a1a1a;
       line-height: 1.5;
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
 
     .luxe-mangosteen-bg {
