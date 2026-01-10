@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Language, 
   UserRole, 
@@ -49,7 +49,8 @@ import {
   LayoutGrid,
   Sun,
   Moon,
-  LucideIcon
+  LucideIcon,
+  Check
 } from 'lucide-react';
 
 const TechMeteorShower: React.FC = () => {
@@ -81,34 +82,38 @@ const TechMeteorShower: React.FC = () => {
 const ModernWaves: React.FC = () => {
   return (
     <div className="waves-container">
+      {/* Layer 1: Distant Golden Ripples */}
       <div className="wave-layer animate-wave-slow bob-slow opacity-20">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
-          <path className="wave-line" stroke="#D4AF37" d="M0,160 C320,300 420,10 720,160 C1020,310 1120,20 1440,160"></path>
-          <path className="wave-line" stroke="#D4AF37" d="M1440,160 C1760,300 1860,10 2160,160 C2460,310 2560,20 2880,160"></path>
+        <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
+          <path className="wave-line" stroke="#D4AF37" d="M0,160 C360,260 540,10 720,160 C900,310 1080,20 1440,160 C1800,260 1980,10 2160,160 C2340,310 2520,20 2880,160" />
         </svg>
       </div>
+      
+      {/* Layer 2: White Mist Lines */}
       <div className="wave-layer animate-wave-mid bob-mid opacity-10">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
-          <path className="wave-line" stroke="#FFFFFF" d="M0,192 C240,120 480,240 720,192 C960,144 1200,240 1440,192"></path>
-          <path className="wave-line" stroke="#FFFFFF" d="M1440,192 C1680,120 1920,240 2160,192 C2400,144 2640,240 2880,192"></path>
+        <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
+          <path className="wave-line" stroke="#FFFFFF" d="M0,192 C240,140 480,240 720,192 C960,144 1200,240 1440,192 C1680,140 1920,240 2160,192 C2400,144 2640,240 2880,192" />
         </svg>
       </div>
+
+      {/* Layer 3: Organic Mangosteen Body */}
       <div className="wave-layer animate-wave-slow bob-slow opacity-30">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
-          <path fill="#7A0B3D" fillOpacity="1" d="M0,160L48,176C96,192,192,224,288,224C384,224,480,192,576,165.3C672,139,768,117,864,138.7C960,160,1056,224,1152,245.3C1248,267,1344,245,1392,234.7L1440,224V320H0Z"></path>
-          <path fill="#7A0B3D" fillOpacity="1" d="M1440,160L1488,176C1536,192,1632,224,1728,224C1824,224,1920,192,2016,165.3C2112,139,2208,117,2304,138.7C2400,160,2496,224,2592,245.3C2688,267,2784,245,2832,234.7L2880,224V320H1440Z"></path>
+        <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
+          <path fill="#7A0B3D" d="M0,160 C360,190 480,240 720,200 C960,160 1200,180 1440,160 C1800,190 1920,240 2160,200 C2400,160 2640,180 2880,160 V320 H0 Z" />
         </svg>
       </div>
-      <div className="wave-layer animate-wave-mid bob-mid opacity-20" style={{ marginBottom: '5px' }}>
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
-          <path fill="#D4AF37" fillOpacity="1" d="M0,224L60,202.7C120,181,240,139,360,144C480,149,600,203,720,202.7C840,203,960,149,1080,128C1200,107,1320,117,1380,122.7L1440,128V320H0Z"></path>
-          <path fill="#D4AF37" fillOpacity="1" d="M1440,224L1500,202.7C1560,181,1680,139,1800,144C1920,149,2040,203,2160,202.7C2280,203,2400,149,2520,128C2640,107,2760,117,2820,122.7L2880,128V320H1440Z"></path>
+
+      {/* Layer 4: Floating Gold Surface */}
+      <div className="wave-layer animate-wave-mid bob-mid opacity-20" style={{ marginBottom: '4px' }}>
+        <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
+          <path fill="#D4AF37" d="M0,224 C120,240 240,160 360,180 C480,200 600,230 720,210 C840,190 960,170 1080,190 C1200,210 1320,230 1440,224 C1560,240 1680,160 1800,180 C1920,200 2040,230 2160,210 C2280,190 2400,170 2520,190 C2640,210 2760,230 2880,224 V320 H0 Z" />
         </svg>
       </div>
-      <div className="wave-layer animate-wave-fast bob-fast opacity-40">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="wave-svg">
-          <path fill="#630330" fillOpacity="1" d="M0,288L48,272C96,256,192,224,288,197.3C384,171,480,149,576,165.3C672,181,768,235,864,250.7C960,267,1056,245,1152,208C1248,171,1344,117,1392,90.7L1440,64V320H0Z"></path>
-          <path fill="#630330" fillOpacity="1" d="M1440,288L1488,272C1536,256,1632,224,1728,197.3C1824,171,1920,149,2016,165.3C2112,181,2208,235,2304,250.7C2400,267,2496,245,2592,208C2688,171,2784,117,2832,90.7L2880,64V320H0Z"></path>
+
+      {/* Layer 5: Strong Foreground Current */}
+      <div className="wave-layer animate-wave-fast bob-fast opacity-60">
+        <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
+          <path fill="#630330" d="M0,288 C180,260 360,220 540,240 C720,260 900,300 1080,280 C1260,260 1380,270 1440,288 C1620,260 1800,220 1980,240 C2160,260 2340,300 2520,280 C2700,260 2820,270 2880,288 V320 H0 Z" />
         </svg>
       </div>
     </div>
@@ -147,6 +152,16 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
 
+  // Position Memory State
+  const [frequentPositions, setFrequentPositions] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('wise_frequent_positions');
+      return saved ? JSON.parse(saved) : ['เจ้าหน้าที่ควบคุมคุณภาพ', 'นักพัฒนาซอฟต์แวร์', 'นักวิจัยอาหาร', 'เจ้าหน้าที่ไอที'];
+    } catch (e) {
+      return [];
+    }
+  });
+
   // Custom Context Menu State
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
 
@@ -159,12 +174,21 @@ const App: React.FC = () => {
   // Management States
   const [showSiteModal, setShowSiteModal] = useState(false);
   const [editingSite, setEditingSite] = useState<InternshipSite | null>(null);
+  const [modalMajor, setModalMajor] = useState<Major>(Major.HALAL_FOOD);
   
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEvent | null>(null);
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
+
+  useEffect(() => {
+    if (editingSite) {
+      setModalMajor(editingSite.major);
+    } else {
+      setModalMajor(Major.HALAL_FOOD);
+    }
+  }, [editingSite, showSiteModal]);
 
   // Theme Sync
   useEffect(() => {
@@ -176,6 +200,11 @@ const App: React.FC = () => {
     }
     localStorage.setItem('wise_portal_theme', theme);
   }, [theme]);
+
+  // Position persistence
+  useEffect(() => {
+    localStorage.setItem('wise_frequent_positions', JSON.stringify(frequentPositions));
+  }, [frequentPositions]);
 
   // Security & Custom Menu Logic
   useEffect(() => {
@@ -197,7 +226,9 @@ const App: React.FC = () => {
       return false;
     };
 
-    const handleClick = () => setContextMenu(null);
+    const handleClick = () => {
+      setContextMenu(null);
+    };
 
     window.addEventListener('keydown', handleKeydown);
     window.addEventListener('contextmenu', handleContextMenu);
@@ -230,7 +261,7 @@ const App: React.FC = () => {
     if (adminPassInput === 'fst111') {
       setRole(UserRole.ADMIN);
       setLang(Language.TH); 
-      setTheme('light'); // Admin defaults to light for standard brand appearance
+      setTheme('light'); 
       setShowAdminLogin(false);
       setAdminPassInput('');
       setLoginError(false);
@@ -259,14 +290,15 @@ const App: React.FC = () => {
     
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-      const prompt = `Translate to EN, AR, MS. For isDate:true use human-readable format (TH use BE). Return JSON.
-      Items: ${items.map(i => `${i.key}:"${i.value}" (date:${!!i.isDate})`).join(', ')}`;
+      const prompt = `Translate to EN, AR, MS: ${items.map(i => `${i.key}:"${i.value}"${i.isDate ? '(date)' : ''}`).join('|')}`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
+          systemInstruction: "Translate to English, Arabic, Malay. Return JSON. For dates, use human-readable formats. Disable thinking for speed.",
           responseMimeType: "application/json",
+          thinkingConfig: { thinkingBudget: 0 }, 
           responseSchema: {
             type: Type.OBJECT,
             properties: items.reduce((acc, curr) => ({
@@ -298,8 +330,9 @@ const App: React.FC = () => {
   const filteredSites = sites.filter(s => {
     const localizedName = getLocalized(s.name).toLowerCase();
     const localizedLoc = getLocalized(s.location).toLowerCase();
+    const localizedPos = getLocalized(s.position).toLowerCase();
     const majorLabel = s.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor;
-    const searchableString = `${localizedName} ${localizedLoc} ${majorLabel}`.toLowerCase();
+    const searchableString = `${localizedName} ${localizedLoc} ${majorLabel} ${localizedPos}`.toLowerCase();
 
     const matchesMajor = activeMajor === 'all' || s.major === activeMajor;
     const matchesSearch = searchableString.includes(searchTerm.toLowerCase());
@@ -313,16 +346,22 @@ const App: React.FC = () => {
     const thName = formData.get('name_th') as string;
     const thLoc = formData.get('loc_th') as string;
     const thDesc = formData.get('desc_th') as string;
+    const thPos = formData.get('pos_th') as string;
     
     let rawUrl = (formData.get('url') as string).trim();
     if (rawUrl && !/^https?:\/\//i.test(rawUrl)) {
       rawUrl = `https://${rawUrl}`;
     }
 
+    if (thPos && !frequentPositions.includes(thPos)) {
+      setFrequentPositions(prev => [thPos, ...prev].slice(0, 20));
+    }
+
     const itemsToTranslate = [];
     if (!editingSite || editingSite.name.th !== thName) itemsToTranslate.push({ key: 'name', value: thName });
     if (!editingSite || editingSite.location.th !== thLoc) itemsToTranslate.push({ key: 'loc', value: thLoc });
     if (!editingSite || editingSite.description.th !== thDesc) itemsToTranslate.push({ key: 'desc', value: thDesc });
+    if (!editingSite || editingSite.position.th !== thPos) itemsToTranslate.push({ key: 'pos', value: thPos });
 
     let results: Record<string, any> = {};
     if (itemsToTranslate.length > 0) {
@@ -336,11 +375,13 @@ const App: React.FC = () => {
       name: results['name'] || editingSite?.name || { th: thName, en: thName, ar: thName, ms: thName },
       location: results['loc'] || editingSite?.location || { th: thLoc, en: thLoc, ar: thLoc, ms: thLoc },
       description: results['desc'] || editingSite?.description || { th: thDesc, en: thDesc, ar: thDesc, ms: thDesc },
+      position: results['pos'] || editingSite?.position || { th: thPos, en: thPos, ar: thPos, ms: thPos },
       status: formData.get('status') as 'active' | 'archived',
-      major: formData.get('major') as Major,
+      major: modalMajor,
       contactLink: rawUrl,
       email: formData.get('email') as string,
       phone: formData.get('phone') as string,
+      createdAt: editingSite?.createdAt || Date.now()
     };
 
     if (editingSite) {
@@ -353,7 +394,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSite = (id: string) => {
-    if (confirm('ยืนยันการลบข้อมูลสถานประกอบการนี้?')) {
+    if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลหน่วยงานนี้?')) {
       setSites(sites.filter(s => s.id !== id));
     }
   };
@@ -362,14 +403,27 @@ const App: React.FC = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const thEvent = formData.get('event_th') as string;
-    const startRaw = formData.get('start_date') as string;
-    const endRaw = formData.get('end_date') as string;
+    const startDateRaw = formData.get('start_date') as string;
+    const endDateRaw = formData.get('end_date') as string;
+
+    const formatReadable = (ds: string) => {
+      if (!ds) return '';
+      const d = new Date(ds);
+      return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+    };
+
+    const startReadable = formatReadable(startDateRaw);
+    const endReadable = formatReadable(endDateRaw);
 
     const itemsToTranslate = [];
-    if (!editingSchedule || editingSchedule.event.th !== thEvent) itemsToTranslate.push({ key: 'event', value: thEvent });
-    if (!editingSchedule) {
-      itemsToTranslate.push({ key: 'start', value: startRaw, isDate: true });
-      itemsToTranslate.push({ key: 'end', value: endRaw, isDate: true });
+    if (!editingSchedule || editingSchedule.event.th !== thEvent) {
+      itemsToTranslate.push({ key: 'event', value: thEvent });
+    }
+    if (!editingSchedule || editingSchedule.startDate.th !== startReadable) {
+      itemsToTranslate.push({ key: 'start', value: startReadable, isDate: true });
+    }
+    if (!editingSchedule || editingSchedule.endDate.th !== endReadable) {
+      itemsToTranslate.push({ key: 'end', value: endReadable, isDate: true });
     }
 
     let results: Record<string, any> = {};
@@ -379,39 +433,21 @@ const App: React.FC = () => {
       setIsTranslating(false);
     }
 
-    const newEv: ScheduleEvent = {
+    const newEvent: ScheduleEvent = {
       id: editingSchedule?.id || Date.now().toString(),
       event: results['event'] || editingSchedule?.event || { th: thEvent, en: thEvent, ar: thEvent, ms: thEvent },
-      startDate: results['start'] || editingSchedule?.startDate || { th: startRaw, en: startRaw, ar: startRaw, ms: startRaw },
-      endDate: results['end'] || editingSchedule?.endDate || { th: endRaw, en: endRaw, ar: endRaw, ms: endRaw },
-      status: formData.get('status') as 'upcoming' | 'past',
+      startDate: results['start'] || editingSchedule?.startDate || { th: startReadable, en: startDateRaw, ar: startDateRaw, ms: startDateRaw },
+      endDate: results['end'] || editingSchedule?.endDate || { th: endReadable, en: endDateRaw, ar: endDateRaw, ms: endDateRaw },
+      status: formData.get('status') as 'upcoming' | 'past'
     };
 
     if (editingSchedule) {
-      setSchedule(schedule.map(s => s.id === editingSchedule.id ? newEv : s));
+      setSchedule(schedule.map(s => s.id === editingSchedule.id ? newEvent : s));
     } else {
-      setSchedule([...schedule, newEv]);
+      setSchedule([...schedule, newEvent]);
     }
     setShowScheduleModal(false);
     setEditingSchedule(null);
-  };
-
-  const handleSaveForm = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const newForm: DocumentForm = {
-      id: editingForm?.id || Date.now().toString(),
-      title: formData.get('title') as string,
-      url: formData.get('url') as string,
-      category: formData.get('category') as FormCategory,
-    };
-    if (editingForm) {
-      setForms(forms.map(f => f.id === editingForm.id ? newForm : f));
-    } else {
-      setForms([...forms, newForm]);
-    }
-    setShowFormModal(false);
-    setEditingForm(null);
   };
 
   const handleCopy = () => {
@@ -580,7 +616,6 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen flex flex-col bg-[#F9FAFB] dark:bg-slate-950 transition-colors duration-300 ${isRtl ? 'rtl' : ''}`}>
-      {/* Custom Context Menu */}
       {contextMenu && (
         <div 
           className="fixed z-[999] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl rounded-xl py-2 min-w-[120px] reveal-anim"
@@ -610,14 +645,12 @@ const App: React.FC = () => {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-3 sm:gap-8">
+            <div className="flex items-center gap-3 sm:gap-6">
               {role !== UserRole.ADMIN && (
                 <div className="flex items-center gap-2 sm:gap-4">
-                  {/* Theme Toggle */}
                   <button 
                     onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
                     className="w-14 h-14 flex items-center justify-center bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
-                    title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
                   >
                     {theme === 'light' ? <Moon size={22} /> : <Sun size={22} />}
                   </button>
@@ -678,37 +711,14 @@ const App: React.FC = () => {
                       }}
                     />
                     
-                    <button 
-                      onClick={() => setActiveMajor('all')} 
-                      className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal 
-                        ${activeMajor === 'all' 
-                          ? 'bg-[#630330] sm:bg-transparent text-white sm:text-[#630330] dark:sm:text-white shadow-md sm:shadow-none' 
-                          : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                    >
-                      <LayoutGrid size={16} />
-                      {currentT.allMajors}
+                    <button onClick={() => setActiveMajor('all')} className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal ${activeMajor === 'all' ? 'bg-[#630330] sm:bg-transparent text-white sm:text-[#630330] dark:sm:text-white' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                      <LayoutGrid size={16} /> {currentT.allMajors}
                     </button>
-                    
-                    <button 
-                      onClick={() => setActiveMajor(Major.HALAL_FOOD)} 
-                      className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal
-                        ${activeMajor === Major.HALAL_FOOD 
-                          ? 'bg-[#D4AF37] sm:bg-transparent text-white sm:text-[#D4AF37] dark:sm:text-[#D4AF37] shadow-md sm:shadow-none' 
-                          : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                    >
-                      <Salad size={16} />
-                      {currentT.halalMajor}
+                    <button onClick={() => setActiveMajor(Major.HALAL_FOOD)} className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal ${activeMajor === Major.HALAL_FOOD ? 'bg-[#D4AF37] sm:bg-transparent text-white sm:text-[#D4AF37] dark:sm:text-[#D4AF37]' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                      <Salad size={16} /> {currentT.halalMajor}
                     </button>
-                    
-                    <button 
-                      onClick={() => setActiveMajor(Major.DIGITAL_TECH)} 
-                      className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal
-                        ${activeMajor === Major.DIGITAL_TECH 
-                          ? 'bg-blue-600 sm:bg-transparent text-white sm:text-blue-600 dark:sm:text-blue-400 shadow-md sm:shadow-none' 
-                          : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                    >
-                      <Code size={16} />
-                      {currentT.digitalMajor}
+                    <button onClick={() => setActiveMajor(Major.DIGITAL_TECH)} className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 sm:bg-transparent text-white sm:text-blue-600 dark:sm:text-blue-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                      <Code size={16} /> {currentT.digitalMajor}
                     </button>
                   </div>
 
@@ -716,21 +726,11 @@ const App: React.FC = () => {
                     <div className="absolute left-6 top-0 bottom-0 flex items-center pointer-events-none z-10">
                       <Search className="text-slate-400 dark:text-slate-500" size={20} />
                     </div>
-                    <input 
-                      type="text" 
-                      placeholder={currentT.searchPlaceholder} 
-                      value={searchTerm} 
-                      onChange={e => setSearchTerm(e.target.value)} 
-                      className="w-full pl-16 pr-8 py-5 rounded-[2rem] bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-[#63033011] transition-all min-h-[64px] flex items-center" 
-                    />
+                    <input type="text" placeholder={currentT.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-16 pr-8 py-5 rounded-[2rem] bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-[#63033011] transition-all min-h-[64px]" />
                   </div>
                 </div>
-
                 {role === UserRole.ADMIN && (
-                  <button 
-                    onClick={() => { setEditingSite(null); setShowSiteModal(true); }}
-                    className="w-full sm:w-fit px-8 py-5 rounded-[2rem] bg-[#D4AF37] text-white font-black uppercase text-sm flex items-center justify-center gap-3 shadow-lg transform transition-all hover:scale-105 active:scale-95 whitespace-nowrap min-h-[64px]"
-                  >
+                  <button onClick={() => { setEditingSite(null); setShowSiteModal(true); }} className="w-full sm:w-fit px-8 py-5 rounded-[2rem] bg-[#D4AF37] text-white font-black uppercase text-sm flex items-center justify-center gap-3 shadow-lg transform transition-all hover:scale-105 active:scale-95 whitespace-nowrap min-h-[64px]">
                     <Plus size={20} /> {currentT.addSite}
                   </button>
                 )}
@@ -744,18 +744,8 @@ const App: React.FC = () => {
                 <InternshipCard site={site} lang={lang} />
                 {role === UserRole.ADMIN && (
                   <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <button 
-                      onClick={() => { setEditingSite(site); setShowSiteModal(true); }}
-                      className="p-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-[#630330] dark:text-[#D4AF37] rounded-xl shadow-lg hover:bg-[#630330] dark:hover:bg-[#D4AF37] hover:text-white dark:hover:text-slate-950 transition-all"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteSite(site.id)}
-                      className="p-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-rose-500 rounded-xl shadow-lg hover:bg-rose-500 hover:text-white transition-all"
-                    >
-                      <Trash size={14} />
-                    </button>
+                    <button onClick={() => { setEditingSite(site); setShowSiteModal(true); }} className="p-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-[#630330] dark:text-[#D4AF37] rounded-xl shadow-lg hover:bg-[#630330] dark:hover:bg-[#D4AF37] hover:text-white dark:hover:text-slate-950 transition-all"><Pencil size={14} /></button>
+                    <button onClick={() => handleDeleteSite(site.id)} className="p-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-rose-500 rounded-xl shadow-lg hover:bg-rose-500 hover:text-white transition-all"><Trash size={14} /></button>
                   </div>
                 )}
               </div>
@@ -771,12 +761,7 @@ const App: React.FC = () => {
                 <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-normal">{currentT.schedule}</h3>
               </div>
               {role === UserRole.ADMIN && (
-                <button 
-                  onClick={() => { setEditingSchedule(null); setShowScheduleModal(true); }}
-                  className="p-3 bg-[#D4AF37] text-white rounded-2xl hover:bg-[#b8952c] transition-all"
-                >
-                  <Plus size={20} />
-                </button>
+                <button onClick={() => { setEditingSchedule(null); setShowScheduleModal(true); }} className="p-3 bg-[#D4AF37] text-white rounded-2xl hover:bg-[#b8952c] transition-all"><Plus size={20} /></button>
               )}
             </div>
             <div className="bg-white dark:bg-slate-900/50 p-10 sm:p-14 rounded-[3.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl space-y-10 transition-colors">
@@ -785,15 +770,11 @@ const App: React.FC = () => {
                   <div className="w-14 h-14 rounded-2xl bg-[#630330] dark:bg-[#7a0b3d] text-white flex items-center justify-center font-black text-xl shadow-xl flex-shrink-0">{idx + 1}</div>
                   <div className="flex-grow p-8 rounded-[2.5rem] bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-[#D4AF37] dark:hover:border-[#D4AF37] hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">
-                        {getLocalized(ev.startDate)}
-                      </span>
+                      <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">{getLocalized(ev.startDate)}</span>
                       {getLocalized(ev.startDate) !== getLocalized(ev.endDate) && (
                         <>
                           <ArrowRight size={10} className="text-slate-300 dark:text-slate-600" />
-                          <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">
-                            {getLocalized(ev.endDate)}
-                          </span>
+                          <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">{getLocalized(ev.endDate)}</span>
                         </>
                       )}
                     </div>
@@ -817,12 +798,7 @@ const App: React.FC = () => {
                  <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-normal">{currentT.forms}</h3>
                </div>
                {role === UserRole.ADMIN && (
-                 <button 
-                   onClick={() => { setEditingForm(null); setShowFormModal(true); }}
-                   className="p-3 bg-[#630330] text-white rounded-2xl hover:bg-[#7a0b3d] transition-all"
-                 >
-                   <Plus size={20} />
-                 </button>
+                 <button onClick={() => { setEditingForm(null); setShowFormModal(true); }} className="p-3 bg-[#630330] text-white rounded-2xl hover:bg-[#7a0b3d] transition-all"><Plus size={20} /></button>
                )}
              </div>
              <div className="space-y-8">
@@ -863,7 +839,6 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Modals */}
       {showSiteModal && (
         <div className="fixed inset-0 z-[110] flex items-start sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[2.5rem] p-6 sm:p-10 shadow-3xl animate-in zoom-in-95 duration-200 my-4 sm:my-8 max-h-[90vh] overflow-y-auto relative">
@@ -888,22 +863,56 @@ const App: React.FC = () => {
                     <input name="name_th" defaultValue={editingSite?.name.th} required className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#D4AF37]" placeholder="ระบุชื่อบริษัทหรือหน่วยงาน" />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase text-slate-400">ตำแหน่งงาน (นักศึกษาฝึกในตำแหน่งใด?)</label>
+                    <div className="relative">
+                      <input 
+                        name="pos_th" 
+                        defaultValue={editingSite?.position.th} 
+                        list="frequent-positions"
+                        required 
+                        className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#D4AF37]" 
+                        placeholder="เช่น นักพัฒนาซอฟต์แวร์, QA, QC..." 
+                      />
+                      <datalist id="frequent-positions">
+                        {frequentPositions.map((pos, i) => (
+                          <option key={i} value={pos} />
+                        ))}
+                      </datalist>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase text-slate-400">สถานที่ตั้ง</label>
                     <input name="loc_th" defaultValue={editingSite?.location.th} required className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#D4AF37]" placeholder="ระบุจังหวัด หรือที่อยู่เบื้องต้น" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase text-slate-400">รายละเอียดงาน/สวัสดิการ</label>
-                    <textarea name="desc_th" defaultValue={editingSite?.description.th} required className="w-full h-32 px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white" placeholder="ระบุรายละเอียดการฝึกงานเบื้องต้น" />
+                    <textarea name="desc_th" defaultValue={editingSite?.description.th} required className="w-full h-24 px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white" placeholder="ระบุรายละเอียดการฝึกงานเบื้องต้น" />
                   </div>
                 </div>
                 <div className="space-y-6">
                   <span className="block text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">การตั้งค่าสาขาวิชาและสถานะ</span>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase text-slate-400">เลือกสาขาวิชา</label>
-                    <select name="major" defaultValue={editingSite?.major} className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white">
-                      <option value={Major.HALAL_FOOD}>{TRANSLATIONS[Language.TH].halalMajor}</option>
-                      <option value={Major.DIGITAL_TECH}>{TRANSLATIONS[Language.TH].digitalMajor}</option>
-                    </select>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-bold uppercase text-slate-400">เลือกสาขาวิชา (คลิกเพื่อเลือก)</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        type="button"
+                        onClick={() => setModalMajor(Major.HALAL_FOOD)}
+                        className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all gap-2 ${modalMajor === Major.HALAL_FOOD ? 'border-[#D4AF37] bg-amber-50 dark:bg-amber-950/20 text-[#630330] dark:text-[#D4AF37]' : 'border-slate-100 dark:border-slate-800 text-slate-400 opacity-60'}`}
+                      >
+                        <Salad size={24} />
+                        <span className="text-[10px] font-black uppercase text-center">{TRANSLATIONS[Language.TH].halalMajor}</span>
+                        {modalMajor === Major.HALAL_FOOD && <Check size={14} className="mt-1" />}
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setModalMajor(Major.DIGITAL_TECH)}
+                        className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all gap-2 ${modalMajor === Major.DIGITAL_TECH ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400' : 'border-slate-100 dark:border-slate-800 text-slate-400 opacity-60'}`}
+                      >
+                        <Code size={24} />
+                        <span className="text-[10px] font-black uppercase text-center">{TRANSLATIONS[Language.TH].digitalMajor}</span>
+                        {modalMajor === Major.DIGITAL_TECH && <Check size={14} className="mt-1" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase text-slate-400">สถานะการเปิดรับ</label>
@@ -972,28 +981,6 @@ const App: React.FC = () => {
                 <button type="submit" disabled={isTranslating} className="px-10 py-4 bg-[#630330] text-white rounded-xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all disabled:opacity-50">
                    {isTranslating ? 'กำลังบันทึก...' : 'บันทึกด่วน'}
                 </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showFormModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2rem] p-8 shadow-3xl my-auto animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-black text-[#630330] dark:text-[#D4AF37] uppercase mb-6">{editingForm ? 'แก้ไขไฟล์เอกสาร' : 'เพิ่มเอกสารใหม่'}</h3>
-            <form onSubmit={handleSaveForm} className="space-y-6">
-              <div className="space-y-4">
-                <input name="title" defaultValue={editingForm?.title} required placeholder="ชื่อเอกสาร" className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold" />
-                <input name="url" defaultValue={editingForm?.url} required placeholder="ลิงก์ไฟล์ (Google Drive, etc.)" className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold" />
-                <select name="category" defaultValue={editingForm?.category} className="w-full px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold">
-                  <option value={FormCategory.APPLICATION}>เอกสารประกอบการสมัคร</option>
-                  <option value={FormCategory.MONITORING}>เอกสารระหว่างการฝึกงาน</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-4 pt-2">
-                <button type="button" onClick={() => setShowFormModal(false)} className="text-slate-400 font-bold uppercase text-xs px-4 py-2">ยกเลิก</button>
-                <button type="submit" className="px-10 py-4 bg-[#630330] text-white rounded-xl font-black uppercase text-xs shadow-lg">บันทึกข้อมูล</button>
               </div>
             </form>
           </div>

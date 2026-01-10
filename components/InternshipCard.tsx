@@ -2,7 +2,7 @@
 import React from 'react';
 import { InternshipSite, Language, Major, LocalizedString } from '../types';
 import { TRANSLATIONS } from '../constants';
-import { MapPin, Mail, Phone, ExternalLink, GraduationCap, Flame } from 'lucide-react';
+import { MapPin, Mail, Phone, ExternalLink, GraduationCap, Flame, Sparkles, Briefcase } from 'lucide-react';
 
 interface InternshipCardProps {
   site: InternshipSite;
@@ -13,6 +13,9 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
   const t = TRANSLATIONS[lang];
   const isHalal = site.major === Major.HALAL_FOOD;
   const isActive = site.status === 'active';
+  
+  // A site is considered "new" if it was created in the last 48 hours
+  const isNew = site.createdAt && (Date.now() - site.createdAt < 172800000);
 
   // Helper to extract localized text
   const getLocalized = (localized: LocalizedString) => {
@@ -32,6 +35,12 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
   
   return (
     <div className="group relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 transition-all hover:border-[#63033044] dark:hover:border-[#D4AF3744] hover:shadow-xl p-5 flex flex-col h-full">
+      {isNew && (
+        <div className="absolute top-0 right-0 bg-[#D4AF37] text-[#630330] py-1 px-3 rounded-bl-xl font-black text-[8px] uppercase flex items-center gap-1 shadow-lg z-10 animate-pulse">
+          <Sparkles size={8} /> NEW
+        </div>
+      )}
+
       <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
         <span className={`px-2 py-0.5 rounded-md text-[8px] font-bold uppercase ${
           isActive 
@@ -54,6 +63,14 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
       <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1 leading-tight group-hover:text-[#630330] dark:group-hover:text-[#D4AF37] transition-colors line-clamp-2">
         {getLocalized(site.name)}
       </h3>
+      
+      {site.position && (
+        <div className="flex items-center text-[#630330] dark:text-[#D4AF37] text-[10px] font-black uppercase mb-2">
+          <Briefcase size={10} className="mr-1" />
+          {getLocalized(site.position)}
+        </div>
+      )}
+
       <div className="flex items-center text-slate-400 dark:text-slate-500 text-[9px] font-bold mb-3">
         <MapPin size={10} className="mr-1 text-[#630330] dark:text-[#D4AF37]" />
         {getLocalized(site.location)}

@@ -42,7 +42,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     email: "อีเมลติดต่อ",
     phone: "หมายเลขโทรศัพท์",
     visitWebsite: "ดูรายละเอียด",
-    searchPlaceholder: "ค้นหาชื่อหน่วยงาน..."
+    searchPlaceholder: "ค้นหาชื่อหน่วยงาน ตำแหน่ง หรือสถานที่..."
   },
   [Language.EN]: {
     title: "Work-Integrated Science Education Unit (WISE)",
@@ -56,8 +56,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     logout: "Sign Out",
     internshipSites: "Placement Database",
     forms: "Document Resource Center",
-    halalMajor: "Research and Development of Halal Food Product",
-    digitalMajor: "Technology and Digital Science",
+    halalMajor: "Halal Food R&D",
+    digitalMajor: "Digital Tech & Science",
     allMajors: "All Disciplines",
     activeSites: "Active Vacancies",
     pastSites: "Placement Records",
@@ -76,7 +76,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     urlLabel: "Official Website",
     selectMajorTitle: "Academic Major Selection",
     selectMajorSubtitle: "Accessing information specific to your curriculum",
-    startNow: "Enter System",
+    startNow: "Enter Website",
     selectLanguagePrompt: "Select Language",
     schedule: "Procedural Roadmap & Timeline",
     appForms: "1. Application Phase Documents",
@@ -84,7 +84,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     email: "Official Email",
     phone: "Contact Number",
     visitWebsite: "Full Details",
-    searchPlaceholder: "Search organization..."
+    searchPlaceholder: "Search organization, position or location..."
   },
   [Language.AR]: {
     title: "وحدة تعليم العلوم المتكاملة مع العمل (WISE)",
@@ -98,56 +98,56 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     logout: "تسجيل الخروج",
     internshipSites: "قاعدة بيانات جهات التدريب",
     forms: "مركز النماذج والوثائق",
-    halalMajor: "البحث والتطوير لمنتجات الأغذية الحلال",
+    halalMajor: "البحث والتطوير للأغذية الحلال",
     digitalMajor: "التكنولوجيا والعلوم الرقمية",
     allMajors: "جميع التخصصات",
-    activeSites: "الفرص المتاحة حالياً",
-    pastSites: "سجلات التدريب السابقة",
+    activeSites: "الفرص المتاحة",
+    pastSites: "سجلات التدريب",
     download: "تحميل",
-    adminPanel: "لوحة التحكم الإدارية",
-    addSite: "إضافة جهة تدريب",
+    adminPanel: "لوحة التحكم",
+    addSite: "إضافة جهة",
     edit: "تعديل",
     delete: "حذف",
     save: "حفظ",
     cancel: "إلغاء",
     name: "اسم المؤسسة",
     location: "الموقع",
-    description: "تفاصيل التدريب",
+    description: "التفاصيل",
     status: "الحالة",
-    major: "التخصص الأكاديمي",
+    major: "التخصص",
     urlLabel: "الموقع الإلكتروني",
-    selectMajorTitle: "يرجى اختيار التخصص",
-    selectMajorSubtitle: "للوصول إلى المعلومات المتعلقة بمسارك الدراسي",
-    startNow: "دخول النظام",
-    selectLanguagePrompt: "اختر لغة النظام",
+    selectMajorTitle: "اختيار التخصص",
+    selectMajorSubtitle: "الوصول للمعلومات الأكاديمية",
+    startNow: "دخول الموقع",
+    selectLanguagePrompt: "اختر لغة",
     schedule: "الإجراءات والجدول الزمني",
-    appForms: "١. مستندات مرحلة التقديم",
-    monitoringForms: "٢. مستندات مرحلة التدريب",
+    appForms: "١. مستندات التقديم",
+    monitoringForms: "٢. مستندات التدريب",
     email: "البريد الإلكتروني",
-    phone: "رقم الهاتف",
-    visitWebsite: "عرض التفاصيل",
-    searchPlaceholder: "البحث عن جهة..."
+    phone: "الهاتف",
+    visitWebsite: "التفاصيل",
+    searchPlaceholder: "البحث عن جهة أو موقع..."
   },
   [Language.MS]: {
     title: "Unit Pengurusan Pendidikan Sains Bersepadu Kerja (WISE)",
-    subtitle: "Fakulti Sains dan Teknologi, Universiti Fatoni",
+    subtitle: "Fakulti Sains and Teknologi, Universiti Fatoni",
     landingHeading: "Latihan Industri & Kooperatif",
     loginStudent: "Akses Pelajar",
     loginAdmin: "Terminal Pentadbiran",
-    studentIdPlaceholder: "Nombor Matrik Pelajar",
+    studentIdPlaceholder: "No. Matrik Pelajar",
     adminPasswordPlaceholder: "Kata Lalu Pentadbir",
     loginButton: "Log Masuk",
     logout: "Log Keluar",
     internshipSites: "Pangkalan Data Latihan Industri",
     forms: "Pusat Sumber Dokumen",
-    halalMajor: "Penyelidikan dan Pembangunan Produk Makanan Halal",
-    digitalMajor: "Teknologi dan Sains Digital",
+    halalMajor: "R&D Makanan Halal",
+    digitalMajor: "Teknologi & Sains Digital",
     allMajors: "Semua Bidang",
     activeSites: "Pengambilan Terbuka",
     pastSites: "Rekod Penempatan",
     download: "Muat Turun",
-    adminPanel: "Papan Pemuka Pentadbiran",
-    addSite: "Tambah Tapak Penempatan",
+    adminPanel: "Papan Pemuka",
+    addSite: "Tambah Tapak",
     edit: "Kemaskini",
     delete: "Padam",
     save: "Simpan",
@@ -156,54 +156,78 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     location: "Lokasi",
     description: "Skop Kerja",
     status: "Status",
-    major: "Program Akademik",
-    urlLabel: "Laman Web Rasmi",
-    selectMajorTitle: "Pilihan Program Akademik",
-    selectMajorSubtitle: "Maklumat mengikut aliran pengajian anda",
-    startNow: "Masuk Sistem",
+    major: "Kursus Akademik",
+    urlLabel: "Laman Web",
+    selectMajorTitle: "Pilihan Kursus",
+    selectMajorSubtitle: "Akses maklumat kurikulum",
+    startNow: "Masuk Laman Web",
     selectLanguagePrompt: "Pilih Bahasa",
-    schedule: "Prosedur dan Jadual Pelaksanaan",
-    appForms: "1. Dokumen Fasa Permohonan",
-    monitoringForms: "2. Dokumen Fasa Latihan",
-    email: "E-mel Rasmi",
-    phone: "Talian Perhubungan",
-    visitWebsite: "Maklumat Lanjut",
-    searchPlaceholder: "Cari organisasi..."
+    schedule: "Prosedur & Jadual",
+    appForms: "1. Dokumen Permohonan",
+    monitoringForms: "2. Dokumen Latihan",
+    email: "Emel Rasmi",
+    phone: "No. Telefon",
+    visitWebsite: "Butiran Penuh",
+    searchPlaceholder: "Cari organisasi atau lokasi..."
   }
 };
 
 export const INITIAL_SITES: InternshipSite[] = [
   {
-    id: '1',
-    name: { th: 'บริษัท ซีพี ออลล์ จำกัด (มหาชน)', en: 'CP ALL PLC', ar: 'سي بي أول', ms: 'CP ALL' },
-    location: { th: 'กรุงเทพมหานคร', en: 'Bangkok', ar: 'بانكوك', ms: 'Bangkok' },
-    description: { th: 'ฝึกงานด้านมาตรฐานอาหารฮาลาลและโลจิสติกส์', en: 'Halal safety & logistics', ar: 'لوجستيات الحلال', ms: 'Logistik Halal' },
+    id: "1",
+    name: { th: "บริษัท ซีพี แรม จำกัด (CPRAM)", en: "CPRAM Co., Ltd.", ar: "شركة سي بي رام المحدودة", ms: "CPRAM Co., Ltd." },
+    location: { th: "ปทุมธานี", en: "Pathum Thani", ar: "باثوم ثاني", ms: "Pathum Thani" },
+    description: { th: "ผู้นำอุตสาหกรรมอาหารพร้อมรับประทานที่ใหญ่ที่สุดในไทย ตรวจสอบคุณภาพและพัฒนาผลิตภัณฑ์", en: "Thailand's leader in ready-to-eat food industry. Quality control and R&D.", ar: "الرائدة في صناعة الأغذية الجاهزة في تايلاند. مراقبة الجودة والبحث والتطوير.", ms: "Peneraju industri makanan sedia dimakan di Thailand. Kawalan kualiti dan R&D." },
+    position: { th: "เจ้าหน้าที่ฝ่ายตรวจสอบคุณภาพ (QC), นักวิจัยอาหาร", en: "Quality Control Officer (QC), Food Researcher", ar: "موظف مراقبة الجودة، باحث أغذية", ms: "Pegawai Kawalan Kualiti (QC), Penyelidik Makanan" },
     status: 'active',
     major: Major.HALAL_FOOD,
-    contactLink: 'https://www.cpall.co.th/',
-    email: 'contact@cpall.co.th'
+    contactLink: "https://www.cpram.co.th",
+    email: "hr@cpram.co.th",
+    phone: "02-123-4567"
   },
   {
-    id: '3',
-    name: { th: 'บริษัท การีนา ออนไลน์ (ประเทศไทย) จำกัด', en: 'Garena Online', ar: 'غارينا', ms: 'Garena' },
-    location: { th: 'กรุงเทพมหานคร', en: 'Bangkok', ar: 'بانكوك', ms: 'Bangkok' },
-    description: { th: 'พัฒนาซอฟต์แวร์และแพลตฟอร์มอีสปอร์ต', en: 'Software & E-sports', ar: 'هندسة البرمجيات', ms: 'Kejuruteraan Perisian' },
+    id: "2",
+    name: { th: "Nextzy Technologies", en: "Nextzy Technologies", ar: "نيكستزي للتكنولوجيا", ms: "Nextzy Technologies" },
+    location: { th: "กรุงเทพฯ", en: "Bangkok", ar: "بانكوك", ms: "Bangkok" },
+    description: { th: "บริษัทพัฒนาซอฟต์แวร์และแอปพลิเคชันระดับแถวหน้า เน้นการทำงานแบบ Agile", en: "Leading software and application development firm with Agile culture.", ar: "شركة رائدة في تطوير البرمجيات والتطبيقات تعتمد ثقافة Agile.", ms: "Syarikat pembangunan perisian dan aplikasi terkemuka dengan budaya Agile." },
+    position: { th: "Frontend Developer, UX/UI Designer", en: "Frontend Developer, UX/UI Designer", ar: "مطور واجهات، مصمم واجهات", ms: "Pembangun Frontend, Pereka UX/UI" },
     status: 'active',
     major: Major.DIGITAL_TECH,
-    contactLink: 'https://www.garena.co.th/'
+    contactLink: "https://nextzy.me",
+    email: "career@nextzy.me"
+  },
+  {
+    id: "3",
+    name: { th: "เบทาโกร (Betagro Group)", en: "Betagro Group", ar: "مجموعة بيتاغرو", ms: "Kumpulan Betagro" },
+    location: { th: "สมุทรปราการ", en: "Samut Prakan", ar: "ساموت براكان", ms: "Samut Prakan" },
+    description: { th: "ดำเนินธุรกิจเกษตรอุตสาหกรรมและอาหารครบวงจร มุ่งเน้นความปลอดภัยอาหาร", en: "Integrated agro-industrial and food business focusing on food safety.", ar: "أعمال زراعية وصناعية وغذائية متكاملة تركز على سلامة الغذاء.", ms: "Perniagaan agro-industri dan makanan bersepadu yang fokus kepada keselamatan makanan." },
+    position: { th: "ฝ่ายประกันคุณภาพอาหารฮาลาล", en: "Halal Quality Assurance", ar: "تأمين جودة الحلال", ms: "Jaminan Kualiti Halal" },
+    status: 'active',
+    major: Major.HALAL_FOOD,
+    phone: "02-834-7000"
   }
 ];
 
-export const INITIAL_SCHEDULE: ScheduleEvent[] = [
-  { 
-    id: 's1', 
-    event: { th: 'ปฐมนิเทศนักศึกษา', en: 'Orientation', ar: 'توجيه', ms: 'Orientasi' }, 
-    startDate: { th: 'มิถุนายน 2567', en: 'June 2024', ar: 'يونيو 2024', ms: 'Jun 2024' }, 
-    endDate: { th: 'มิถุนายน 2567', en: 'June 2024', ar: 'يونيو 2024', ms: 'Jun 2024' }, 
-    status: 'upcoming' 
-  },
+export const INITIAL_FORMS: DocumentForm[] = [
+  { id: "f1", title: "ใบสมัครสหกิจศึกษา (WISE-01)", category: FormCategory.APPLICATION, url: "#" },
+  { id: "f2", title: "หนังสือยินยอมจากผู้ปกครอง", category: FormCategory.APPLICATION, url: "#" },
+  { id: "f3", title: "แบบบันทึกการปฏิบัติงานรายสัปดาห์", category: FormCategory.MONITORING, url: "#" },
+  { id: "f4", title: "แบบประเมินผลโดยสถานประกอบการ", category: FormCategory.MONITORING, url: "#" }
 ];
 
-export const INITIAL_FORMS: DocumentForm[] = [
-  { id: 'f1', title: 'แบบขออนุมัติฝึกงาน (วบง.01)', category: FormCategory.APPLICATION, url: 'https://google.com' },
+export const INITIAL_SCHEDULE: ScheduleEvent[] = [
+  {
+    id: "s1",
+    event: { th: "ปฐมนิเทศก่อนฝึกสหกิจศึกษา", en: "Pre-Internship Orientation", ar: "توجيه ما قبل التدريب", ms: "Orientasi Pra-Latihan" },
+    startDate: { th: "1 มิถุนายน 2567", en: "June 1, 2024", ar: "١ يونيو ٢٠٢٤", ms: "1 Jun 2024" },
+    endDate: { th: "1 มิถุนายน 2567", en: "June 1, 2024", ar: "١ يونيو ٢٠٢٤", ms: "1 Jun 2024" },
+    status: 'upcoming'
+  },
+  {
+    id: "s2",
+    event: { th: "ระยะเวลาการฝึกปฏิบัติงาน", en: "Internship Period", ar: "فترة التدريب", ms: "Tempoh Latihan" },
+    startDate: { th: "15 มิถุนายน 2567", en: "June 15, 2024", ar: "١٥ يونيو ٢٠٢٤", ms: "15 Jun 2024" },
+    endDate: { th: "15 ตุลาคม 2567", en: "October 15, 2024", ar: "١٥ أكتوبر ٢٠٢٤", ms: "15 Okt 2024" },
+    status: 'upcoming'
+  }
 ];

@@ -34,11 +34,13 @@ export interface InternshipSite {
   name: LocalizedString;
   location: LocalizedString;
   description: LocalizedString;
+  position: LocalizedString;
   status: 'active' | 'archived';
   major: Major;
   contactLink?: string;
   email?: string;
   phone?: string;
+  createdAt?: number;
 }
 
 export interface DocumentForm {
