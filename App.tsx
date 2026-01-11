@@ -471,7 +471,7 @@ const App: React.FC = () => {
 
   if (viewState === 'landing') {
     return (
-      <div className={`min-h-[100svh] w-full flex flex-col items-center luxe-mangosteen-bg relative overflow-hidden ${isRtl ? 'rtl' : ''}`}>
+      <div className={`min-h-[100svh] w-full flex flex-col items-center luxe-mangosteen-bg relative overflow-hidden desktop-zoom-80 ${isRtl ? 'rtl' : ''}`}>
         <div className="bg-video-wrap"><video autoPlay loop muted playsInline><source src="https://assets.mixkit.co/videos/preview/mixkit-business-people-working-in-a-busy-office-33824-large.mp4" type="video/mp4" /></video></div>
         <div className="video-overlay"></div>
         <div className="islamic-tech-watermark"></div>
