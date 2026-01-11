@@ -128,6 +128,4 @@ export interface Translation {
   studentLabel: string;
   currentStatusLabel: string;
   adminStudentSearchPlaceholder: string;
-  startDateLabel: string;
-  endDateLabel: string;
 }
