@@ -301,7 +301,9 @@ const App: React.FC = () => {
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPassInput === 'fst111') {
+    // Updated passwords: fst111, 24725, 5990
+    const validPasswords = ['fst111', '24725', '5990'];
+    if (validPasswords.includes(adminPassInput)) {
       setRole(UserRole.ADMIN);
       setLang(Language.TH); 
       setTheme('light'); 
@@ -1127,7 +1129,11 @@ const App: React.FC = () => {
                     <div key={ev.id} className="flex gap-6 items-center">
                       <div className="w-12 h-12 rounded-2xl bg-[#630330] text-white flex items-center justify-center font-black text-xl flex-shrink-0">{idx+1}</div>
                       <div>
-                        <p className="text-[10px] font-bold text-amber-600 uppercase mb-1">{getLocalized(ev.startDate)} - {getLocalized(ev.endDate)}</p>
+                        <p className="text-[10px] font-bold text-amber-600 uppercase mb-1">
+                           <span className="text-blue-600 dark:text-blue-400">เริ่มต้น: {getLocalized(ev.startDate)}</span>
+                           <span className="mx-2">|</span>
+                           <span className="text-rose-600 dark:text-rose-400">สิ้นสุด: {getLocalized(ev.endDate)}</span>
+                        </p>
                         <h4 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">{getLocalized(ev.event)}</h4>
                       </div>
                     </div>
