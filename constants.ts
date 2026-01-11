@@ -1,5 +1,5 @@
 
-import { Language, Major, InternshipSite, DocumentForm, FormCategory, ScheduleEvent, Translation } from './types';
+import { Language, Major, InternshipSite, DocumentForm, FormCategory, ScheduleEvent, Translation, ApplicationStatus, StudentStatusRecord } from './types';
 
 export const TRANSLATIONS: Record<Language, Translation> = {
   [Language.TH]: {
@@ -35,6 +35,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     selectMajorTitle: "เลือกสาขาวิชาของคุณ",
     selectMajorSubtitle: "เพื่อดูข้อมูลที่ตรงกับความต้องการ",
     startNow: "เข้าสู่เว็บไซต์",
+    checkStatus: "ติดตามสถานะ",
     selectLanguagePrompt: "กรุณาเลือกภาษา",
     schedule: "กำหนดการสำคัญ",
     appForms: "เอกสารสมัครงาน",
@@ -42,7 +43,15 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     email: "อีเมล",
     phone: "โทรศัพท์",
     visitWebsite: "ไปที่เว็บไซต์",
-    searchPlaceholder: "ค้นหาชื่อหน่วยงาน ตำแหน่ง หรือจังหวัด..."
+    searchPlaceholder: "ค้นหาชื่อหน่วยงาน ตำแหน่ง หรือจังหวัด...",
+    statusPending: "กำลังตรวจสอบเอกสาร",
+    statusPreparing: "กำลังจัดเตรียมเอกสาร",
+    statusAccepted: "ถูกตอบรับจากสถานประกอบการ",
+    statusRejected: "ถูกปฏิเสธจากสถานประกอบการ",
+    statusTitle: "ตรวจสอบสถานะการสมัคร",
+    statusCheckPrompt: "กรุณาระบุรหัสนักศึกษาเพื่อตรวจสอบ",
+    noStatusFound: "ไม่พบข้อมูลสถานะสำหรับรหัสนักศึกษานี้",
+    lastUpdated: "อัปเดตล่าสุด"
   },
   [Language.EN]: {
     title: "Work-Integrated Science Education Unit (WISE)",
@@ -77,6 +86,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     selectMajorTitle: "Select Your Major",
     selectMajorSubtitle: "To view relevant information",
     startNow: "Enter Website",
+    checkStatus: "Track Status",
     selectLanguagePrompt: "Select Language",
     schedule: "Key Schedule",
     appForms: "Application Forms",
@@ -84,7 +94,15 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     email: "Email",
     phone: "Phone",
     visitWebsite: "Visit Website",
-    searchPlaceholder: "Search site, position, or city..."
+    searchPlaceholder: "Search site, position, or city...",
+    statusPending: "Checking Documents",
+    statusPreparing: "Preparing Documents",
+    statusAccepted: "Accepted by Site",
+    statusRejected: "Rejected by Site",
+    statusTitle: "Check Application Status",
+    statusCheckPrompt: "Enter Student ID to check",
+    noStatusFound: "No status found for this Student ID",
+    lastUpdated: "Last Updated"
   },
   [Language.AR]: {
     title: "وحدة تعليم العلوم المتكاملة مع العمل (WISE)",
@@ -119,6 +137,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     selectMajorTitle: "اختر تخصصك",
     selectMajorSubtitle: "لعرض المعلومات ذات الصلة",
     startNow: "الدخول إلى الموقع",
+    checkStatus: "متابعة الحالة",
     selectLanguagePrompt: "اختر اللغة",
     schedule: "الجدول الزمني",
     appForms: "نماذج التقديم",
@@ -126,7 +145,15 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     email: "البريد الإلكتروني",
     phone: "الهاتف",
     visitWebsite: "زيارة الموقع",
-    searchPlaceholder: "البحث عن اسم أو موقع..."
+    searchPlaceholder: "البحث عن اسم أو موقع...",
+    statusPending: "جاري فحص المستندات",
+    statusPreparing: "جاري تحضير المستندات",
+    statusAccepted: "تم القبول من المنظمة",
+    statusRejected: "تم الرفض من المنظمة",
+    statusTitle: "التحقق من حالة التقديم",
+    statusCheckPrompt: "أدخل الرقم الجامعي للتحقق",
+    noStatusFound: "لم يتم العثور على حالة لهذا الرقم الجامعي",
+    lastUpdated: "آخر تحديث"
   },
   [Language.MS]: {
     title: "Unit Pendidikan Sains Bersepadu Kerja (WISE)",
@@ -161,6 +188,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     selectMajorTitle: "Pilih Bidang Anda",
     selectMajorSubtitle: "Untuk melihat maklumat yang berkaitan",
     startNow: "Masuk ke Laman Web",
+    checkStatus: "Semak Status",
     selectLanguagePrompt: "Sila Pilih Bahasa",
     schedule: "Jadual Penting",
     appForms: "Borang Permohonan",
@@ -168,7 +196,15 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     email: "Emel",
     phone: "Telefon",
     visitWebsite: "Layari Laman Web",
-    searchPlaceholder: "Cari nama, jawatan, หรือตำแหน่งงาน..."
+    searchPlaceholder: "Cari nama, jawatan, หรือตำแหน่งงาน...",
+    statusPending: "Dokumen sedang disemak",
+    statusPreparing: "Dokumen sedang disediakan",
+    statusAccepted: "Diterima oleh organisasi",
+    statusRejected: "Ditolak oleh organisasi",
+    statusTitle: "Semak Status Permohonan",
+    statusCheckPrompt: "Sila masukkan ID Pelajar",
+    noStatusFound: "Tiada status dijumpai untuk ID Pelajar ini",
+    lastUpdated: "Kemas Kini Terakhir"
   }
 };
 
@@ -188,7 +224,7 @@ export const INITIAL_SITES: InternshipSite[] = [
     id: "2",
     name: { th: "เทคโพร โซลูชั่น", en: "TechPro Solutions", ar: "حلول تيك برو", ms: "TechPro Solutions" },
     location: { th: "ภูเก็ต", en: "Phuket", ar: "بوكيت", ms: "Phuket" },
-    description: { th: "บริษัทพัฒนาซอฟต์แวร์และระบบคลาวด์", en: "Software development and cloud solutions company.", ar: "شركة تطوير البرمجيات وحلول السحابة.", ms: "Syarikat pembangunan perisian dan penyelesaian awan." },
+    description: { th: "บริษัทพัฒนาซอฟต์แวร์และระบบคลาวด์", en: "Software development and cloud solutions company.", ar: "شركة تطوير البرمجيات وحلول السหابة.", ms: "Syarikat pembangunan perisian dan penyelesaian awan." },
     position: { th: "Full Stack Developer", en: "Full Stack Developer", ar: "มطور فولสตาค", ms: "Pembangun Full Stack" },
     status: 'active',
     major: Major.DIGITAL_TECH,
@@ -219,4 +255,9 @@ export const INITIAL_SCHEDULE: ScheduleEvent[] = [
     endDate: { th: "15 กุมภาพันธ์ 2568", en: "Feb 15, 2025", ar: "١٥ فبراير ٢٠٢٥", ms: "15 Feb 2025" },
     status: 'upcoming'
   }
+];
+
+export const INITIAL_STUDENT_STATUSES: StudentStatusRecord[] = [
+  { id: "st1", studentId: "406000001", name: "นักศึกษา ทดสอบ 1", status: ApplicationStatus.PENDING, lastUpdated: Date.now() },
+  { id: "st2", studentId: "406000002", name: "นักศึกษา ทดสอบ 2", status: ApplicationStatus.ACCEPTED, lastUpdated: Date.now() }
 ];

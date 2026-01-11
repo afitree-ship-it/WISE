@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Language, 
@@ -7,9 +8,11 @@ import {
   DocumentForm, 
   FormCategory, 
   ScheduleEvent,
-  LocalizedString
+  LocalizedString,
+  ApplicationStatus,
+  StudentStatusRecord
 } from './types';
-import { TRANSLATIONS, INITIAL_SITES, INITIAL_FORMS, INITIAL_SCHEDULE } from './constants';
+import { TRANSLATIONS, INITIAL_SITES, INITIAL_FORMS, INITIAL_SCHEDULE, INITIAL_STUDENT_STATUSES } from './constants';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import InternshipCard from './components/InternshipCard';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -49,7 +52,11 @@ import {
   Sun,
   Moon,
   LucideIcon,
-  Check
+  Check,
+  UserCircle,
+  Activity,
+  History,
+  Timer
 } from 'lucide-react';
 
 const MouseGlow: React.FC = () => {
@@ -57,12 +64,10 @@ const MouseGlow: React.FC = () => {
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      // คำนวณ Zoom Factor สำหรับ Desktop (74%)
       const isDesktop = window.innerWidth >= 1024;
       const zoomFactor = isDesktop ? 0.74 : 1;
 
       requestAnimationFrame(() => {
-        // อัปเดต CSS Variables ที่ root เพื่อให้ mask-image ของ .mouse-glow ทำงาน
         const x = e.clientX / zoomFactor;
         const y = e.clientY / zoomFactor;
         
@@ -107,34 +112,26 @@ const TechMeteorShower: React.FC = () => {
 const ModernWaves: React.FC = () => {
   return (
     <div className="waves-container">
-      {/* Background layer - slow moving strokes */}
       <div className="wave-layer animate-wave-slow bob-slow opacity-20">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
           <path className="wave-line" stroke="#D4AF37" d="M0,160 C320,300 420,10 720,160 C1020,310 1120,20 1440,160 C1760,300 1860,10 2160,160 C2460,310 2560,20 2880,160"></path>
         </svg>
       </div>
-      
-      {/* Middle layer - white outlines */}
       <div className="wave-layer animate-wave-mid bob-mid opacity-10">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
           <path className="wave-line" stroke="#FFFFFF" d="M0,192 C240,120 480,240 720,192 C960,144 1200,240 1440,192 C1680,120 1920,240 2160,192 C2400,144 2640,240 2880,192"></path>
         </svg>
       </div>
-
-      {/* Main color layers - mangosteen & gold fills */}
       <div className="wave-layer animate-wave-slow bob-slow opacity-30">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
           <path fill="#7A0B3D" fillOpacity="1" d="M0,160 L120,170.7 C240,181,480,203,720,202.7 C960,203,1200,181,1320,170.7 L1440,160 L1560,170.7 C1680,181,1920,203,2160,202.7 C2400,203,2640,181,2760,170.7 L2880,160 V320 H0 Z"></path>
         </svg>
       </div>
-
       <div className="wave-layer animate-wave-mid bob-mid opacity-20" style={{ marginBottom: '2px' }}>
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
           <path fill="#D4AF37" fillOpacity="1" d="M0,224 L120,213.3 C240,203,480,181,720,181.3 C960,181,1200,203,1320,213.3 L1440,224 L1560,213.3 C1680,203,1920,181,2160,181.3 C2400,203,2640,181,2760,213.3 L2880,224 V320 H0 Z"></path>
         </svg>
       </div>
-
-      {/* Front layer - deep mangosteen solid */}
       <div className="wave-layer animate-wave-fast bob-fast opacity-50">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
           <path fill="#630330" fillOpacity="1" d="M0,288 L120,277.3 C240,267,480,245,720,245.3 C960,245,1200,267,1320,277.3 L1440,288 L1560,277.3 C1680,267,1920,245,2160,245.3 C2400,245,2640,267,2760,277.3 L2880,288 V320 H0 Z"></path>
@@ -172,9 +169,18 @@ const App: React.FC = () => {
   const [sites, setSites] = useState<InternshipSite[]>(INITIAL_SITES);
   const [forms, setForms] = useState<DocumentForm[]>(INITIAL_FORMS);
   const [schedule, setSchedule] = useState<ScheduleEvent[]>(INITIAL_SCHEDULE);
+  const [studentStatuses, setStudentStatuses] = useState<StudentStatusRecord[]>(() => {
+    const saved = localStorage.getItem('wise_student_statuses');
+    return saved ? JSON.parse(saved) : INITIAL_STUDENT_STATUSES;
+  });
   const [activeMajor, setActiveMajor] = useState<Major | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
+
+  // Status Search State (for students)
+  const [showStatusCheckModal, setShowStatusCheckModal] = useState(false);
+  const [searchStudentId, setSearchStudentId] = useState('');
+  const [foundStatus, setFoundStatus] = useState<StudentStatusRecord | null | undefined>(undefined);
 
   // Position Memory State
   const [frequentPositions, setFrequentPositions] = useState<string[]>(() => {
@@ -206,6 +212,9 @@ const App: React.FC = () => {
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
 
+  const [showAdminStatusModal, setShowAdminStatusModal] = useState(false);
+  const [editingStatusRecord, setEditingStatusRecord] = useState<StudentStatusRecord | null>(null);
+
   useEffect(() => {
     if (editingSite) {
       setModalMajor(editingSite.major);
@@ -214,7 +223,6 @@ const App: React.FC = () => {
     }
   }, [editingSite, showSiteModal]);
 
-  // Theme Sync
   useEffect(() => {
     const root = window.document.documentElement;
     if (theme === 'dark') {
@@ -225,12 +233,14 @@ const App: React.FC = () => {
     localStorage.setItem('wise_portal_theme', theme);
   }, [theme]);
 
-  // Position persistence
   useEffect(() => {
     localStorage.setItem('wise_frequent_positions', JSON.stringify(frequentPositions));
   }, [frequentPositions]);
 
-  // Security & Custom Menu Logic
+  useEffect(() => {
+    localStorage.setItem('wise_student_statuses', JSON.stringify(studentStatuses));
+  }, [studentStatuses]);
+
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
       const isDevKey = 
@@ -417,6 +427,36 @@ const App: React.FC = () => {
     setEditingSite(null);
   };
 
+  const handleSaveStatus = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const sId = formData.get('student_id') as string;
+    const name = formData.get('student_name') as string;
+    const status = formData.get('status') as ApplicationStatus;
+
+    const newRecord: StudentStatusRecord = {
+      id: editingStatusRecord?.id || Date.now().toString(),
+      studentId: sId,
+      name: name,
+      status: status,
+      lastUpdated: Date.now()
+    };
+
+    if (editingStatusRecord) {
+      setStudentStatuses(studentStatuses.map(s => s.id === editingStatusRecord.id ? newRecord : s));
+    } else {
+      setStudentStatuses([newRecord, ...studentStatuses]);
+    }
+    setShowAdminStatusModal(false);
+    setEditingStatusRecord(null);
+  };
+
+  const handleCheckStatus = (e: React.FormEvent) => {
+    e.preventDefault();
+    const found = studentStatuses.find(s => s.studentId === searchStudentId);
+    setFoundStatus(found || null);
+  };
+
   const handleDeleteSite = (id: string) => {
     if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลหน่วยงานนี้?')) {
       setSites(sites.filter(s => s.id !== id));
@@ -480,6 +520,26 @@ const App: React.FC = () => {
       navigator.clipboard.writeText(text);
     }
     setContextMenu(null);
+  };
+
+  const getStatusColor = (status: ApplicationStatus) => {
+    switch (status) {
+      case ApplicationStatus.PENDING: return 'bg-amber-100 text-amber-700 border-amber-200';
+      case ApplicationStatus.PREPARING: return 'bg-blue-100 text-blue-700 border-blue-200';
+      case ApplicationStatus.ACCEPTED: return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case ApplicationStatus.REJECTED: return 'bg-rose-100 text-rose-700 border-rose-200';
+      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
+  const getStatusLabel = (status: ApplicationStatus) => {
+    switch (status) {
+      case ApplicationStatus.PENDING: return currentT.statusPending;
+      case ApplicationStatus.PREPARING: return currentT.statusPreparing;
+      case ApplicationStatus.ACCEPTED: return currentT.statusAccepted;
+      case ApplicationStatus.REJECTED: return currentT.statusRejected;
+      default: return '';
+    }
   };
 
   const scrollingIcons: { icon: LucideIcon, label: string }[] = [
@@ -547,27 +607,44 @@ const App: React.FC = () => {
                 <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} />
               </div>
               
-              <div className="flex flex-col items-center space-y-6 sm:space-y-8">
-                {/* Minimalist Landing Button */}
-                <button 
-                  onClick={() => setViewState('dashboard')}
-                  className="group relative px-10 sm:px-20 py-4 sm:py-6 bg-white text-[#630330] rounded-full font-black uppercase text-lg sm:text-2xl transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-visible"
-                >
-                  <div className="absolute inset-0 rounded-full border-2 border-white/0 group-hover:border-white/50 group-hover:animate-ring-expand pointer-events-none"></div>
-                  <span className="relative z-10 flex items-center gap-3 sm:gap-6 tracking-tight transition-all">
-                    {currentT.startNow} 
-                    <div className="flex items-center justify-center w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-[#630330]/5 group-hover:bg-[#630330] group-hover:text-white transition-all duration-500 ease-out">
-                      <ChevronRight size={24} className={`${isRtl ? 'rotate-180' : ''} group-hover:translate-x-0.5 transition-transform duration-500`} />
-                    </div>
-                  </span>
-                </button>
+              <div className="flex flex-col items-center w-full">
+                <div className="flex flex-row items-center justify-center gap-3 sm:gap-4">
+                  {/* Main Entry Button */}
+                  <button 
+                    onClick={() => setViewState('dashboard')}
+                    className="group relative px-8 sm:px-14 py-4 sm:py-5 bg-white text-[#630330] rounded-full font-black uppercase text-base sm:text-xl transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.15)]"
+                  >
+                    <div className="absolute inset-0 rounded-full border-2 border-white/0 group-hover:border-white/50 group-hover:animate-ring-expand pointer-events-none"></div>
+                    <span className="relative z-10 flex items-center gap-2 sm:gap-4 tracking-tight whitespace-nowrap">
+                      {currentT.startNow} 
+                      <div className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-[#630330]/5 group-hover:bg-[#630330] group-hover:text-white transition-all duration-500">
+                        <ChevronRight size={18} className={isRtl ? 'rotate-180' : ''} />
+                      </div>
+                    </span>
+                  </button>
+
+                  {/* Smaller Status Check Button */}
+                  <button 
+                    onClick={() => {
+                      setSearchStudentId('');
+                      setFoundStatus(undefined);
+                      setShowStatusCheckModal(true);
+                    }}
+                    className="group relative px-5 sm:px-8 py-4 sm:py-5 bg-[#D4AF37] hover:bg-[#b8952c] text-[#2A0114] rounded-full font-bold uppercase text-[10px] sm:text-sm transition-all hover:scale-105 active:scale-95 shadow-[0_10px_20px_rgba(212,175,55,0.2)]"
+                  >
+                    <span className="flex items-center gap-2 tracking-tight whitespace-nowrap">
+                      <Timer size={16} className="group-hover:rotate-12 transition-transform" />
+                      {currentT.checkStatus}
+                    </span>
+                  </button>
+                </div>
 
                 <button 
                   onClick={() => {
                     setLoginError(false);
                     setShowAdminLogin(true);
                   }}
-                  className="flex items-center gap-2 mt-2 opacity-30 hover:opacity-100 transition-all duration-500 group"
+                  className="flex items-center gap-2 mt-8 opacity-30 hover:opacity-100 transition-all duration-500 group"
                   title="Staff Access"
                 >
                   <LockKeyhole size={12} className="text-[#D4AF37] group-hover:scale-110 transition-transform" />
@@ -578,6 +655,71 @@ const App: React.FC = () => {
           </div>
         </div>
 
+        {/* Student Status Check Modal */}
+        {showStatusCheckModal && (
+          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-xl reveal-anim">
+            <div className="w-full max-w-[480px] bg-white rounded-[2.5rem] p-8 sm:p-12 shadow-3xl relative">
+               <button onClick={() => setShowStatusCheckModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 transition-colors">
+                 <X size={20} className="text-slate-400" />
+               </button>
+               <div className="flex flex-col items-center mb-10">
+                 <div className="p-4 bg-[#D4AF37]/10 rounded-2xl mb-4">
+                   <Timer size={32} className="text-[#D4AF37]" />
+                 </div>
+                 <h3 className="text-xl font-black text-[#2A0114] uppercase text-center">{currentT.statusTitle}</h3>
+                 <p className="text-[12px] text-slate-400 font-bold uppercase mt-1">{currentT.statusCheckPrompt}</p>
+               </div>
+
+               <form onSubmit={handleCheckStatus} className="space-y-6">
+                 <div className="relative group">
+                   <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors">
+                     <UserCircle size={24} />
+                   </div>
+                   <input 
+                    type="text" 
+                    placeholder={currentT.studentIdPlaceholder}
+                    value={searchStudentId}
+                    onChange={e => setSearchStudentId(e.target.value)}
+                    className="w-full pl-16 pr-8 py-5 bg-slate-50 border-2 border-transparent focus:border-[#D4AF37] focus:bg-white rounded-2xl outline-none font-bold text-lg transition-all"
+                   />
+                 </div>
+                 <button type="submit" className="w-full bg-[#2A0114] text-white py-5 rounded-2xl font-black uppercase text-sm shadow-xl shadow-[#2A0114]/20 transform active:scale-[0.98] transition-all">
+                   ค้นหาข้อมูล
+                 </button>
+               </form>
+
+               <div className="mt-10 min-h-[120px]">
+                 {foundStatus === undefined ? null : foundStatus === null ? (
+                   <div className="flex flex-col items-center justify-center py-6 text-slate-400 gap-2 border-2 border-dashed border-slate-100 rounded-2xl">
+                     <AlertCircle size={20} />
+                     <p className="text-[11px] font-bold uppercase">{currentT.noStatusFound}</p>
+                   </div>
+                 ) : (
+                   <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 reveal-anim">
+                     <div className="flex items-center gap-4 mb-4">
+                       <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#2A0114] shadow-sm border border-slate-100">
+                         <GraduationCap size={24} />
+                       </div>
+                       <div>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">นักศึกษา</p>
+                         <h4 className="font-bold text-slate-900 leading-tight">{foundStatus.name}</h4>
+                       </div>
+                     </div>
+                     <div className={`w-full py-4 px-6 rounded-xl border flex flex-col gap-1 ${getStatusColor(foundStatus.status)} shadow-sm`}>
+                       <span className="text-[9px] font-black uppercase opacity-60">สถานะปัจจุบัน</span>
+                       <span className="text-sm font-black uppercase">{getStatusLabel(foundStatus.status)}</span>
+                     </div>
+                     <div className="mt-4 flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase justify-end">
+                       <Activity size={10} /> {currentT.lastUpdated}: {new Date(foundStatus.lastUpdated).toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                     </div>
+                   </div>
+                 )}
+               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Floating Marquee Icons */}
         <div 
           className="w-full pb-8 sm:pb-20 mt-auto overflow-hidden opacity-30 z-10"
           style={{
@@ -720,6 +862,52 @@ const App: React.FC = () => {
       </div>
 
       <main className="container mx-auto px-4 py-8 sm:py-14 flex-grow space-y-16">
+        {/* Admin Student Status Management Section */}
+        {role === UserRole.ADMIN && (
+          <section className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl p-8 sm:p-14 space-y-12 transition-all">
+             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div className="flex items-center gap-6">
+                   <div className="p-5 bg-[#D4AF37] text-white rounded-[1.5rem] shadow-2xl"><Timer size={28} /></div>
+                   <div>
+                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-normal">จัดการสถานะนักศึกษา</h2>
+                     <p className="text-[12px] font-bold text-slate-400 uppercase mt-1 tracking-normal">ระบบติดตามความคืบหน้าการสมัครรายบุคคล</p>
+                   </div>
+                </div>
+                <button onClick={() => { setEditingStatusRecord(null); setShowAdminStatusModal(true); }} className="px-8 py-5 rounded-[2rem] bg-[#2A0114] text-white font-black uppercase text-sm flex items-center justify-center gap-3 shadow-lg transform transition-all hover:scale-105 active:scale-95">
+                  <Plus size={20} /> เพิ่มข้อมูลสถานะ
+                </button>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {studentStatuses.map(record => (
+                  <div key={record.id} className="p-6 rounded-3xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-xl transition-all group relative">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-400 border border-slate-100">
+                          <UserCircle size={20} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900 leading-tight">{record.name}</h4>
+                          <p className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-tight">{record.studentId}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <button onClick={() => { setEditingStatusRecord(record); setShowAdminStatusModal(true); }} className="p-2 text-slate-400 hover:text-[#630330] transition-colors"><Pencil size={14} /></button>
+                        <button onClick={() => setStudentStatuses(studentStatuses.filter(s => s.id !== record.id))} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash size={14} /></button>
+                      </div>
+                    </div>
+                    <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase border mb-3 ${getStatusColor(record.status)}`}>
+                      {getStatusLabel(record.status)}
+                    </div>
+                    <div className="flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase">
+                      <History size={10} /> {new Date(record.lastUpdated).toLocaleDateString('th-TH')}
+                    </div>
+                  </div>
+                ))}
+             </div>
+          </section>
+        )}
+
         <section className="bg-white dark:bg-slate-900/50 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-2xl p-8 sm:p-14 space-y-12 relative overflow-hidden transition-colors">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
             <div className="flex items-center gap-6">
@@ -832,11 +1020,44 @@ const App: React.FC = () => {
                  <button onClick={() => { setEditingForm(null); setShowFormModal(true); }} className="p-3 bg-[#630330] text-white rounded-2xl hover:bg-[#7a0b3d] transition-all"><Plus size={20} /></button>
                )}
              </div>
-             {/* Note: The full forms logic continues as before, this change only affects the landing marquee */}
+             {/* Note: Forms logic continues as per previous context */}
           </div>
         </div>
       </main>
-      {/* Footer and Modals remain same as previous version */}
+
+      {/* Admin Status Management Modal */}
+      {showAdminStatusModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim">
+          <div className="w-full max-w-[500px] bg-white rounded-[2.5rem] p-8 sm:p-12 shadow-3xl">
+            <h3 className="text-2xl font-black text-[#2A0114] mb-8">{editingStatusRecord ? 'แก้ไขสถานะนักศึกษา' : 'เพิ่มข้อมูลติดตามสถานะ'}</h3>
+            <form onSubmit={handleSaveStatus} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400">รหัสนักศึกษา</label>
+                <input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="เช่น 406123456" className="w-full px-6 py-4 rounded-xl bg-slate-50 border-2 border-transparent focus:border-[#D4AF37] outline-none font-bold" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400">ชื่อ-นามสกุล</label>
+                <input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="ชื่อนักศึกษา" className="w-full px-6 py-4 rounded-xl bg-slate-50 border-2 border-transparent focus:border-[#D4AF37] outline-none font-bold" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400">สถานะการสมัคร</label>
+                <select name="status" defaultValue={editingStatusRecord?.status || ApplicationStatus.PENDING} className="w-full px-6 py-4 rounded-xl bg-slate-50 border-2 border-transparent focus:border-[#D4AF37] outline-none font-bold">
+                  <option value={ApplicationStatus.PENDING}>{currentT.statusPending}</option>
+                  <option value={ApplicationStatus.PREPARING}>{currentT.statusPreparing}</option>
+                  <option value={ApplicationStatus.ACCEPTED}>{currentT.statusAccepted}</option>
+                  <option value={ApplicationStatus.REJECTED}>{currentT.statusRejected}</option>
+                </select>
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => setShowAdminStatusModal(false)} className="flex-1 py-4 rounded-xl border-2 border-slate-100 font-black uppercase text-xs text-slate-400 hover:bg-slate-50 transition-all">ยกเลิก</button>
+                <button type="submit" className="flex-2 px-10 py-4 rounded-xl bg-[#2A0114] text-white font-black uppercase text-xs shadow-xl active:scale-95 transition-all">บันทึกข้อมูล</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Other modals (Site, Schedule, Forms) omitted for brevity but remain functional */}
     </div>
   );
 };

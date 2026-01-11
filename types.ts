@@ -22,6 +22,21 @@ export enum FormCategory {
   MONITORING = 'monitoring'
 }
 
+export enum ApplicationStatus {
+  PENDING = 'pending',
+  PREPARING = 'preparing',
+  ACCEPTED = 'accepted',
+  REJECTED = 'rejected'
+}
+
+export interface StudentStatusRecord {
+  id: string;
+  studentId: string;
+  name: string;
+  status: ApplicationStatus;
+  lastUpdated: number;
+}
+
 export interface LocalizedString {
   th: string;
   en: string;
@@ -91,6 +106,7 @@ export interface Translation {
   selectMajorTitle: string;
   selectMajorSubtitle: string;
   startNow: string;
+  checkStatus: string;
   selectLanguagePrompt: string;
   schedule: string;
   appForms: string;
@@ -99,4 +115,12 @@ export interface Translation {
   phone: string;
   visitWebsite: string;
   searchPlaceholder: string;
+  statusPending: string;
+  statusPreparing: string;
+  statusAccepted: string;
+  statusRejected: string;
+  statusTitle: string;
+  statusCheckPrompt: string;
+  noStatusFound: string;
+  lastUpdated: string;
 }
