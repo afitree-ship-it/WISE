@@ -34,6 +34,7 @@ export interface StudentStatusRecord {
   studentId: string;
   name: string;
   status: ApplicationStatus;
+  major: Major;
   lastUpdated: number;
 }
 
@@ -123,4 +124,8 @@ export interface Translation {
   statusCheckPrompt: string;
   noStatusFound: string;
   lastUpdated: string;
+  searchButton: string;
+  studentLabel: string;
+  currentStatusLabel: string;
+  adminStudentSearchPlaceholder: string;
 }

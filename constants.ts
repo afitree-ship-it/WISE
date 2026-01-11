@@ -14,8 +14,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     logout: "ออกจากระบบ",
     internshipSites: "ฐานข้อมูลสถานประกอบการ",
     forms: "ศูนย์บริการเอกสารอิเล็กทรอนิกส์",
-    halalMajor: "อาหารฮาลาล",
-    digitalMajor: "ดิจิทัลเทค",
+    halalMajor: "สาขาวิชาวิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาล",
+    digitalMajor: "สาขาวิชาเทคโนโลยีและวิทยาการดิจิทัล",
     allMajors: "ทุกสาขาวิชา",
     activeSites: "เปิดรับสมัคร",
     pastSites: "ประวัติการฝึก",
@@ -51,7 +51,11 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     statusTitle: "ตรวจสอบสถานะการสมัคร",
     statusCheckPrompt: "กรุณาระบุรหัสนักศึกษาเพื่อตรวจสอบ",
     noStatusFound: "ไม่พบข้อมูลสถานะสำหรับรหัสนักศึกษานี้",
-    lastUpdated: "อัปเดตล่าสุด"
+    lastUpdated: "อัปเดตล่าสุด",
+    searchButton: "ค้นหาข้อมูล",
+    studentLabel: "นักศึกษา",
+    currentStatusLabel: "สถานะปัจจุบัน",
+    adminStudentSearchPlaceholder: "ค้นหาชื่อหรือรหัสนักศึกษา..."
   },
   [Language.EN]: {
     title: "Work-Integrated Science Education Unit (WISE)",
@@ -65,8 +69,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     logout: "Logout",
     internshipSites: "Internship Database",
     forms: "Electronic Document Center",
-    halalMajor: "Halal Food",
-    digitalMajor: "Digital Tech",
+    halalMajor: "Halal Food Research and Development",
+    digitalMajor: "Digital Technology and Science",
     allMajors: "All Majors",
     activeSites: "Now Hiring",
     pastSites: "History",
@@ -95,14 +99,18 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     phone: "Phone",
     visitWebsite: "Visit Website",
     searchPlaceholder: "Search site, position, or city...",
-    statusPending: "Checking Documents",
-    statusPreparing: "Preparing Documents",
-    statusAccepted: "Accepted by Site",
-    statusRejected: "Rejected by Site",
+    statusPending: "Documents Under Review",
+    statusPreparing: "Processing Documents",
+    statusAccepted: "Accepted by Company",
+    statusRejected: "Application Not Selected",
     statusTitle: "Check Application Status",
     statusCheckPrompt: "Enter Student ID to check",
     noStatusFound: "No status found for this Student ID",
-    lastUpdated: "Last Updated"
+    lastUpdated: "Last Updated",
+    searchButton: "Search Information",
+    studentLabel: "Student",
+    currentStatusLabel: "Current Status",
+    adminStudentSearchPlaceholder: "Search name or student ID..."
   },
   [Language.AR]: {
     title: "وحدة تعليم العلوم المتكاملة مع العمل (WISE)",
@@ -115,9 +123,9 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     loginButton: "تسجيل الدخول",
     logout: "تسجيل الخروج",
     internshipSites: "قاعدة بيانات التدريب",
-    forms: "مركز المستندات الإلكترونية",
-    halalMajor: "الأغذية الحلال",
-    digitalMajor: "التكنولوجيا الرقمية",
+    forms: "ศูนย์บริการเอกสารอิเล็กทรอนิกส์",
+    halalMajor: "تخصص بحوث وتطوير الأغذية الحلال",
+    digitalMajor: "تخصص علوم وتكنولوجيا التكنولوجيا الرقمية",
     allMajors: "جميع التخصصات",
     activeSites: "متاح الآن",
     pastSites: "السجل السابق",
@@ -145,15 +153,19 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     email: "البريد الإلكتروني",
     phone: "الهاتف",
     visitWebsite: "زيارة الموقع",
-    searchPlaceholder: "البحث عن اسم أو موقع...",
+    searchPlaceholder: "البحث عن اسم หรือตำแหน่ง...",
     statusPending: "جاري فحص المستندات",
     statusPreparing: "جاري تحضير المستندات",
     statusAccepted: "تم القبول من المنظمة",
     statusRejected: "تم الرفض من المنظمة",
     statusTitle: "التحقق من حالة التقديم",
     statusCheckPrompt: "أدخل الرقم الجامعي للتحقق",
-    noStatusFound: "لم يتم العثور على حالة لهذا الرقم الجامعي",
-    lastUpdated: "آخر تحديث"
+    noStatusFound: "لم يتم العถور على حالة لهذا الرقم الجامعي",
+    lastUpdated: "آخر تحديث",
+    searchButton: "بحث",
+    studentLabel: "طالب",
+    currentStatusLabel: "الحالة الحالية",
+    adminStudentSearchPlaceholder: "البحث عن الاسم หรือ الرقم الجامعي..."
   },
   [Language.MS]: {
     title: "Unit Pendidikan Sains Bersepadu Kerja (WISE)",
@@ -166,9 +178,9 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     loginButton: "Log Masuk",
     logout: "Log Keluar",
     internshipSites: "Pangkalan Data Latihan",
-    forms: "Pusat Dokumen Elektronik",
-    halalMajor: "Makanan Halal",
-    digitalMajor: "Teknologi Digital",
+    forms: "ศูนย์บริการเอกสารอิเล็กทรอนิกส์",
+    halalMajor: "Bidang Penyelidikan dan Pembangunan Produk Makanan Halal",
+    digitalMajor: "Bidang Teknologi dan Sains Digital",
     allMajors: "Semua Bidang",
     activeSites: "Sedang Dibuka",
     pastSites: "Rekod Lepas",
@@ -204,7 +216,11 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     statusTitle: "Semak Status Permohonan",
     statusCheckPrompt: "Sila masukkan ID Pelajar",
     noStatusFound: "Tiada status dijumpai untuk ID Pelajar ini",
-    lastUpdated: "Kemas Kini Terakhir"
+    lastUpdated: "Kemas Kini Terakhir",
+    searchButton: "Cari Maklumat",
+    studentLabel: "Pelajar",
+    currentStatusLabel: "Status Semasa",
+    adminStudentSearchPlaceholder: "Cari nama หรือ ID Pelajar..."
   }
 };
 
@@ -214,7 +230,7 @@ export const INITIAL_SITES: InternshipSite[] = [
     name: { th: "บริษัท ฮาลาลแลนด์ จำกัด", en: "Halal Land Co., Ltd.", ar: "شركة أرض الحلال المحدودة", ms: "Halal Land Sdn Bhd" },
     location: { th: "กรุงเทพมหานคร", en: "Bangkok", ar: "بانكوك", ms: "Bangkok" },
     description: { th: "วิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาลมาตรฐานสากล", en: "Research and development of international standard halal food products.", ar: "البحث والتطوير لمنتجات الأغذية الحلال ذات المعايير الدولية.", ms: "Penyelidikan dan pembangunan produk makanan halal bertaraf antarabangsa." },
-    position: { th: "เจ้าหน้าที่ควบคุมคุณภาพ (QC)", en: "Quality Control Officer (QC)", ar: "مسؤول مراقبة الجودة", ms: "Pegawai Kawalan Kualiti" },
+    position: { th: "เจ้าหน้าที่ควบคุมคุณภาพ (QC)", en: "Quality Control Officer (QC)", ar: "مسؤول مراกبة الجودة", ms: "Pegawai Kawalan Kualiti" },
     status: 'active',
     major: Major.HALAL_FOOD,
     email: "hr@halalland.com",
@@ -224,7 +240,7 @@ export const INITIAL_SITES: InternshipSite[] = [
     id: "2",
     name: { th: "เทคโพร โซลูชั่น", en: "TechPro Solutions", ar: "حلول تيك برو", ms: "TechPro Solutions" },
     location: { th: "ภูเก็ต", en: "Phuket", ar: "بوكيت", ms: "Phuket" },
-    description: { th: "บริษัทพัฒนาซอฟต์แวร์และระบบคลาวด์", en: "Software development and cloud solutions company.", ar: "شركة تطوير البرمجيات وحلول السหابة.", ms: "Syarikat pembangunan perisian dan penyelesaian awan." },
+    description: { th: "บริษัทพัฒนาซอฟต์แวร์และระบบคลาวด์", en: "Software development and cloud solutions company.", ar: "شركة تطوير البرمجيات وحلول السหابة.", ms: "Syarikat pembangunan perisianและ penyelesaian awan." },
     position: { th: "Full Stack Developer", en: "Full Stack Developer", ar: "มطور فولสตาค", ms: "Pembangun Full Stack" },
     status: 'active',
     major: Major.DIGITAL_TECH,
@@ -258,6 +274,6 @@ export const INITIAL_SCHEDULE: ScheduleEvent[] = [
 ];
 
 export const INITIAL_STUDENT_STATUSES: StudentStatusRecord[] = [
-  { id: "st1", studentId: "406000001", name: "นักศึกษา ทดสอบ 1", status: ApplicationStatus.PENDING, lastUpdated: Date.now() },
-  { id: "st2", studentId: "406000002", name: "นักศึกษา ทดสอบ 2", status: ApplicationStatus.ACCEPTED, lastUpdated: Date.now() }
+  { id: "st1", studentId: "406000001", name: "นักศึกษา ทดสอบ 1", status: ApplicationStatus.PENDING, major: Major.HALAL_FOOD, lastUpdated: Date.now() },
+  { id: "st2", studentId: "406000002", name: "นักศึกษา ทดสอบ 2", status: ApplicationStatus.ACCEPTED, major: Major.DIGITAL_TECH, lastUpdated: Date.now() }
 ];

@@ -174,8 +174,14 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : INITIAL_STUDENT_STATUSES;
   });
   const [activeMajor, setActiveMajor] = useState<Major | 'all'>('all');
+  const [adminStudentActiveMajor, setAdminStudentActiveMajor] = useState<Major | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [adminStudentSearchTerm, setAdminStudentSearchTerm] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
+
+  // Accordion/Section states for Admin usability
+  const [isStudentStatusExpanded, setIsStudentStatusExpanded] = useState(true);
+  const [isSitesExpanded, setIsSitesExpanded] = useState(true);
 
   // Status Search State (for students)
   const [showStatusCheckModal, setShowStatusCheckModal] = useState(false);
@@ -374,6 +380,13 @@ const App: React.FC = () => {
     return matchesMajor && matchesSearch;
   });
 
+  const filteredAdminStudentStatuses = studentStatuses.filter(s => {
+    const term = adminStudentSearchTerm.toLowerCase();
+    const matchesSearch = s.name.toLowerCase().includes(term) || s.studentId.toLowerCase().includes(term);
+    const matchesMajor = adminStudentActiveMajor === 'all' || s.major === adminStudentActiveMajor;
+    return matchesSearch && matchesMajor;
+  });
+
   const handleSaveSite = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -433,12 +446,14 @@ const App: React.FC = () => {
     const sId = formData.get('student_id') as string;
     const name = formData.get('student_name') as string;
     const status = formData.get('status') as ApplicationStatus;
+    const major = formData.get('major') as Major;
 
     const newRecord: StudentStatusRecord = {
       id: editingStatusRecord?.id || Date.now().toString(),
       studentId: sId,
       name: name,
       status: status,
+      major: major,
       lastUpdated: Date.now()
     };
 
@@ -684,7 +699,7 @@ const App: React.FC = () => {
                    />
                  </div>
                  <button type="submit" className="w-full bg-[#2A0114] text-white py-5 rounded-2xl font-black uppercase text-sm shadow-xl shadow-[#2A0114]/20 transform active:scale-[0.98] transition-all">
-                   ค้นหาข้อมูล
+                   {currentT.searchButton}
                  </button>
                </form>
 
@@ -701,12 +716,13 @@ const App: React.FC = () => {
                          <GraduationCap size={24} />
                        </div>
                        <div>
-                         <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">นักศึกษา</p>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">{currentT.studentLabel}</p>
                          <h4 className="font-bold text-slate-900 leading-tight">{foundStatus.name}</h4>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{foundStatus.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor}</p>
                        </div>
                      </div>
                      <div className={`w-full py-4 px-6 rounded-xl border flex flex-col gap-1 ${getStatusColor(foundStatus.status)} shadow-sm`}>
-                       <span className="text-[9px] font-black uppercase opacity-60">สถานะปัจจุบัน</span>
+                       <span className="text-[9px] font-black uppercase opacity-60">{currentT.currentStatusLabel}</span>
                        <span className="text-sm font-black uppercase">{getStatusLabel(foundStatus.status)}</span>
                      </div>
                      <div className="mt-4 flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase justify-end">
@@ -861,148 +877,249 @@ const App: React.FC = () => {
         </nav>
       </div>
 
-      <main className="container mx-auto px-4 py-8 sm:py-14 flex-grow space-y-16">
+      <main className={`container mx-auto px-4 ${role === UserRole.ADMIN ? 'py-4 sm:py-6 space-y-4' : 'py-8 sm:py-14 space-y-16'} flex-grow transition-all`}>
         {/* Admin Student Status Management Section */}
         {role === UserRole.ADMIN && (
-          <section className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl p-8 sm:p-14 space-y-12 transition-all">
-             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                <div className="flex items-center gap-6">
-                   <div className="p-5 bg-[#D4AF37] text-white rounded-[1.5rem] shadow-2xl"><Timer size={28} /></div>
+          <section className={`rounded-[1.5rem] border border-amber-200 shadow-lg transition-all overflow-hidden ${isStudentStatusExpanded ? 'bg-amber-100/40 p-5 sm:p-6' : 'bg-white p-3'}`}>
+             <div className="flex items-center justify-between gap-4">
+                <div 
+                  className="flex items-center gap-3 cursor-pointer group flex-shrink-0"
+                  onClick={() => setIsStudentStatusExpanded(!isStudentStatusExpanded)}
+                >
+                   <div className="p-2 sm:p-3 bg-amber-500 text-white rounded-xl shadow-md flex-shrink-0"><Timer size={20} /></div>
                    <div>
-                     <h2 className="text-3xl font-black text-slate-900 uppercase tracking-normal">จัดการสถานะนักศึกษา</h2>
-                     <p className="text-[12px] font-bold text-slate-400 uppercase mt-1 tracking-normal">ระบบติดตามความคืบหน้าการสมัครรายบุคคล</p>
+                     <h2 className="text-base sm:text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                       จัดการสถานะนักศึกษา
+                       <ChevronDown size={18} className={`transition-transform duration-500 text-slate-400 group-hover:text-amber-600 ${isStudentStatusExpanded ? '' : '-rotate-90'}`} />
+                     </h2>
+                     {isStudentStatusExpanded && <p className="text-[10px] font-bold text-amber-700/60 uppercase tracking-tight">ระบบติดตามความคืบหน้าการสมัครรายบุคคล</p>}
                    </div>
                 </div>
-                <button onClick={() => { setEditingStatusRecord(null); setShowAdminStatusModal(true); }} className="px-8 py-5 rounded-[2rem] bg-[#2A0114] text-white font-black uppercase text-sm flex items-center justify-center gap-3 shadow-lg transform transition-all hover:scale-105 active:scale-95">
-                  <Plus size={20} /> เพิ่มข้อมูลสถานะ
-                </button>
+                
+                {!isStudentStatusExpanded && (
+                  <button onClick={() => { setEditingStatusRecord(null); setShowAdminStatusModal(true); }} className="w-8 h-8 rounded-full bg-[#2A0114] text-white flex items-center justify-center shadow-lg transform transition-all hover:scale-110 active:scale-95">
+                    <Plus size={16} />
+                  </button>
+                )}
              </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {studentStatuses.map(record => (
-                  <div key={record.id} className="p-6 rounded-3xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-xl transition-all group relative">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-400 border border-slate-100">
-                          <UserCircle size={20} />
+             {isStudentStatusExpanded && (
+               <div className="mt-5 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="flex flex-col lg:flex-row items-stretch gap-3">
+                     <div className="relative flex-grow flex items-center group">
+                        <div className="absolute left-5 top-0 bottom-0 flex items-center pointer-events-none z-10 text-slate-400 group-focus-within:text-amber-500">
+                          <Search size={18} />
                         </div>
-                        <div>
-                          <h4 className="font-bold text-slate-900 leading-tight">{record.name}</h4>
-                          <p className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-tight">{record.studentId}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => { setEditingStatusRecord(record); setShowAdminStatusModal(true); }} className="p-2 text-slate-400 hover:text-[#630330] transition-colors"><Pencil size={14} /></button>
-                        <button onClick={() => setStudentStatuses(studentStatuses.filter(s => s.id !== record.id))} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash size={14} /></button>
-                      </div>
-                    </div>
-                    <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase border mb-3 ${getStatusColor(record.status)}`}>
-                      {getStatusLabel(record.status)}
-                    </div>
-                    <div className="flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase">
-                      <History size={10} /> {new Date(record.lastUpdated).toLocaleDateString('th-TH')}
-                    </div>
+                        <input 
+                          type="text" 
+                          placeholder={currentT.adminStudentSearchPlaceholder}
+                          value={adminStudentSearchTerm}
+                          onChange={e => setAdminStudentSearchTerm(e.target.value)}
+                          className="w-full pl-14 pr-6 py-3 rounded-xl bg-white border border-amber-200 text-sm font-bold text-slate-900 focus:ring-4 focus:ring-amber-500/5 transition-all outline-none"
+                        />
+                     </div>
+                     <button onClick={() => { setEditingStatusRecord(null); setShowAdminStatusModal(true); }} className="px-6 py-3 rounded-xl bg-[#2A0114] text-white font-black uppercase text-[11px] flex items-center justify-center gap-2 shadow-md transform transition-all hover:scale-105 active:scale-95 whitespace-nowrap">
+                       <Plus size={16} /> เพิ่มข้อมูลสถานะ
+                     </button>
                   </div>
-                ))}
-             </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-1.5 bg-white/70 rounded-2xl border border-amber-200/50">
+                    <button 
+                      onClick={() => setAdminStudentActiveMajor('all')} 
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-tight
+                        ${adminStudentActiveMajor === 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      <LayoutGrid size={14} />
+                      <span className="flex-grow text-left leading-tight line-clamp-1">{currentT.allMajors}</span>
+                    </button>
+                    <button 
+                      onClick={() => setAdminStudentActiveMajor(Major.HALAL_FOOD)} 
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-tight
+                        ${adminStudentActiveMajor === Major.HALAL_FOOD ? 'bg-amber-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      <Salad size={14} />
+                      <span className="flex-grow text-left leading-tight line-clamp-1">{currentT.halalMajor}</span>
+                    </button>
+                    <button 
+                      onClick={() => setAdminStudentActiveMajor(Major.DIGITAL_TECH)} 
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-tight
+                        ${adminStudentActiveMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      <Code size={14} />
+                      <span className="flex-grow text-left leading-tight line-clamp-1">{currentT.digitalMajor}</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {filteredAdminStudentStatuses.length === 0 ? (
+                      <div className="col-span-full py-10 border-2 border-dashed border-amber-200 rounded-2xl flex flex-col items-center justify-center text-amber-300">
+                        <AlertCircle size={24} className="mb-2 opacity-50" />
+                        <p className="font-bold uppercase text-[9px] tracking-widest">ไม่พบข้อมูลนักศึกษา</p>
+                      </div>
+                    ) : (
+                      filteredAdminStudentStatuses.map(record => (
+                        <div key={record.id} className="p-4 rounded-[1.25rem] border border-amber-200 bg-white hover:shadow-md transition-all group relative">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 border border-amber-100">
+                                <UserCircle size={16} />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-slate-900 leading-tight text-xs">{record.name}</h4>
+                                <p className="text-[9px] font-bold text-amber-600 uppercase tracking-tight">{record.studentId}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-0.5">
+                              <button onClick={() => { setEditingStatusRecord(record); setShowAdminStatusModal(true); }} className="p-1.5 text-slate-300 hover:text-amber-500 transition-colors"><Pencil size={12} /></button>
+                              <button onClick={() => setStudentStatuses(studentStatuses.filter(s => s.id !== record.id))} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"><Trash size={12} /></button>
+                            </div>
+                          </div>
+                          <div className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase border mb-2 inline-block ${getStatusColor(record.status)}`}>
+                            {getStatusLabel(record.status)}
+                          </div>
+                          <div className="text-[8px] font-bold uppercase text-slate-400 mb-1 line-clamp-1">{record.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor}</div>
+                          <div className="flex items-center gap-1 text-[8px] text-slate-300 font-bold uppercase">
+                            <History size={10} /> {new Date(record.lastUpdated).toLocaleDateString('th-TH')}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+               </div>
+             )}
           </section>
         )}
 
-        <section className="bg-white dark:bg-slate-900/50 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-2xl p-8 sm:p-14 space-y-12 relative overflow-hidden transition-colors">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-            <div className="flex items-center gap-6">
-              <div className="p-5 bg-[#630330] dark:bg-[#7a0b3d] text-white rounded-[1.5rem] shadow-2xl"><Database size={28} /></div>
+        {/* Internship Database Section */}
+        <section className={`rounded-[1.5rem] border transition-all overflow-hidden ${role === UserRole.ADMIN ? (isSitesExpanded ? 'bg-rose-100/40 border-rose-200 p-5 sm:p-6' : 'bg-white border-slate-200 p-3') : 'bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 p-6 sm:p-14'}`}>
+          <div className="flex items-center justify-between gap-4">
+            <div 
+              className="flex items-center gap-3 cursor-pointer group flex-shrink-0"
+              onClick={() => setIsSitesExpanded(!isSitesExpanded)}
+            >
+              <div className={`p-2 sm:p-3 text-white rounded-xl shadow-md flex-shrink-0 ${role === UserRole.ADMIN ? 'bg-rose-600' : 'bg-[#630330] dark:bg-[#7a0b3d]'}`}><Database size={20} /></div>
               <div>
-                <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-normal">{currentT.internshipSites}</h2>
-                <p className="text-[12px] font-bold text-slate-400 dark:text-slate-500 uppercase mt-1 tracking-normal">{currentT.title}</p>
+                <h2 className={`text-base sm:text-xl font-black uppercase tracking-tight flex items-center gap-2 ${role === UserRole.ADMIN ? 'text-slate-900' : 'text-slate-900 dark:text-white'}`}>
+                  {currentT.internshipSites}
+                  {(role === UserRole.ADMIN) && (
+                    <ChevronDown size={18} className={`transition-transform duration-500 text-slate-400 group-hover:text-rose-600 ${isSitesExpanded ? '' : '-rotate-90'}`} />
+                  )}
+                </h2>
+                {isSitesExpanded && <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight">{currentT.title}</p>}
               </div>
             </div>
             
-            <div className="flex flex-col gap-6 flex-grow max-w-4xl">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                <div className="flex flex-col sm:flex-row items-stretch gap-3 flex-grow">
-                  <div className="relative bg-slate-100/80 dark:bg-slate-800/80 p-1.5 rounded-[2rem] flex flex-col sm:flex-row gap-1 shadow-inner w-full min-h-[64px] transition-colors">
-                    <div 
-                      className="hidden sm:block absolute top-1.5 bottom-1.5 bg-white dark:bg-slate-700 rounded-[1.5rem] shadow-lg transition-all duration-300 ease-out z-0"
-                      style={{ 
-                        left: activeMajor === 'all' ? '6px' : activeMajor === Major.HALAL_FOOD ? '33.3%' : '66.6%',
-                        width: '32%' 
-                      }}
-                    />
-                    
-                    <button onClick={() => setActiveMajor('all')} className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal ${activeMajor === 'all' ? 'bg-[#630330] sm:bg-transparent text-white sm:text-[#630330] dark:sm:text-white' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-                      <LayoutGrid size={16} /> {currentT.allMajors}
-                    </button>
-                    <button onClick={() => setActiveMajor(Major.HALAL_FOOD)} className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal ${activeMajor === Major.HALAL_FOOD ? 'bg-[#D4AF37] sm:bg-transparent text-white sm:text-[#D4AF37] dark:sm:text-[#D4AF37]' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-                      <Salad size={16} /> {currentT.halalMajor}
-                    </button>
-                    <button onClick={() => setActiveMajor(Major.DIGITAL_TECH)} className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-[1.5rem] text-[12px] font-black uppercase transition-all tracking-normal ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 sm:bg-transparent text-white sm:text-blue-600 dark:sm:text-blue-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-                      <Code size={16} /> {currentT.digitalMajor}
-                    </button>
+            {role === UserRole.ADMIN && !isSitesExpanded && (
+              <button onClick={() => { setEditingSite(null); setShowSiteModal(true); }} className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-lg transform transition-all hover:scale-110 active:scale-95">
+                <Plus size={16} />
+              </button>
+            )}
+          </div>
+          
+          {isSitesExpanded && (
+            <div className="mt-5 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className={`flex flex-col lg:flex-row items-stretch gap-3 ${role !== UserRole.ADMIN ? 'lg:items-center' : ''}`}>
+                <div className="relative flex-grow flex items-center group">
+                  <div className={`absolute left-5 top-0 bottom-0 flex items-center pointer-events-none z-10 text-slate-400 group-focus-within:text-rose-500`}>
+                    <Search size={18} />
                   </div>
-
-                  <div className="relative flex-grow flex items-center group sm:max-w-[300px]">
-                    <div className="absolute left-6 top-0 bottom-0 flex items-center pointer-events-none z-10">
-                      <Search className="text-slate-400 dark:text-slate-500" size={20} />
-                    </div>
-                    <input type="text" placeholder={currentT.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-16 pr-8 py-5 rounded-[2rem] bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-[#63033011] transition-all min-h-[64px]" />
-                  </div>
+                  <input 
+                    type="text" 
+                    placeholder={currentT.searchPlaceholder} 
+                    value={searchTerm} 
+                    onChange={e => setSearchTerm(e.target.value)} 
+                    className={`w-full pl-14 pr-6 py-3 rounded-xl bg-white border border-rose-200 text-sm font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-rose-500/5 transition-all outline-none`} 
+                  />
                 </div>
                 {role === UserRole.ADMIN && (
-                  <button onClick={() => { setEditingSite(null); setShowSiteModal(true); }} className="w-full sm:w-fit px-8 py-5 rounded-[2rem] bg-[#D4AF37] text-white font-black uppercase text-sm flex items-center justify-center gap-3 shadow-lg transform transition-all hover:scale-105 active:scale-95 whitespace-nowrap min-h-[64px]">
-                    <Plus size={20} /> {currentT.addSite}
+                  <button onClick={() => { setEditingSite(null); setShowSiteModal(true); }} className="px-6 py-3 rounded-xl bg-amber-500 text-white font-black uppercase text-[11px] flex items-center justify-center gap-2 shadow-md transform transition-all hover:scale-105 active:scale-95 whitespace-nowrap">
+                    <Plus size={16} /> {currentT.addSite}
                   </button>
                 )}
               </div>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8">
-            {filteredSites.map(site => (
-              <div key={site.id} className="relative group">
-                <InternshipCard site={site} lang={lang} />
-                {role === UserRole.ADMIN && (
-                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <button onClick={() => { setEditingSite(site); setShowSiteModal(true); }} className="p-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-[#630330] dark:text-[#D4AF37] rounded-xl shadow-lg hover:bg-[#630330] dark:hover:bg-[#D4AF37] hover:text-white dark:hover:text-slate-950 transition-all"><Pencil size={14} /></button>
-                    <button onClick={() => handleDeleteSite(site.id)} className="p-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-rose-500 rounded-xl shadow-lg hover:bg-rose-500 hover:text-white transition-all"><Trash size={14} /></button>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-1.5 bg-white/70 dark:bg-slate-900/50 rounded-2xl border border-rose-200/50 dark:border-slate-800">
+                <button 
+                  onClick={() => setActiveMajor('all')} 
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-tight
+                    ${activeMajor === 'all' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-400 hover:text-slate-600 dark:text-slate-500'}`}
+                >
+                  <LayoutGrid size={14} />
+                  <span className="flex-grow text-left leading-tight line-clamp-1">{currentT.allMajors}</span>
+                </button>
+                <button 
+                  onClick={() => setActiveMajor(Major.HALAL_FOOD)} 
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-tight
+                    ${activeMajor === Major.HALAL_FOOD ? 'bg-amber-500 text-[#2A0114] shadow-md' : 'text-slate-400 hover:text-slate-600 dark:text-slate-500'}`}
+                >
+                  <Salad size={14} />
+                  <span className="flex-grow text-left leading-tight line-clamp-1">{currentT.halalMajor}</span>
+                </button>
+                <button 
+                  onClick={() => setActiveMajor(Major.DIGITAL_TECH)} 
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-tight
+                    ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600 dark:text-slate-500'}`}
+                >
+                  <Code size={14} />
+                  <span className="flex-grow text-left leading-tight line-clamp-1">{currentT.digitalMajor}</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {filteredSites.length === 0 ? (
+                  <div className="col-span-full py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-slate-300">
+                    <Briefcase size={40} className="mb-3 opacity-20" />
+                    <p className="font-bold uppercase text-[9px] tracking-[0.2em]">{currentT.noStatusFound}</p>
                   </div>
+                ) : (
+                  filteredSites.map(site => (
+                    <div key={site.id} className="relative group">
+                      <InternshipCard site={site} lang={lang} />
+                      {role === UserRole.ADMIN && (
+                        <div className="absolute top-2.5 right-2.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <button onClick={() => { setEditingSite(site); setShowSiteModal(true); }} className="p-1.5 bg-white/95 text-[#630330] rounded-lg shadow-md hover:bg-[#630330] hover:text-white transition-all"><Pencil size={12} /></button>
+                          <button onClick={() => handleDeleteSite(site.id)} className="p-1.5 bg-white/95 text-rose-500 rounded-lg shadow-md hover:bg-rose-500 hover:text-white transition-all"><Trash size={12} /></button>
+                        </div>
+                      )}
+                    </div>
+                  ))
                 )}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </section>
         
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          <div className="lg:col-span-7 space-y-8">
-            <div className="flex items-center justify-between px-4">
-              <div className="flex items-center gap-4">
-                <Navigation size={26} className="text-[#630330] dark:text-[#D4AF37]" />
-                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-normal">{currentT.schedule}</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-7 space-y-6">
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-3">
+                <Navigation size={22} className="text-[#630330] dark:text-amber-500" />
+                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{currentT.schedule}</h3>
               </div>
               {role === UserRole.ADMIN && (
-                <button onClick={() => { setEditingSchedule(null); setShowScheduleModal(true); }} className="p-3 bg-[#D4AF37] text-white rounded-2xl hover:bg-[#b8952c] transition-all"><Plus size={20} /></button>
+                <button onClick={() => { setEditingSchedule(null); setShowScheduleModal(true); }} className="p-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all"><Plus size={18} /></button>
               )}
             </div>
-            <div className="bg-white dark:bg-slate-900/50 p-10 sm:p-14 rounded-[3.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl space-y-10 transition-colors">
+            <div className="bg-white dark:bg-slate-900/50 p-6 sm:p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl space-y-6 transition-colors">
               {schedule.map((ev, idx) => (
-                <div key={ev.id} className="flex gap-8 items-center group relative">
-                  <div className="w-14 h-14 rounded-2xl bg-[#630330] dark:bg-[#7a0b3d] text-white flex items-center justify-center font-black text-xl shadow-xl flex-shrink-0">{idx + 1}</div>
-                  <div className="flex-grow p-8 rounded-[2.5rem] bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-[#D4AF37] dark:hover:border-[#D4AF37] hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm">
+                <div key={ev.id} className="flex gap-4 items-center group relative">
+                  <div className="w-10 h-10 rounded-xl bg-[#630330] dark:bg-[#7a0b3d] text-white flex items-center justify-center font-black text-lg shadow-lg flex-shrink-0">{idx + 1}</div>
+                  <div className="flex-grow p-5 rounded-[1.5rem] bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-amber-500 dark:hover:border-amber-500 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">{getLocalized(ev.startDate)}</span>
+                      <span className="text-[10px] font-bold text-amber-600 uppercase tracking-tight">{getLocalized(ev.startDate)}</span>
                       {getLocalized(ev.startDate) !== getLocalized(ev.endDate) && (
                         <>
-                          <ArrowRight size={10} className="text-slate-300 dark:text-slate-600" />
-                          <span className="text-[12px] font-bold text-[#D4AF37] uppercase tracking-normal">{getLocalized(ev.endDate)}</span>
+                          <ArrowRight size={10} className="text-slate-300" />
+                          <span className="text-[10px] font-bold text-amber-600 uppercase tracking-tight">{getLocalized(ev.endDate)}</span>
                         </>
                       )}
                     </div>
-                    <h4 className="text-xl font-bold text-slate-800 dark:text-white">{getLocalized(ev.event)}</h4>
+                    <h4 className="text-base font-bold text-slate-800 dark:text-white">{getLocalized(ev.event)}</h4>
                   </div>
                   {role === UserRole.ADMIN && (
-                    <div className="flex flex-col gap-2 ml-4">
-                      <button onClick={() => { setEditingSchedule(ev); setShowScheduleModal(true); }} className="p-2 text-slate-400 hover:text-[#630330] transition-colors"><Pencil size={18} /></button>
-                      <button onClick={() => setSchedule(schedule.filter(s => s.id !== ev.id))} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash size={18} /></button>
+                    <div className="flex flex-col gap-1 ml-2">
+                      <button onClick={() => { setEditingSchedule(ev); setShowScheduleModal(true); }} className="p-1.5 text-slate-300 hover:text-slate-600 transition-colors"><Pencil size={14} /></button>
+                      <button onClick={() => setSchedule(schedule.filter(s => s.id !== ev.id))} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"><Trash size={14} /></button>
                     </div>
                   )}
                 </div>
@@ -1010,17 +1127,37 @@ const App: React.FC = () => {
             </div>
           </div>
           
-          <div className="lg:col-span-5 space-y-8">
-             <div className="flex items-center justify-between px-4">
-               <div className="flex items-center gap-4">
-                 <ClipboardCheck size={26} className="text-[#D4AF37]" />
-                 <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-normal">{currentT.forms}</h3>
+          <div className="lg:col-span-5 space-y-6">
+             <div className="flex items-center justify-between px-2">
+               <div className="flex items-center gap-3">
+                 <ClipboardCheck size={22} className="text-amber-500" />
+                 <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{currentT.forms}</h3>
                </div>
                {role === UserRole.ADMIN && (
-                 <button onClick={() => { setEditingForm(null); setShowFormModal(true); }} className="p-3 bg-[#630330] text-white rounded-2xl hover:bg-[#7a0b3d] transition-all"><Plus size={20} /></button>
+                 <button onClick={() => { setEditingForm(null); setShowFormModal(true); }} className="p-2 bg-[#630330] text-white rounded-xl hover:bg-rose-700 transition-all"><Plus size={18} /></button>
                )}
              </div>
-             {/* Note: Forms logic continues as per previous context */}
+             
+             <div className="bg-white dark:bg-slate-900/50 p-6 sm:p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl space-y-8 transition-colors">
+               <div className="space-y-4">
+                 <p className="text-[9px] font-black uppercase text-[#630330] dark:text-amber-500 tracking-[0.15em]">{currentT.appForms}</p>
+                 {forms.filter(f => f.category === FormCategory.APPLICATION).map(form => (
+                   <a key={form.id} href={form.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 hover:border-[#630330] dark:hover:border-amber-500 hover:bg-white dark:hover:bg-slate-800 transition-all group">
+                     <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">{form.title}</span>
+                     <FileDown size={18} className="text-slate-300 group-hover:text-[#630330] dark:group-hover:text-amber-500 transition-colors" />
+                   </a>
+                 ))}
+               </div>
+               <div className="space-y-4">
+                 <p className="text-[9px] font-black uppercase text-[#630330] dark:text-amber-500 tracking-[0.15em]">{currentT.monitoringForms}</p>
+                 {forms.filter(f => f.category === FormCategory.MONITORING).map(form => (
+                   <a key={form.id} href={form.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 hover:border-[#630330] dark:hover:border-amber-500 hover:bg-white dark:hover:bg-slate-800 transition-all group">
+                     <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">{form.title}</span>
+                     <FileDown size={18} className="text-slate-300 group-hover:text-[#630330] dark:group-hover:text-amber-500 transition-colors" />
+                   </a>
+                 ))}
+               </div>
+             </div>
           </div>
         </div>
       </main>
@@ -1028,36 +1165,132 @@ const App: React.FC = () => {
       {/* Admin Status Management Modal */}
       {showAdminStatusModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim">
-          <div className="w-full max-w-[500px] bg-white rounded-[2.5rem] p-8 sm:p-12 shadow-3xl">
-            <h3 className="text-2xl font-black text-[#2A0114] mb-8">{editingStatusRecord ? 'แก้ไขสถานะนักศึกษา' : 'เพิ่มข้อมูลติดตามสถานะ'}</h3>
-            <form onSubmit={handleSaveStatus} className="space-y-6">
-              <div className="space-y-2">
+          <div className="w-full max-w-[500px] bg-white rounded-[2rem] p-6 sm:p-10 shadow-2xl">
+            <h3 className="text-xl font-black text-[#2A0114] mb-6">{editingStatusRecord ? 'แก้ไขสถานะนักศึกษา' : 'เพิ่มข้อมูลติดตามสถานะ'}</h3>
+            <form onSubmit={handleSaveStatus} className="space-y-4">
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-400">รหัสนักศึกษา</label>
-                <input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="เช่น 406123456" className="w-full px-6 py-4 rounded-xl bg-slate-50 border-2 border-transparent focus:border-[#D4AF37] outline-none font-bold" />
+                <input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="เช่น 406123456" className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-amber-500 outline-none font-bold" />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-400">ชื่อ-นามสกุล</label>
-                <input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="ชื่อนักศึกษา" className="w-full px-6 py-4 rounded-xl bg-slate-50 border-2 border-transparent focus:border-[#D4AF37] outline-none font-bold" />
+                <input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="ชื่อนักศึกษา" className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-amber-500 outline-none font-bold" />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400">สาขาวิชา</label>
+                <select name="major" defaultValue={editingStatusRecord?.major || Major.HALAL_FOOD} className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-amber-500 outline-none font-bold">
+                  <option value={Major.HALAL_FOOD}>{currentT.halalMajor}</option>
+                  <option value={Major.DIGITAL_TECH}>{currentT.digitalMajor}</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-400">สถานะการสมัคร</label>
-                <select name="status" defaultValue={editingStatusRecord?.status || ApplicationStatus.PENDING} className="w-full px-6 py-4 rounded-xl bg-slate-50 border-2 border-transparent focus:border-[#D4AF37] outline-none font-bold">
+                <select name="status" defaultValue={editingStatusRecord?.status || ApplicationStatus.PENDING} className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-amber-500 outline-none font-bold">
                   <option value={ApplicationStatus.PENDING}>{currentT.statusPending}</option>
                   <option value={ApplicationStatus.PREPARING}>{currentT.statusPreparing}</option>
                   <option value={ApplicationStatus.ACCEPTED}>{currentT.statusAccepted}</option>
                   <option value={ApplicationStatus.REJECTED}>{currentT.statusRejected}</option>
                 </select>
               </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setShowAdminStatusModal(false)} className="flex-1 py-4 rounded-xl border-2 border-slate-100 font-black uppercase text-xs text-slate-400 hover:bg-slate-50 transition-all">ยกเลิก</button>
-                <button type="submit" className="flex-2 px-10 py-4 rounded-xl bg-[#2A0114] text-white font-black uppercase text-xs shadow-xl active:scale-95 transition-all">บันทึกข้อมูล</button>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setShowAdminStatusModal(false)} className="flex-1 py-3 rounded-xl border border-slate-200 font-black uppercase text-[11px] text-slate-400 hover:bg-slate-50 transition-all">ยกเลิก</button>
+                <button type="submit" className="flex-2 px-8 py-3 rounded-xl bg-[#2A0114] text-white font-black uppercase text-[11px] shadow-lg active:scale-[0.98] transition-all">บันทึกข้อมูล</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Other modals (Site, Schedule, Forms) omitted for brevity but remain functional */}
+      {/* Internship Site Management Modal */}
+      {showSiteModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md reveal-anim overflow-y-auto">
+          <div className="w-full max-w-[700px] my-auto bg-white rounded-[2.5rem] p-6 sm:p-10 shadow-2xl relative">
+            <button onClick={() => setShowSiteModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 transition-all text-slate-400"><X size={20} /></button>
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 bg-rose-600 text-white rounded-xl shadow-lg"><Building2 size={24} /></div>
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 uppercase">{editingSite ? 'แก้ไขข้อมูลหน่วยงาน' : 'เพิ่มหน่วยงานใหม่'}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ฐานข้อมูลสถานประกอบการ WISE</p>
+              </div>
+            </div>
+            
+            <form onSubmit={handleSaveSite} className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">ชื่อหน่วยงาน (ภาษาไทย)</label>
+                  <input name="name_th" defaultValue={editingSite?.name.th} required className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-600 outline-none font-bold text-slate-800 transition-all" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">สถานที่ตั้ง (จังหวัด)</label>
+                  <input name="loc_th" defaultValue={editingSite?.location.th} required className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-600 outline-none font-bold text-slate-800 transition-all" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">ตำแหน่งงานที่รับสมัคร</label>
+                <div className="relative">
+                  <input 
+                    name="pos_th" 
+                    list="frequent-positions" 
+                    defaultValue={editingSite?.position.th} 
+                    required 
+                    placeholder="เช่น Full Stack Developer, นักวิจัยอาหาร..."
+                    className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-600 outline-none font-bold text-slate-800 transition-all" 
+                  />
+                  <datalist id="frequent-positions">
+                    {frequentPositions.map(pos => <option key={pos} value={pos} />)}
+                  </datalist>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">รายละเอียดการฝึกงาน</label>
+                <textarea name="desc_th" defaultValue={editingSite?.description.th} required className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-600 outline-none font-bold text-slate-800 min-h-[100px] transition-all"></textarea>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">สาขาวิชา</label>
+                  <select value={modalMajor} onChange={e => setModalMajor(e.target.value as Major)} className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-600 outline-none font-bold text-slate-800">
+                    <option value={Major.HALAL_FOOD}>สาขาวิชาวิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาล</option>
+                    <option value={Major.DIGITAL_TECH}>สาขาวิชาเทคโนโลยีและวิทยาการดิจิทัล</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">สถานะ</label>
+                  <select name="status" defaultValue={editingSite?.status || 'active'} className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-600 outline-none font-bold text-slate-800">
+                    <option value="active">เปิดรับสมัคร</option>
+                    <option value="archived">ประวัติการฝึก</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">อีเมลติดต่อ</label>
+                  <input name="email" type="email" defaultValue={editingSite?.email} className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-600 outline-none font-bold text-slate-800" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                 <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">เบอร์โทรศัพท์</label>
+                  <input name="phone" defaultValue={editingSite?.phone} className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-600 outline-none font-bold text-slate-800" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">ลิงก์เว็บไซต์/เพจ</label>
+                  <input name="url" defaultValue={editingSite?.contactLink} placeholder="เช่น facebook.com/comp" className="w-full px-5 py-3 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-600 outline-none font-bold text-slate-800" />
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <button type="button" onClick={() => setShowSiteModal(false)} className="flex-1 py-3.5 rounded-xl border border-slate-200 text-slate-400 font-black uppercase text-[11px] hover:bg-slate-50 transition-all">ยกเลิก</button>
+                <button type="submit" disabled={isTranslating} className="flex-[2] py-3.5 rounded-xl bg-rose-600 text-white font-black uppercase text-[11px] shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50">
+                  {isTranslating ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                  {isTranslating ? 'กำลังประมวลผลแปลภาษา...' : 'บันทึกข้อมูลหน่วยงาน'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
