@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Language, 
   UserRole, 
@@ -51,6 +51,32 @@ import {
   LucideIcon,
   Check
 } from 'lucide-react';
+
+const MouseGlow: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      // คำนวณ Zoom Factor สำหรับ Desktop (74%)
+      const isDesktop = window.innerWidth >= 1024;
+      const zoomFactor = isDesktop ? 0.74 : 1;
+
+      requestAnimationFrame(() => {
+        // อัปเดต CSS Variables ที่ root เพื่อให้ mask-image ของ .mouse-glow ทำงาน
+        const x = e.clientX / zoomFactor;
+        const y = e.clientY / zoomFactor;
+        
+        document.documentElement.style.setProperty('--mouse-x', `${x}px`);
+        document.documentElement.style.setProperty('--mouse-y', `${y}px`);
+      });
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  return <div className="mouse-glow" />;
+};
 
 const TechMeteorShower: React.FC = () => {
   const meteors = useMemo(() => {
@@ -471,7 +497,8 @@ const App: React.FC = () => {
 
   if (viewState === 'landing') {
     return (
-      <div className={`min-h-[100svh] w-full flex flex-col items-center luxe-mangosteen-bg relative overflow-hidden desktop-zoom-80 ${isRtl ? 'rtl' : ''}`}>
+      <div className={`min-h-[100svh] w-full flex flex-col items-center luxe-mangosteen-bg relative overflow-hidden desktop-zoom-74 ${isRtl ? 'rtl' : ''}`}>
+        <MouseGlow />
         <div className="bg-video-wrap"><video autoPlay loop muted playsInline><source src="https://assets.mixkit.co/videos/preview/mixkit-business-people-working-in-a-busy-office-33824-large.mp4" type="video/mp4" /></video></div>
         <div className="video-overlay"></div>
         <div className="islamic-tech-watermark"></div>
