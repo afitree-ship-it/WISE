@@ -551,13 +551,13 @@ const App: React.FC = () => {
                 {/* Minimalist Landing Button */}
                 <button 
                   onClick={() => setViewState('dashboard')}
-                  className="group relative px-10 sm:px-20 py-4 sm:py-6 bg-white text-[#630330] rounded-full font-black uppercase text-sm sm:text-lg transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-visible"
+                  className="group relative px-10 sm:px-20 py-4 sm:py-6 bg-white text-[#630330] rounded-full font-black uppercase text-lg sm:text-2xl transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-visible"
                 >
                   <div className="absolute inset-0 rounded-full border-2 border-white/0 group-hover:border-white/50 group-hover:animate-ring-expand pointer-events-none"></div>
-                  <span className="relative z-10 flex items-center gap-3 sm:gap-6 tracking-widest transition-all">
+                  <span className="relative z-10 flex items-center gap-3 sm:gap-6 tracking-tight transition-all">
                     {currentT.startNow} 
-                    <div className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-[#630330]/5 group-hover:bg-[#630330] group-hover:text-white transition-all duration-500 ease-out">
-                      <ChevronRight size={18} className={`${isRtl ? 'rotate-180' : ''} group-hover:translate-x-0.5 transition-transform duration-500`} />
+                    <div className="flex items-center justify-center w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-[#630330]/5 group-hover:bg-[#630330] group-hover:text-white transition-all duration-500 ease-out">
+                      <ChevronRight size={24} className={`${isRtl ? 'rotate-180' : ''} group-hover:translate-x-0.5 transition-transform duration-500`} />
                     </div>
                   </span>
                 </button>
