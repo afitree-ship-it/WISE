@@ -918,11 +918,6 @@ const App: React.FC = () => {
                        {isStudentStatusExpanded && <p className="text-[10px] font-bold text-amber-700/60 dark:text-amber-500/60 uppercase tracking-tight">ระบบติดตามความคืบหน้าการสมัครรายบุคคล</p>}
                      </div>
                   </div>
-                  {!isStudentStatusExpanded && (
-                    <button onClick={() => { setEditingStatusRecord(null); setShowAdminStatusModal(true); }} className="w-8 h-8 rounded-full bg-[#2A0114] dark:bg-amber-500 text-white flex items-center justify-center shadow-lg transform transition-all hover:scale-110 active:scale-95">
-                      <Plus size={16} />
-                    </button>
-                  )}
                </div>
                {isStudentStatusExpanded && (
                  <div className="mt-5 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
@@ -978,11 +973,6 @@ const App: React.FC = () => {
                     {isSitesExpanded && <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight">คลังข้อมูลสถานประกอบการที่ร่วมมือ</p>}
                   </div>
                 </div>
-                {!isSitesExpanded && (
-                  <button onClick={() => { setEditingSite(null); setShowSiteModal(true); }} className="w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-lg transform transition-all hover:scale-110 active:scale-95">
-                    <Plus size={16} />
-                  </button>
-                )}
               </div>
               {isSitesExpanded && (
                 <div className="mt-5 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
@@ -992,7 +982,7 @@ const App: React.FC = () => {
                       <input type="text" placeholder={currentT.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-3 rounded-xl bg-white dark:bg-slate-800 border border-rose-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-rose-500/5 transition-all outline-none" />
                     </div>
                     <button onClick={() => { setEditingSite(null); setShowSiteModal(true); }} className="px-6 py-3 rounded-xl bg-rose-600 text-white font-black uppercase text-[11px] flex items-center justify-center gap-2 shadow-md transform transition-all hover:scale-105 active:scale-95 whitespace-nowrap">
-                      <Plus size={16} /> เพิ่มหน่วยงาน
+                      <Plus size={16} /> เพิ่มหน่วยงานใหม่
                     </button>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -1023,28 +1013,33 @@ const App: React.FC = () => {
                     {isScheduleExpanded && <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight">กำหนดการสำคัญและระยะเวลาที่ต้องดำเนินการ</p>}
                   </div>
                 </div>
-                {!isScheduleExpanded && (
-                  <button onClick={() => { setEditingSchedule(null); setShowScheduleModal(true); }} className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg transform transition-all hover:scale-110 active:scale-95">
-                    <Plus size={16} />
-                  </button>
-                )}
               </div>
               {isScheduleExpanded && (
                 <div className="mt-5 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <button onClick={() => { setEditingSchedule(null); setShowScheduleModal(true); }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-indigo-300 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 font-black uppercase text-[11px] hover:bg-white dark:hover:bg-slate-800 transition-all">
-                    <Plus size={16} /> เพิ่มกำหนดการใหม่
+                  <button onClick={() => { setEditingSchedule(null); setShowScheduleModal(true); }} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-indigo-300 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 font-black uppercase text-[12px] hover:bg-white dark:hover:bg-slate-800 transition-all group">
+                    <div className="p-2 rounded-full bg-indigo-50 dark:bg-indigo-900/50 group-hover:bg-indigo-600 group-hover:text-white transition-all"><Plus size={20} /></div>
+                    เพิ่มกำหนดการใหม่
                   </button>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {schedule.map((ev, idx) => (
-                      <div key={ev.id} className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 flex items-center gap-4 group">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-md">{idx + 1}</div>
+                      <div key={ev.id} className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 flex items-start gap-4 group hover:shadow-lg transition-all">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-md flex-shrink-0 mt-1">{idx + 1}</div>
                         <div className="flex-grow">
-                          <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-tight">{getLocalized(ev.startDate)}</p>
-                          <h4 className="text-xs font-bold text-slate-800 dark:text-white">{getLocalized(ev.event)}</h4>
+                          <div className="flex flex-col gap-1 mb-2">
+                             <div className="flex items-center gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                               <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-tight">เริ่มต้น: {getLocalized(ev.startDate)}</span>
+                             </div>
+                             <div className="flex items-center gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
+                               <span className="text-[9px] font-bold text-rose-500 uppercase tracking-tight">สิ้นสุด: {getLocalized(ev.endDate)}</span>
+                             </div>
+                          </div>
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{getLocalized(ev.event)}</h4>
                         </div>
-                        <div className="flex gap-1">
-                          <button onClick={() => { setEditingSchedule(ev); setShowScheduleModal(true); }} className="p-1.5 text-slate-300 hover:text-indigo-600 transition-colors"><Pencil size={12} /></button>
-                          <button onClick={() => setSchedule(schedule.filter(s => s.id !== ev.id))} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"><Trash size={12} /></button>
+                        <div className="flex flex-col gap-1 ml-2">
+                          <button onClick={() => { setEditingSchedule(ev); setShowScheduleModal(true); }} className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-all"><Pencil size={14} /></button>
+                          <button onClick={() => setSchedule(schedule.filter(s => s.id !== ev.id))} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-all"><Trash size={14} /></button>
                         </div>
                       </div>
                     ))}
@@ -1066,30 +1061,26 @@ const App: React.FC = () => {
                     {isFormsExpanded && <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight">ระบบคลังเอกสารและดาวน์โหลดไฟล์อิเล็กทรอนิกส์</p>}
                   </div>
                 </div>
-                {!isFormsExpanded && (
-                  <button onClick={() => { setEditingForm(null); setShowFormModal(true); }} className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg transform transition-all hover:scale-110 active:scale-95">
-                    <Plus size={16} />
-                  </button>
-                )}
               </div>
               {isFormsExpanded && (
                 <div className="mt-5 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <button onClick={() => { setEditingForm(null); setShowFormModal(true); }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-emerald-300 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 font-black uppercase text-[11px] hover:bg-white dark:hover:bg-slate-800 transition-all">
-                    <Plus size={16} /> เพิ่มเอกสารดาวน์โหลด
+                  <button onClick={() => { setEditingForm(null); setShowFormModal(true); }} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-emerald-300 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 font-black uppercase text-[12px] hover:bg-white dark:hover:bg-slate-800 transition-all group">
+                    <div className="p-2 rounded-full bg-emerald-50 dark:bg-emerald-900/50 group-hover:bg-emerald-600 group-hover:text-white transition-all"><Plus size={20} /></div>
+                    เพิ่มเอกสารใหม่
                   </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {forms.map(form => (
-                      <div key={form.id} className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 flex items-center justify-between">
+                      <div key={form.id} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 flex items-center justify-between hover:shadow-lg transition-all">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${form.category === FormCategory.APPLICATION ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}><FileDown size={14} /></div>
+                          <div className={`p-3 rounded-xl ${form.category === FormCategory.APPLICATION ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'} shadow-sm`}><FileDown size={18} /></div>
                           <div>
-                            <h4 className="text-xs font-bold text-slate-800 dark:text-white">{form.title}</h4>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase">{form.category}</p>
+                            <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{form.title}</h4>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mt-1">{form.category === FormCategory.APPLICATION ? currentT.appForms : currentT.monitoringForms}</p>
                           </div>
                         </div>
                         <div className="flex gap-1">
-                          <button onClick={() => { setEditingForm(form); setShowFormModal(true); }} className="p-1.5 text-slate-300 hover:text-emerald-600 transition-colors"><Pencil size={12} /></button>
-                          <button onClick={() => setForms(forms.filter(f => f.id !== form.id))} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"><Trash size={12} /></button>
+                          <button onClick={() => { setEditingForm(form); setShowFormModal(true); }} className="p-2 text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition-all"><Pencil size={14} /></button>
+                          <button onClick={() => setForms(forms.filter(f => f.id !== form.id))} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-all"><Trash size={14} /></button>
                         </div>
                       </div>
                     ))}
@@ -1136,7 +1127,7 @@ const App: React.FC = () => {
                     <div key={ev.id} className="flex gap-6 items-center">
                       <div className="w-12 h-12 rounded-2xl bg-[#630330] text-white flex items-center justify-center font-black text-xl flex-shrink-0">{idx+1}</div>
                       <div>
-                        <p className="text-[10px] font-bold text-amber-600 uppercase mb-1">{getLocalized(ev.startDate)}</p>
+                        <p className="text-[10px] font-bold text-amber-600 uppercase mb-1">{getLocalized(ev.startDate)} - {getLocalized(ev.endDate)}</p>
                         <h4 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">{getLocalized(ev.event)}</h4>
                       </div>
                     </div>
