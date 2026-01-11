@@ -55,7 +55,9 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     searchButton: "ค้นหาข้อมูล",
     studentLabel: "นักศึกษา",
     currentStatusLabel: "สถานะปัจจุบัน",
-    adminStudentSearchPlaceholder: "ค้นหาชื่อหรือรหัสนักศึกษา..."
+    adminStudentSearchPlaceholder: "ค้นหาชื่อหรือรหัสนักศึกษา...",
+    startDateLabel: "เริ่มต้น",
+    endDateLabel: "สิ้นสุด"
   },
   [Language.EN]: {
     title: "Work-Integrated Science Education Unit (WISE)",
@@ -110,7 +112,9 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     searchButton: "Search Information",
     studentLabel: "Student",
     currentStatusLabel: "Current Status",
-    adminStudentSearchPlaceholder: "Search name or student ID..."
+    adminStudentSearchPlaceholder: "Search name or student ID...",
+    startDateLabel: "Starts",
+    endDateLabel: "Ends"
   },
   [Language.AR]: {
     title: "وحدة تعليم العلوم المتكاملة مع العمل (WISE)",
@@ -123,7 +127,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     loginButton: "تسجيل الدخول",
     logout: "تسجيل الخروج",
     internshipSites: "قاعدة بيانات التدريب",
-    forms: "ศูนย์บริการเอกสารอิเล็กทรอนิกส์",
+    forms: "مركز الوثائق الإلكترونية",
     halalMajor: "تخصص بحوث وتطوير الأغذية الحلال",
     digitalMajor: "تخصص علوم وتكنولوجيا التكنولوجيا الرقمية",
     allMajors: "جميع التخصصات",
@@ -153,19 +157,21 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     email: "البريد الإلكتروني",
     phone: "الهاتف",
     visitWebsite: "زيارة الموقع",
-    searchPlaceholder: "البحث عن اسم หรือตำแหน่ง...",
+    searchPlaceholder: "البحث عن اسم أو موقع...",
     statusPending: "جاري فحص المستندات",
     statusPreparing: "جاري تحضير المستندات",
     statusAccepted: "تم القبول من المنظمة",
     statusRejected: "تم الرفض من المنظمة",
     statusTitle: "التحقق من حالة التقديم",
     statusCheckPrompt: "أدخل الرقم الجامعي للتحقق",
-    noStatusFound: "لم يتم العถور على حالة لهذا الرقم الجامعي",
+    noStatusFound: "لم يتم العثور على حالة لهذا الرقم الجامعي",
     lastUpdated: "آخر تحديث",
     searchButton: "بحث",
     studentLabel: "طالب",
     currentStatusLabel: "الحالة الحالية",
-    adminStudentSearchPlaceholder: "البحث عن الاسم หรือ الرقم الجامعي..."
+    adminStudentSearchPlaceholder: "البحث عن الاسم หรือ الرقم الجامعي...",
+    startDateLabel: "يبدأ",
+    endDateLabel: "ينتهي"
   },
   [Language.MS]: {
     title: "Unit Pendidikan Sains Bersepadu Kerja (WISE)",
@@ -178,7 +184,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     loginButton: "Log Masuk",
     logout: "Log Keluar",
     internshipSites: "Pangkalan Data Latihan",
-    forms: "ศูนย์บริการเอกสารอิเล็กทรอนิกส์",
+    forms: "Pusat Dokumen Elektronik",
     halalMajor: "Bidang Penyelidikan dan Pembangunan Produk Makanan Halal",
     digitalMajor: "Bidang Teknologi dan Sains Digital",
     allMajors: "Semua Bidang",
@@ -220,7 +226,9 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     searchButton: "Cari Maklumat",
     studentLabel: "Pelajar",
     currentStatusLabel: "Status Semasa",
-    adminStudentSearchPlaceholder: "Cari nama หรือ ID Pelajar..."
+    adminStudentSearchPlaceholder: "Cari nama หรือ ID Pelajar...",
+    startDateLabel: "Bermula",
+    endDateLabel: "Tamat"
   }
 };
 

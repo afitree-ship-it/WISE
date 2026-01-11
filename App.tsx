@@ -873,7 +873,13 @@ const App: React.FC = () => {
 
                 <div className="relative">
                   <button onClick={() => setIsNavLangOpen(!isNavLangOpen)} className="flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all font-bold shadow-sm">
-                    <Globe size={18} className="text-[#630330] dark:text-[#D4AF37]" />
+                    <div className="w-5 h-4 overflow-hidden rounded-sm border border-black/10 flex-shrink-0">
+                      <img 
+                        src={`https://flagcdn.com/${lang === Language.EN ? 'us' : lang === Language.AR ? 'sa' : lang === Language.MS ? 'my' : 'th'}.svg`}
+                        alt={lang}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                     <span className="text-[12px] font-bold uppercase hidden sm:inline">{lang.toUpperCase()}</span>
                     <ChevronDown size={14} className={`transition-transform duration-300 ${isNavLangOpen ? 'rotate-180' : ''}`} />
                   </button>
@@ -886,11 +892,18 @@ const App: React.FC = () => {
                             setLang(Language[key]);
                             setIsNavLangOpen(false);
                           }}
-                          className={`w-full text-left px-5 py-4 rounded-xl text-[13px] font-bold uppercase transition-all flex items-center justify-between tracking-normal
+                          className={`w-full text-left px-5 py-4 rounded-xl text-[13px] font-bold uppercase transition-all flex items-center gap-3 tracking-normal
                             ${lang === Language[key] ? 'bg-[#630330] text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                         >
-                          {Language[key].toUpperCase()}
-                          {lang === Language[key] && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                          <div className={`w-5 h-3.5 overflow-hidden rounded-sm border ${lang === Language[key] ? 'border-white/20' : 'border-black/5'}`}>
+                            <img 
+                              src={`https://flagcdn.com/${Language[key] === Language.EN ? 'us' : Language[key] === Language.AR ? 'sa' : Language[key] === Language.MS ? 'my' : 'th'}.svg`}
+                              className="w-full h-full object-cover"
+                              alt={Language[key]}
+                            />
+                          </div>
+                          <span className="flex-grow">{Language[key].toUpperCase()}</span>
+                          {lang === Language[key] && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
                         </button>
                       ))}
                     </div>
