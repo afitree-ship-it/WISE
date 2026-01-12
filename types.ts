@@ -36,6 +36,7 @@ export interface StudentStatusRecord {
   status: ApplicationStatus;
   major: Major;
   lastUpdated: number;
+  remarks?: string;
 }
 
 export interface LocalizedString {
@@ -50,7 +51,7 @@ export interface InternshipSite {
   name: LocalizedString;
   location: LocalizedString;
   description: LocalizedString;
-  position: LocalizedString; // Changed from positions array to single localized string for UI consistency
+  position: LocalizedString;
   status: 'active' | 'archived';
   major: Major;
   contactLink?: string;

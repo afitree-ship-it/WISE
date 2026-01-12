@@ -180,18 +180,15 @@ const App: React.FC = () => {
   const [adminStudentSearchTerm, setAdminStudentSearchTerm] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
 
-  // Accordion/Section states for Admin usability
   const [isStudentStatusExpanded, setIsStudentStatusExpanded] = useState(true);
   const [isSitesExpanded, setIsSitesExpanded] = useState(true);
   const [isScheduleExpanded, setIsScheduleExpanded] = useState(true);
   const [isFormsExpanded, setIsFormsExpanded] = useState(true);
 
-  // Status Search State (for students)
   const [showStatusCheckModal, setShowStatusCheckModal] = useState(false);
   const [searchStudentId, setSearchStudentId] = useState('');
   const [foundStatus, setFoundStatus] = useState<StudentStatusRecord | null | undefined>(undefined);
 
-  // Position Memory State
   const [frequentPositions, setFrequentPositions] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('wise_frequent_positions');
@@ -201,16 +198,13 @@ const App: React.FC = () => {
     }
   });
 
-  // Custom Context Menu State
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
 
-  // Admin Modal States
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState('');
   const [loginError, setLoginError] = useState(false);
   const [isNavLangOpen, setIsNavLangOpen] = useState(false);
 
-  // Management States
   const [showSiteModal, setShowSiteModal] = useState(false);
   const [editingSite, setEditingSite] = useState<InternshipSite | null>(null);
   const [modalMajor, setModalMajor] = useState<Major>(Major.HALAL_FOOD);
@@ -301,7 +295,6 @@ const App: React.FC = () => {
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Updated passwords: fst111, 24725, 5990
     const validPasswords = ['fst111', '24725', '5990'];
     if (validPasswords.includes(adminPassInput)) {
       setRole(UserRole.ADMIN);
@@ -332,16 +325,14 @@ const App: React.FC = () => {
 
   const performBatchTranslation = async (items: { key: string, value: string, isDate?: boolean }[]) => {
     if (items.length === 0) return {};
-    
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
       const prompt = `Translate to EN, AR, MS: ${items.map(i => `${i.key}:"${i.value}"${i.isDate ? '(date)' : ''}`).join('|')}`;
-
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
-          systemInstruction: "Translate to English, Arabic, Malay. Return JSON. For dates, use human-readable formats. Disable thinking for speed.",
+          systemInstruction: "Translate to English, Arabic, Malay. Return JSON.",
           responseMimeType: "application/json",
           thinkingConfig: { thinkingBudget: 0 }, 
           responseSchema: {
@@ -364,7 +355,6 @@ const App: React.FC = () => {
       });
       return JSON.parse(response.text ?? "{}");
     } catch (error) {
-      console.error("Batch AI error:", error);
       return items.reduce((acc, curr) => ({
         ...acc,
         [curr.key]: { th: curr.value, en: curr.value, ar: curr.value, ms: curr.value }
@@ -378,10 +368,8 @@ const App: React.FC = () => {
     const localizedPos = getLocalized(s.position).toLowerCase();
     const majorLabel = s.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor;
     const searchableString = `${localizedName} ${localizedLoc} ${majorLabel} ${localizedPos}`.toLowerCase();
-
     const matchesMajor = activeMajor === 'all' || s.major === activeMajor;
     const matchesSearch = searchableString.includes(searchTerm.toLowerCase());
-    
     return matchesMajor && matchesSearch;
   });
 
@@ -399,29 +387,20 @@ const App: React.FC = () => {
     const thLoc = formData.get('loc_th') as string;
     const thDesc = formData.get('desc_th') as string;
     const thPos = formData.get('pos_th') as string;
-    
     let rawUrl = (formData.get('url') as string).trim();
-    if (rawUrl && !/^https?:\/\//i.test(rawUrl)) {
-      rawUrl = `https://${rawUrl}`;
-    }
-
-    if (thPos && !frequentPositions.includes(thPos)) {
-      setFrequentPositions(prev => [thPos, ...prev].slice(0, 20));
-    }
-
+    if (rawUrl && !/^https?:\/\//i.test(rawUrl)) rawUrl = `https://${rawUrl}`;
+    if (thPos && !frequentPositions.includes(thPos)) setFrequentPositions(prev => [thPos, ...prev].slice(0, 20));
     const itemsToTranslate = [];
     if (!editingSite || editingSite.name.th !== thName) itemsToTranslate.push({ key: 'name', value: thName });
     if (!editingSite || editingSite.location.th !== thLoc) itemsToTranslate.push({ key: 'loc', value: thLoc });
     if (!editingSite || editingSite.description.th !== thDesc) itemsToTranslate.push({ key: 'desc', value: thDesc });
     if (!editingSite || editingSite.position.th !== thPos) itemsToTranslate.push({ key: 'pos', value: thPos });
-
     let results: Record<string, any> = {};
     if (itemsToTranslate.length > 0) {
       setIsTranslating(true);
       results = await performBatchTranslation(itemsToTranslate);
       setIsTranslating(false);
     }
-
     const newSite: InternshipSite = {
       id: editingSite?.id || Date.now().toString(),
       name: results['name'] || editingSite?.name || { th: thName, en: thName, ar: thName, ms: thName },
@@ -435,12 +414,8 @@ const App: React.FC = () => {
       phone: formData.get('phone') as string,
       createdAt: editingSite?.createdAt || Date.now()
     };
-
-    if (editingSite) {
-      setSites(sites.map(s => s.id === editingSite.id ? newSite : s));
-    } else {
-      setSites([newSite, ...sites]);
-    }
+    if (editingSite) setSites(sites.map(s => s.id === editingSite.id ? newSite : s));
+    else setSites([newSite, ...sites]);
     setShowSiteModal(false);
     setEditingSite(null);
   };
@@ -452,7 +427,6 @@ const App: React.FC = () => {
     const name = formData.get('student_name') as string;
     const status = formData.get('status') as ApplicationStatus;
     const major = formData.get('major') as Major;
-
     const newRecord: StudentStatusRecord = {
       id: editingStatusRecord?.id || Date.now().toString(),
       studentId: sId,
@@ -461,12 +435,8 @@ const App: React.FC = () => {
       major: major,
       lastUpdated: Date.now()
     };
-
-    if (editingStatusRecord) {
-      setStudentStatuses(studentStatuses.map(s => s.id === editingStatusRecord.id ? newRecord : s));
-    } else {
-      setStudentStatuses([newRecord, ...studentStatuses]);
-    }
+    if (editingStatusRecord) setStudentStatuses(studentStatuses.map(s => s.id === editingStatusRecord.id ? newRecord : s));
+    else setStudentStatuses([newRecord, ...studentStatuses]);
     setShowAdminStatusModal(false);
     setEditingStatusRecord(null);
   };
@@ -478,9 +448,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSite = (id: string) => {
-    if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลหน่วยงานนี้?')) {
-      setSites(sites.filter(s => s.id !== id));
-    }
+    if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลหน่วยงานนี้?')) setSites(sites.filter(s => s.id !== id));
   };
 
   const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -489,34 +457,23 @@ const App: React.FC = () => {
     const thEvent = formData.get('event_th') as string;
     const startDateRaw = formData.get('start_date') as string;
     const endDateRaw = formData.get('end_date') as string;
-
     const formatReadable = (ds: string) => {
       if (!ds) return '';
       const d = new Date(ds);
       return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
     };
-
     const startReadable = formatReadable(startDateRaw);
     const endReadable = formatReadable(endDateRaw);
-
     const itemsToTranslate = [];
-    if (!editingSchedule || editingSchedule.event.th !== thEvent) {
-      itemsToTranslate.push({ key: 'event', value: thEvent });
-    }
-    if (!editingSchedule || editingSchedule.startDate.th !== startReadable) {
-      itemsToTranslate.push({ key: 'start', value: startReadable, isDate: true });
-    }
-    if (!editingSchedule || editingSchedule.endDate.th !== endReadable) {
-      itemsToTranslate.push({ key: 'end', value: endReadable, isDate: true });
-    }
-
+    if (!editingSchedule || editingSchedule.event.th !== thEvent) itemsToTranslate.push({ key: 'event', value: thEvent });
+    if (!editingSchedule || editingSchedule.startDate.th !== startReadable) itemsToTranslate.push({ key: 'start', value: startReadable, isDate: true });
+    if (!editingSchedule || editingSchedule.endDate.th !== endReadable) itemsToTranslate.push({ key: 'end', value: endReadable, isDate: true });
     let results: Record<string, any> = {};
     if (itemsToTranslate.length > 0) {
       setIsTranslating(true);
       results = await performBatchTranslation(itemsToTranslate);
       setIsTranslating(false);
     }
-
     const newEvent: ScheduleEvent = {
       id: editingSchedule?.id || Date.now().toString(),
       event: results['event'] || editingSchedule?.event || { th: thEvent, en: thEvent, ar: thEvent, ms: thEvent },
@@ -524,12 +481,8 @@ const App: React.FC = () => {
       endDate: results['end'] || editingSchedule?.endDate || { th: endReadable, en: endDateRaw, ar: endDateRaw, ms: endDateRaw },
       status: formData.get('status') as 'upcoming' | 'past'
     };
-
-    if (editingSchedule) {
-      setSchedule(schedule.map(s => s.id === editingSchedule.id ? newEvent : s));
-    } else {
-      setSchedule([...schedule, newEvent]);
-    }
+    if (editingSchedule) setSchedule(schedule.map(s => s.id === editingSchedule.id ? newEvent : s));
+    else setSchedule([...schedule, newEvent]);
     setShowScheduleModal(false);
     setEditingSchedule(null);
   };
@@ -540,28 +493,16 @@ const App: React.FC = () => {
     const title = formData.get('title') as string;
     const category = formData.get('category') as FormCategory;
     const url = formData.get('url') as string;
-
-    const newForm: DocumentForm = {
-      id: editingForm?.id || Date.now().toString(),
-      title,
-      category,
-      url
-    };
-
-    if (editingForm) {
-      setForms(forms.map(f => f.id === editingForm.id ? newForm : f));
-    } else {
-      setForms([...forms, newForm]);
-    }
+    const newForm: DocumentForm = { id: editingForm?.id || Date.now().toString(), title, category, url };
+    if (editingForm) setForms(forms.map(f => f.id === editingForm.id ? newForm : f));
+    else setForms([...forms, newForm]);
     setShowFormModal(false);
     setEditingForm(null);
   };
 
   const handleCopy = () => {
     const text = window.getSelection()?.toString();
-    if (text) {
-      navigator.clipboard.writeText(text);
-    }
+    if (text) navigator.clipboard.writeText(text);
     setContextMenu(null);
   };
 
@@ -598,6 +539,7 @@ const App: React.FC = () => {
     { icon: Globe, label: 'Standard' },
   ];
 
+  /* --- LANDING PAGE SECTION (LOCKED - DO NOT MODIFY EXCEPT SPECIFIC REQUESTS) --- */
   if (viewState === 'landing') {
     return (
       <div className={`min-h-[100svh] w-full flex flex-col items-center luxe-mangosteen-bg relative overflow-hidden desktop-zoom-74 ${isRtl ? 'rtl' : ''}`}>
@@ -641,7 +583,8 @@ const App: React.FC = () => {
           </div>
 
           <div className="mt-4 sm:mt-8 space-y-6 sm:space-y-8 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 flex flex-col items-center">
-            <h1 className="text-[14px] min-[380px]:text-base min-[420px]:text-lg sm:text-5xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-4 sm:px-10 opacity-90 tracking-tight sm:whitespace-normal max-w-[90vw] sm:max-w-2xl md:max-w-4xl mx-auto">
+            {/* UPDATED: Centered, single row, with optimized responsive sizing to prevent overflow */}
+            <h1 className="text-center text-[10px] min-[360px]:text-[12px] min-[400px]:text-[14px] min-[480px]:text-base sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight whitespace-nowrap mx-auto">
               {currentT.landingHeading}
             </h1>
 
@@ -652,7 +595,6 @@ const App: React.FC = () => {
               
               <div className="flex flex-col items-center w-full">
                 <div className="flex flex-row items-center justify-center gap-3 sm:gap-4">
-                  {/* Main Entry Button */}
                   <button 
                     onClick={() => setViewState('dashboard')}
                     className="group relative px-8 sm:px-14 py-4 sm:py-5 bg-white text-[#630330] rounded-full font-black uppercase text-base sm:text-xl transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.15)]"
@@ -666,7 +608,6 @@ const App: React.FC = () => {
                     </span>
                   </button>
 
-                  {/* Smaller Status Check Button */}
                   <button 
                     onClick={() => {
                       setSearchStudentId('');
@@ -701,11 +642,11 @@ const App: React.FC = () => {
         {/* Student Status Check Modal */}
         {showStatusCheckModal && (
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-xl reveal-anim">
-            <div className="w-full max-w-[480px] bg-white rounded-[2.5rem] p-8 sm:p-12 shadow-3xl relative">
-               <button onClick={() => setShowStatusCheckModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 transition-colors">
+            <div className="w-full max-w-[520px] bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-3xl relative overflow-hidden">
+               <button onClick={() => setShowStatusCheckModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 transition-colors z-10">
                  <X size={20} className="text-slate-400" />
                </button>
-               <div className="flex flex-col items-center mb-10">
+               <div className="flex flex-col items-center mb-8">
                  <div className="p-4 bg-[#D4AF37]/10 rounded-2xl mb-4">
                    <Timer size={32} className="text-[#D4AF37]" />
                  </div>
@@ -713,7 +654,7 @@ const App: React.FC = () => {
                  <p className="text-[12px] text-slate-400 font-bold uppercase mt-1">{currentT.statusCheckPrompt}</p>
                </div>
 
-               <form onSubmit={handleCheckStatus} className="space-y-6">
+               <form onSubmit={handleCheckStatus} className="space-y-5">
                  <div className="relative group">
                    <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors">
                      <UserCircle size={24} />
@@ -731,30 +672,49 @@ const App: React.FC = () => {
                  </button>
                </form>
 
-               <div className="mt-10 min-h-[120px]">
+               <div className="mt-8 min-h-[160px]">
                  {foundStatus === undefined ? null : foundStatus === null ? (
-                   <div className="flex flex-col items-center justify-center py-6 text-slate-400 gap-2 border-2 border-dashed border-slate-100 rounded-2xl">
-                     <AlertCircle size={20} />
-                     <p className="text-[11px] font-bold uppercase">{currentT.noStatusFound}</p>
+                   <div className="flex flex-col items-center justify-center py-8 text-slate-400 gap-2 border-2 border-dashed border-slate-100 rounded-2xl">
+                     <AlertCircle size={24} />
+                     <p className="text-[12px] font-bold uppercase tracking-tight">{currentT.noStatusFound}</p>
                    </div>
                  ) : (
-                   <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 reveal-anim">
-                     <div className="flex items-center gap-4 mb-4">
-                       <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#2A0114] shadow-sm border border-slate-100">
-                         <GraduationCap size={24} />
+                   <div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-100 reveal-anim space-y-6">
+                     <div className="flex items-center gap-4">
+                       <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-[#2A0114] shadow-sm border border-slate-100">
+                         <GraduationCap size={28} />
                        </div>
                        <div>
-                         <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">{currentT.studentLabel}</p>
-                         <h4 className="font-bold text-slate-900 leading-tight">{foundStatus.name}</h4>
-                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{foundStatus.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor}</p>
+                         <p className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1.5">{currentT.studentLabel}</p>
+                         <h4 className="font-bold text-slate-900 leading-tight text-lg">{foundStatus.name}</h4>
+                         <p className="text-[11px] font-bold text-[#D4AF37] uppercase tracking-tight">{foundStatus.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor}</p>
                        </div>
                      </div>
-                     <div className={`w-full py-4 px-6 rounded-xl border flex flex-col gap-1 ${getStatusColor(foundStatus.status)} shadow-sm`}>
-                       <span className="text-[9px] font-black uppercase opacity-60">{currentT.currentStatusLabel}</span>
-                       <span className="text-sm font-black uppercase">{getStatusLabel(foundStatus.status)}</span>
+                     
+                     <div className="space-y-4">
+                        <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-400 px-1">
+                          <span>Timeline Progress</span>
+                          <span className={`${foundStatus.status === ApplicationStatus.ACCEPTED ? 'text-emerald-500' : 'text-amber-500'}`}>{getStatusLabel(foundStatus.status)}</span>
+                        </div>
+                        <div className="relative h-1 bg-slate-200 rounded-full overflow-hidden">
+                           <div 
+                             className={`absolute top-0 left-0 h-full transition-all duration-1000 ${foundStatus.status === ApplicationStatus.REJECTED ? 'bg-rose-500' : 'bg-[#D4AF37]'}`}
+                             style={{ 
+                               width: foundStatus.status === ApplicationStatus.PENDING ? '25%' : 
+                                      foundStatus.status === ApplicationStatus.PREPARING ? '50%' : '100%' 
+                             }}
+                           ></div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-1 text-[8px] font-black text-slate-400 uppercase text-center px-1">
+                          <div className={foundStatus.status === ApplicationStatus.PENDING ? 'text-[#D4AF37]' : ''}>ยื่นเอกสาร</div>
+                          <div className={foundStatus.status === ApplicationStatus.PREPARING ? 'text-[#D4AF37]' : ''}>ตรวจสอบ</div>
+                          <div className={foundStatus.status === ApplicationStatus.ACCEPTED ? 'text-emerald-500' : ''}>ยืนยัน</div>
+                          <div>เสร็จสมบูรณ์</div>
+                        </div>
                      </div>
-                     <div className="mt-4 flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase justify-end">
-                       <Activity size={10} /> {currentT.lastUpdated}: {new Date(foundStatus.lastUpdated).toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+
+                     <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase justify-end pt-2 border-t border-slate-100/50">
+                       <Activity size={12} /> {currentT.lastUpdated}: {new Date(foundStatus.lastUpdated).toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                      </div>
                    </div>
                  )}
@@ -763,7 +723,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Floating Marquee Icons */}
         <div 
           className="w-full pb-8 sm:pb-20 mt-auto overflow-hidden opacity-30 z-10"
           style={{
@@ -830,6 +789,7 @@ const App: React.FC = () => {
       </div>
     );
   }
+  /* --- END OF LOCKED SECTION --- */
 
   return (
     <div className={`min-h-screen flex flex-col bg-[#F9FAFB] dark:bg-slate-950 transition-colors duration-300 ${isRtl ? 'rtl' : ''}`}>
@@ -904,10 +864,8 @@ const App: React.FC = () => {
       </div>
 
       <main className={`container mx-auto px-4 ${role === UserRole.ADMIN ? 'py-4 sm:py-6 space-y-4' : 'py-8 sm:py-14 space-y-16'} flex-grow transition-all`}>
-        {/* Admin Sections */}
         {role === UserRole.ADMIN && (
           <>
-            {/* Student Status Management Section */}
             <section className={`rounded-[1.5rem] border border-amber-200 dark:border-amber-900/50 shadow-lg transition-all overflow-hidden ${isStudentStatusExpanded ? 'bg-amber-100/40 dark:bg-amber-950/20 p-5 sm:p-6' : 'bg-white dark:bg-slate-900 p-3'}`}>
                <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 cursor-pointer group flex-shrink-0" onClick={() => setIsStudentStatusExpanded(!isStudentStatusExpanded)}>
@@ -962,7 +920,6 @@ const App: React.FC = () => {
                )}
             </section>
 
-            {/* Internship Database Management */}
             <section className={`rounded-[1.5rem] border transition-all overflow-hidden ${isSitesExpanded ? 'bg-rose-100/40 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 p-5 sm:p-6' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 p-3'}`}>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 cursor-pointer group flex-shrink-0" onClick={() => setIsSitesExpanded(!isSitesExpanded)}>
@@ -1001,99 +958,9 @@ const App: React.FC = () => {
                 </div>
               )}
             </section>
-
-            {/* Key Schedule Management */}
-            <section className={`rounded-[1.5rem] border transition-all overflow-hidden ${isScheduleExpanded ? 'bg-indigo-100/40 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900/50 p-5 sm:p-6' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 p-3'}`}>
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 cursor-pointer group flex-shrink-0" onClick={() => setIsScheduleExpanded(!isScheduleExpanded)}>
-                  <div className="p-2 sm:p-3 bg-indigo-600 text-white rounded-xl shadow-md flex-shrink-0"><Navigation size={20} /></div>
-                  <div>
-                    <h2 className="text-base sm:text-xl font-black uppercase tracking-tight flex items-center gap-2 text-slate-900 dark:text-white">
-                      {currentT.schedule}
-                      <ChevronDown size={18} className={`transition-transform duration-500 text-slate-400 group-hover:text-indigo-600 ${isScheduleExpanded ? '' : '-rotate-90'}`} />
-                    </h2>
-                    {isScheduleExpanded && <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight">กำหนดการสำคัญและระยะเวลาที่ต้องดำเนินการ</p>}
-                  </div>
-                </div>
-              </div>
-              {isScheduleExpanded && (
-                <div className="mt-5 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <button onClick={() => { setEditingSchedule(null); setShowScheduleModal(true); }} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-indigo-300 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 font-black uppercase text-[12px] hover:bg-white dark:hover:bg-slate-800 transition-all group">
-                    <div className="p-2 rounded-full bg-indigo-50 dark:bg-indigo-900/50 group-hover:bg-indigo-600 group-hover:text-white transition-all"><Plus size={20} /></div>
-                    เพิ่มกำหนดการใหม่
-                  </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {schedule.map((ev, idx) => (
-                      <div key={ev.id} className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 flex items-start gap-4 group hover:shadow-lg transition-all">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-md flex-shrink-0 mt-1">{idx + 1}</div>
-                        <div className="flex-grow">
-                          <div className="flex flex-col gap-1 mb-2">
-                             <div className="flex items-center gap-2">
-                               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
-                               <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-tight">เริ่มต้น: {getLocalized(ev.startDate)}</span>
-                             </div>
-                             <div className="flex items-center gap-2">
-                               <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
-                               <span className="text-[9px] font-bold text-rose-500 uppercase tracking-tight">สิ้นสุด: {getLocalized(ev.endDate)}</span>
-                             </div>
-                          </div>
-                          <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{getLocalized(ev.event)}</h4>
-                        </div>
-                        <div className="flex flex-col gap-1 ml-2">
-                          <button onClick={() => { setEditingSchedule(ev); setShowScheduleModal(true); }} className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-all"><Pencil size={14} /></button>
-                          <button onClick={() => setSchedule(schedule.filter(s => s.id !== ev.id))} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-all"><Trash size={14} /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* Electronic Document Management */}
-            <section className={`rounded-[1.5rem] border transition-all overflow-hidden ${isFormsExpanded ? 'bg-emerald-100/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50 p-5 sm:p-6' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 p-3'}`}>
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 cursor-pointer group flex-shrink-0" onClick={() => setIsFormsExpanded(!isFormsExpanded)}>
-                  <div className="p-2 sm:p-3 bg-emerald-600 text-white rounded-xl shadow-md flex-shrink-0"><ClipboardCheck size={20} /></div>
-                  <div>
-                    <h2 className="text-base sm:text-xl font-black uppercase tracking-tight flex items-center gap-2 text-slate-900 dark:text-white">
-                      {currentT.forms}
-                      <ChevronDown size={18} className={`transition-transform duration-500 text-slate-400 group-hover:text-emerald-600 ${isFormsExpanded ? '' : '-rotate-90'}`} />
-                    </h2>
-                    {isFormsExpanded && <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight">ระบบคลังเอกสารและดาวน์โหลดไฟล์อิเล็กทรอนิกส์</p>}
-                  </div>
-                </div>
-              </div>
-              {isFormsExpanded && (
-                <div className="mt-5 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <button onClick={() => { setEditingForm(null); setShowFormModal(true); }} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-emerald-300 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 font-black uppercase text-[12px] hover:bg-white dark:hover:bg-slate-800 transition-all group">
-                    <div className="p-2 rounded-full bg-emerald-50 dark:bg-emerald-900/50 group-hover:bg-emerald-600 group-hover:text-white transition-all"><Plus size={20} /></div>
-                    เพิ่มเอกสารใหม่
-                  </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {forms.map(form => (
-                      <div key={form.id} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 flex items-center justify-between hover:shadow-lg transition-all">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-3 rounded-xl ${form.category === FormCategory.APPLICATION ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'} shadow-sm`}><FileDown size={18} /></div>
-                          <div>
-                            <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{form.title}</h4>
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mt-1">{form.category === FormCategory.APPLICATION ? currentT.appForms : currentT.monitoringForms}</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-1">
-                          <button onClick={() => { setEditingForm(form); setShowFormModal(true); }} className="p-2 text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition-all"><Pencil size={14} /></button>
-                          <button onClick={() => setForms(forms.filter(f => f.id !== form.id))} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-all"><Trash size={14} /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
           </>
         )}
 
-        {/* Student View Dashboards */}
         {role === UserRole.STUDENT && (
           <>
             <section className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 sm:p-14 rounded-[2.5rem] shadow-xl">
@@ -1101,7 +968,6 @@ const App: React.FC = () => {
                 <Database size={24} className="text-[#630330] dark:text-amber-500" />
                 <h2 className="text-xl sm:text-2xl font-black uppercase text-slate-900 dark:text-white">{currentT.internshipSites}</h2>
               </div>
-              {/* Filter and Search */}
               <div className="space-y-6">
                 <div className="relative group">
                   <div className="absolute left-5 top-0 bottom-0 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#630330]"><Search size={20} /></div>
@@ -1117,49 +983,6 @@ const App: React.FC = () => {
                 </div>
               </div>
             </section>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-              <div className="lg:col-span-7 space-y-8">
-                <div className="flex items-center gap-4 px-4">
-                  <Navigation size={26} className="text-[#630330] dark:text-amber-500" />
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase">{currentT.schedule}</h3>
-                </div>
-                <div className="bg-white dark:bg-slate-900/50 p-10 sm:p-14 rounded-[3.5rem] border border-slate-100 dark:border-slate-800 shadow-xl space-y-8">
-                  {schedule.map((ev, idx) => (
-                    <div key={ev.id} className="flex gap-6 items-center">
-                      <div className="w-12 h-12 rounded-2xl bg-[#630330] text-white flex items-center justify-center font-black text-xl flex-shrink-0">{idx+1}</div>
-                      <div>
-                        <p className="text-[10px] font-bold text-amber-600 uppercase mb-1">
-                           <span className="text-blue-600 dark:text-blue-400">เริ่มต้น: {getLocalized(ev.startDate)}</span>
-                           <span className="mx-2">|</span>
-                           <span className="text-rose-600 dark:text-rose-400">สิ้นสุด: {getLocalized(ev.endDate)}</span>
-                        </p>
-                        <h4 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">{getLocalized(ev.event)}</h4>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="lg:col-span-5 space-y-8">
-                <div className="flex items-center gap-4 px-4">
-                  <ClipboardCheck size={26} className="text-amber-500" />
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase">{currentT.forms}</h3>
-                </div>
-                <div className="bg-white dark:bg-slate-900/50 p-10 sm:p-14 rounded-[3.5rem] border border-slate-100 dark:border-slate-800 shadow-xl space-y-10">
-                   {Object.values(FormCategory).map(cat => (
-                     <div key={cat} className="space-y-4">
-                       <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{cat === FormCategory.APPLICATION ? currentT.appForms : currentT.monitoringForms}</p>
-                       {forms.filter(f => f.category === cat).map(form => (
-                         <a key={form.id} href={form.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-transparent hover:border-[#630330] transition-all group">
-                           <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">{form.title}</span>
-                           <FileDown size={18} className="text-slate-300 group-hover:text-[#630330]" />
-                         </a>
-                       ))}
-                     </div>
-                   ))}
-                </div>
-              </div>
-            </div>
           </>
         )}
       </main>
