@@ -640,8 +640,8 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          <div className="mt-4 sm:mt-8 space-y-6 sm:space-y-8 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <h1 className="text-[14px] min-[380px]:text-base min-[420px]:text-lg sm:text-5xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight whitespace-nowrap">
+          <div className="mt-4 sm:mt-8 space-y-6 sm:space-y-8 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 flex flex-col items-center">
+            <h1 className="text-[14px] min-[380px]:text-base min-[420px]:text-lg sm:text-5xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-4 sm:px-10 opacity-90 tracking-tight sm:whitespace-normal max-w-[90vw] sm:max-w-2xl md:max-w-4xl mx-auto">
               {currentT.landingHeading}
             </h1>
 
