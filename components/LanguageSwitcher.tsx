@@ -10,10 +10,10 @@ interface LanguageSwitcherProps {
 
 const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ currentLang, onLanguageChange, className = "" }) => {
   const langs = [
-    { code: Language.TH, label: 'TH', flag: '🇹🇭' },
-    { code: Language.EN, label: 'EN', flag: '🇺🇸' },
-    { code: Language.AR, label: 'AR', flag: '🇸🇦' },
-    { code: Language.MS, label: 'MS', flag: '🇲🇾' },
+    { code: Language.TH, label: 'TH', flag: 'https://flagcdn.com/w40/th.png' },
+    { code: Language.EN, label: 'EN', flag: 'https://flagcdn.com/w40/us.png' },
+    { code: Language.AR, label: 'AR', flag: 'https://flagcdn.com/w40/sa.png' },
+    { code: Language.MS, label: 'MS', flag: 'https://flagcdn.com/w40/my.png' },
   ];
 
   return (
@@ -32,9 +32,14 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ currentLang, onLang
               }
             `}
           >
-            <span className={`text-xs leading-none transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
-              {lang.flag}
-            </span>
+            <div className={`w-5 h-3.5 overflow-hidden rounded-sm transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+              <img 
+                src={lang.flag} 
+                alt={lang.label}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </div>
             <span className={`text-[10px] font-bold tracking-normal transition-all duration-300 ${isActive ? 'opacity-100' : 'opacity-80'}`}>
               {lang.label}
             </span>
