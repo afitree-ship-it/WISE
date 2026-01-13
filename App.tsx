@@ -254,6 +254,15 @@ const App: React.FC = () => {
     return matchesMajor && matchesSearch;
   });
 
+  // Sorted schedules for Student View - Sort by rawStartDate ascending
+  const sortedSchedules = useMemo(() => {
+    return [...schedules].sort((a, b) => {
+      const dateA = a.rawStartDate || '';
+      const dateB = b.rawStartDate || '';
+      return dateA.localeCompare(dateB);
+    });
+  }, [schedules]);
+
   const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -274,7 +283,8 @@ const App: React.FC = () => {
       endDate: results['end'] || { th: rawEnd, en: rawEnd, ar: rawEnd, ms: rawEnd },
       rawStartDate: rawStart,
       rawEndDate: rawEnd,
-      status: 'upcoming'
+      status: 'upcoming',
+      createdAt: editingSchedule?.createdAt || Date.now()
     };
     let updated;
     if (editingSchedule) updated = schedules.map(s => s.id === editingSchedule.id ? newEvent : s);
@@ -623,8 +633,8 @@ const App: React.FC = () => {
               </div>
               
               <div className="flex flex-col gap-3">
-                {schedules.length > 0 ? (
-                  schedules.map((item) => (
+                {sortedSchedules.length > 0 ? (
+                  sortedSchedules.map((item) => (
                     <div 
                       key={item.id} 
                       className="group relative flex flex-row items-center justify-between p-2 sm:p-5 
@@ -642,7 +652,6 @@ const App: React.FC = () => {
                            <div className="absolute inset-0 w-full h-full rounded-full border border-emerald-400 animate-ping opacity-75"></div>
                            <div className="absolute -inset-1 w-full h-full rounded-full border border-emerald-500/30 animate-pulse"></div>
                          </div>
-                         {/* Removed truncate, added line-clamp-2 to see more text while keeping row aesthetic */}
                          <h4 className="text-[10px] min-[360px]:text-[11px] sm:text-base font-black text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-3 break-words">
                            {getLocalized(item.event)}
                          </h4>

@@ -75,6 +75,7 @@ export interface ScheduleEvent {
   rawStartDate?: string; // YYYY-MM-DD format for date picker
   rawEndDate?: string;   // YYYY-MM-DD format for date picker
   status: 'upcoming' | 'past';
+  createdAt?: number;
 }
 
 export interface Translation {
