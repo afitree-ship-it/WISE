@@ -86,7 +86,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className={`min-h-[100svh] w-full flex flex-col items-center luxe-mangosteen-bg relative overflow-hidden desktop-zoom-74 ${isRtl ? 'rtl' : ''}`}>
+    <div className={`fixed inset-0 w-full h-[100svh] flex flex-col items-center luxe-mangosteen-bg overflow-hidden desktop-zoom-74 touch-none ${isRtl ? 'rtl' : ''}`}>
       <MouseGlow />
       <div className="bg-video-wrap">
         <video autoPlay loop muted playsInline>
@@ -98,8 +98,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
       <TechMeteorShower />
       <ModernWaves />
       
-      <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-6 py-4 reveal-anim pt-2 sm:pt-10">
-        <div className="flex flex-col items-center space-y-4 sm:space-y-8">
+      <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-6 reveal-anim h-full">
+        <div className="flex flex-col items-center space-y-4 sm:space-y-6">
            <div className="px-4 sm:px-8 py-2 sm:py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
              <div className="flex flex-row items-center gap-2 sm:gap-6 whitespace-nowrap overflow-hidden">
                <span className="text-[8px] sm:text-xs font-bold uppercase text-white tracking-normal opacity-90">
@@ -114,12 +114,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
            <div className="relative flex flex-col items-center group text-center max-w-full">
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[100px] w-60 h-60 sm:w-80 sm:h-80 bg-[#D4AF37] rounded-full"></div>
-              <h2 className="relative text-6xl sm:text-[10rem] md:text-[11rem] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-[#D4AF37] leading-tight transition-all duration-700 group-hover:scale-105 drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)] select-none">
+              <h2 className="relative text-7xl sm:text-[10rem] md:text-[11rem] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-[#D4AF37] leading-tight transition-all duration-700 group-hover:scale-105 drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)] select-none">
                 WISE
               </h2>
-              <div className="relative flex flex-col items-center -mt-2 sm:-mt-8 space-y-2 px-4 w-full overflow-hidden">
+              <div className="relative flex flex-col items-center -mt-2 sm:-mt-8 space-y-1.5 px-4 w-full overflow-hidden">
                 <div className="h-px w-20 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent mb-1"></div>
-                <span className="text-[#D4AF37] text-[9px] sm:text-xl md:text-2xl font-extrabold tracking-tight uppercase opacity-95 drop-shadow-lg leading-none whitespace-nowrap">
+                <span className="text-[#D4AF37] text-[10px] sm:text-xl md:text-2xl font-extrabold tracking-tight uppercase opacity-95 drop-shadow-lg leading-none whitespace-nowrap">
                   Work-Integrated  Science  Education  Unit
                 </span>
                 <span className="text-[#D4AF37] text-[8px] sm:text-base md:text-lg font-semibold opacity-90 drop-shadow-md leading-none whitespace-nowrap">
@@ -130,8 +130,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
            </div>
         </div>
 
-        <div className="mt-4 sm:mt-8 space-y-6 sm:space-y-8 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 flex flex-col items-center">
-          <h1 className="text-center text-[10px] min-[360px]:text-[12px] min-[400px]:text-[14px] min-[480px]:text-base sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight whitespace-nowrap mx-auto">
+        <div className="mt-6 sm:mt-10 space-y-6 sm:space-y-10 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 flex flex-col items-center">
+          <h1 className="text-center text-[11px] min-[360px]:text-[13px] min-[400px]:text-[15px] min-[480px]:text-base sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight whitespace-nowrap mx-auto">
             {currentT.landingHeading}
           </h1>
 
@@ -175,7 +175,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   setLoginError(false);
                   setShowAdminLogin(true);
                 }}
-                className="flex items-center gap-2 mt-8 opacity-30 hover:opacity-100 transition-all duration-500 group"
+                className="flex items-center gap-2 mt-8 opacity-30 hover:opacity-100 transition-all duration-500 group touch-auto"
                 title="Staff Access"
               >
                 <LockKeyhole size={12} className="text-[#D4AF37] group-hover:scale-110 transition-transform" />
@@ -188,7 +188,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
       {/* Student Status Check Modal */}
       {showStatusCheckModal && (
-        <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-xl reveal-anim">
+        <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-xl reveal-anim touch-auto">
           <div className="w-full max-w-[520px] bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-3xl relative overflow-hidden">
              <button onClick={() => setShowStatusCheckModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 transition-colors z-10">
                <X size={20} className="text-slate-400" />
@@ -265,7 +265,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
       )}
 
       {showAdminLogin && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-3xl reveal-anim overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-3xl reveal-anim overflow-y-auto touch-auto">
           <div className="w-full max-w-[420px] my-auto flex flex-col items-center relative p-8 sm:p-14 rounded-[2.5rem] sm:rounded-[3rem] border border-white/10 bg-white/5 shadow-3xl">
             <button onClick={() => setShowAdminLogin(false)} className="absolute top-6 right-6 sm:top-8 sm:right-8 p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all">
               <X size={24} />
