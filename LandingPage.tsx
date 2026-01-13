@@ -141,16 +141,16 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </div>
             
             <div className="flex flex-col items-center w-full">
-              <div className="flex flex-row items-center justify-center gap-3 sm:gap-4">
+              <div className="flex flex-row items-center justify-center gap-2 sm:gap-4 px-2">
                 <button 
                   onClick={onEnterDashboard}
-                  className="group relative px-8 sm:px-14 py-4 sm:py-5 bg-white text-[#630330] rounded-full font-black uppercase text-base sm:text-xl transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.15)]"
+                  className="group relative px-5 sm:px-14 py-4 sm:py-5 bg-white text-[#630330] rounded-full font-black uppercase text-[12px] min-[400px]:text-[13px] sm:text-xl transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-hidden"
                 >
                   <div className="absolute inset-0 rounded-full border-2 border-white/0 group-hover:border-white/50 group-hover:animate-ring-expand pointer-events-none"></div>
-                  <span className="relative z-10 flex items-center gap-2 sm:gap-4 tracking-tight whitespace-nowrap">
+                  <span className="relative z-10 flex items-center gap-1.5 sm:gap-4 tracking-tight whitespace-nowrap">
                     {currentT.startNow} 
-                    <div className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-[#630330]/5 group-hover:bg-[#630330] group-hover:text-white transition-all duration-500">
-                      <ChevronRight size={18} className={isRtl ? 'rotate-180' : ''} />
+                    <div className="flex items-center justify-center w-5 h-5 sm:w-8 sm:h-8 rounded-full bg-[#630330]/5 group-hover:bg-[#630330] group-hover:text-white transition-all duration-500">
+                      <ChevronRight size={14} className={`sm:w-[18px] sm:h-[18px] ${isRtl ? 'rotate-180' : ''}`} />
                     </div>
                   </span>
                 </button>
@@ -161,10 +161,10 @@ const LandingPage: React.FC<LandingPageProps> = ({
                     setFoundStatus(undefined);
                     setShowStatusCheckModal(true);
                   }}
-                  className="group relative px-5 sm:px-8 py-4 sm:py-5 bg-[#D4AF37] hover:bg-[#b8952c] text-[#2A0114] rounded-full font-bold uppercase text-[10px] sm:text-sm transition-all hover:scale-105 active:scale-95 shadow-[0_10px_20px_rgba(212,175,55,0.2)]"
+                  className="group relative px-4 sm:px-8 py-4 sm:py-5 bg-[#D4AF37] hover:bg-[#b8952c] text-[#2A0114] rounded-full font-bold uppercase text-[10px] sm:text-sm transition-all hover:scale-105 active:scale-95 shadow-[0_10px_20px_rgba(212,175,55,0.2)]"
                 >
                   <span className="flex items-center gap-2 tracking-tight whitespace-nowrap">
-                    <Timer size={16} className="group-hover:rotate-12 transition-transform" />
+                    <Timer size={14} className="sm:w-[16px] sm:h-[16px] group-hover:rotate-12 transition-transform" />
                     {currentT.checkStatus}
                   </span>
                 </button>
