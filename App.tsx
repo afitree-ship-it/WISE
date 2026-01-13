@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Language, 
   UserRole, 
@@ -45,8 +45,17 @@ import {
   Link2,
   Info,
   Files,
-  ArrowRight
+  ArrowRight,
+  // Fix: CloudCloud is not a valid export from lucide-react. Changed to Cloud.
+  Cloud,
+  CloudOff,
+  RefreshCw,
+  CheckCircle2
 } from 'lucide-react';
+
+// --- CONFIGURATION ---
+// ใส่ URL ของ Google Apps Script ที่ Deploy แล้วที่นี่
+const SHEET_API_URL = "https://script.google.com/macros/s/AKfycby-TUywvMFjsfpq629r1Fou59reZ4bBTghCxOHHpx8Cz9nxRPlha4Pxf2nS8QgHv13c/exec"; 
 
 const App: React.FC = () => {
   const [lang, setLang] = useState<Language>(() => {
@@ -92,7 +101,10 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : INITIAL_FORMS;
   });
 
-  // UI States
+  // UI & Sync States
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<number | null>(null);
   const [activeMajor, setActiveMajor] = useState<Major | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
@@ -112,10 +124,52 @@ const App: React.FC = () => {
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEvent | null>(null);
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
-  
-  // Student Document Hub State
   const [showDocHub, setShowDocHub] = useState(false);
 
+  // --- GOOGLE SHEETS SYNC LOGIC ---
+
+  const fetchFromSheets = useCallback(async () => {
+    if (!SHEET_API_URL) return;
+    setIsLoading(true);
+    try {
+      const response = await fetch(SHEET_API_URL);
+      const cloudData = await response.json();
+      
+      if (cloudData.sites) setSites(cloudData.sites);
+      if (cloudData.schedules) setSchedules(cloudData.schedules);
+      if (cloudData.forms) setForms(cloudData.forms);
+      if (cloudData.studentStatuses) setStudentStatuses(cloudData.studentStatuses);
+      
+      setLastSync(Date.now());
+    } catch (error) {
+      console.error("Failed to fetch from Google Sheets:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const syncToSheets = useCallback(async (type: string, data: any[]) => {
+    if (!SHEET_API_URL) return;
+    setIsSyncing(true);
+    try {
+      await fetch(SHEET_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ type, data }),
+      });
+      setLastSync(Date.now());
+    } catch (error) {
+      console.error(`Failed to sync ${type} to Google Sheets:`, error);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
+  // Initial Load
+  useEffect(() => {
+    fetchFromSheets();
+  }, [fetchFromSheets]);
+
+  // Theme Sync
   useEffect(() => {
     const root = window.document.documentElement;
     if (theme === 'dark') {
@@ -126,7 +180,7 @@ const App: React.FC = () => {
     localStorage.setItem('wise_portal_theme', theme);
   }, [theme]);
 
-  // Persistence Effects
+  // Local Storage Fallback
   useEffect(() => { localStorage.setItem('wise_student_statuses', JSON.stringify(studentStatuses)); }, [studentStatuses]);
   useEffect(() => { localStorage.setItem('wise_sites', JSON.stringify(sites)); }, [sites]);
   useEffect(() => { localStorage.setItem('wise_schedules', JSON.stringify(schedules)); }, [schedules]);
@@ -146,10 +200,6 @@ const App: React.FC = () => {
       setLang(Language.TH); 
       setTheme('light'); 
       setViewState('dashboard');
-      setIsStudentStatusExpanded(false);
-      setIsSitesExpanded(false);
-      setIsScheduleExpanded(false);
-      setIsFormsExpanded(false);
       return true;
     }
     return false;
@@ -235,8 +285,12 @@ const App: React.FC = () => {
       status: 'upcoming'
     };
 
-    if (editingSchedule) setSchedules(schedules.map(s => s.id === editingSchedule.id ? newEvent : s));
-    else setSchedules([newEvent, ...schedules]);
+    let updated;
+    if (editingSchedule) updated = schedules.map(s => s.id === editingSchedule.id ? newEvent : s);
+    else updated = [newEvent, ...schedules];
+    
+    setSchedules(updated);
+    syncToSheets('schedules', updated);
     setShowScheduleModal(false);
     setEditingSchedule(null);
   };
@@ -249,9 +303,7 @@ const App: React.FC = () => {
     const url = formData.get('url') as string;
 
     setIsTranslating(true);
-    const results = await performBatchTranslation([
-      { key: 'title', value: thTitle }
-    ]);
+    const results = await performBatchTranslation([{ key: 'title', value: thTitle }]);
     setIsTranslating(false);
 
     const newForm: DocumentForm = {
@@ -261,8 +313,12 @@ const App: React.FC = () => {
       url: url.startsWith('http') ? url : `https://${url}`
     };
 
-    if (editingForm) setForms(forms.map(f => f.id === editingForm.id ? newForm : f));
-    else setForms([newForm, ...forms]);
+    let updated;
+    if (editingForm) updated = forms.map(f => f.id === editingForm.id ? newForm : f);
+    else updated = [newForm, ...forms];
+    
+    setForms(updated);
+    syncToSheets('forms', updated);
     setShowFormModal(false);
     setEditingForm(null);
   };
@@ -274,18 +330,11 @@ const App: React.FC = () => {
     const thLoc = formData.get('loc_th') as string;
     const thDesc = formData.get('desc_th') as string;
     const thPos = formData.get('pos_th') as string;
-    const major = formData.get('major') as Major;
-    const siteStatus = formData.get('status') as 'active' | 'senior_visited' | 'archived';
-    const contactLink = formData.get('contact_link') as string;
-    const email = formData.get('email') as string;
-    const phone = formData.get('phone') as string;
     
     setIsTranslating(true);
     const results = await performBatchTranslation([
-      { key: 'name', value: thName },
-      { key: 'loc', value: thLoc },
-      { key: 'desc', value: thDesc },
-      { key: 'pos', value: thPos }
+      { key: 'name', value: thName }, { key: 'loc', value: thLoc },
+      { key: 'desc', value: thDesc }, { key: 'pos', value: thPos }
     ]);
     setIsTranslating(false);
 
@@ -295,15 +344,20 @@ const App: React.FC = () => {
       location: results['loc'],
       description: results['desc'],
       position: results['pos'],
-      status: siteStatus,
-      major,
-      contactLink: contactLink || undefined,
-      email: email || undefined,
-      phone: phone || undefined,
+      status: formData.get('status') as any,
+      major: formData.get('major') as Major,
+      contactLink: formData.get('contact_link') as string || undefined,
+      email: formData.get('email') as string || undefined,
+      phone: formData.get('phone') as string || undefined,
       createdAt: editingSite?.createdAt || Date.now()
     };
-    if (editingSite) setSites(sites.map(s => s.id === editingSite.id ? newSite : s));
-    else setSites([newSite, ...sites]);
+    
+    let updated;
+    if (editingSite) updated = sites.map(s => s.id === editingSite.id ? newSite : s);
+    else updated = [newSite, ...sites];
+    
+    setSites(updated);
+    syncToSheets('sites', updated);
     setShowSiteModal(false);
     setEditingSite(null);
   };
@@ -319,8 +373,12 @@ const App: React.FC = () => {
       major: formData.get('major') as Major,
       lastUpdated: Date.now()
     };
-    if (editingStatusRecord) setStudentStatuses(studentStatuses.map(s => s.id === editingStatusRecord.id ? newRecord : s));
-    else setStudentStatuses([newRecord, ...studentStatuses]);
+    let updated;
+    if (editingStatusRecord) updated = studentStatuses.map(s => s.id === editingStatusRecord.id ? newRecord : s);
+    else updated = [newRecord, ...studentStatuses];
+    
+    setStudentStatuses(updated);
+    syncToSheets('studentStatuses', updated);
     setShowAdminStatusModal(false);
     setEditingStatusRecord(null);
   };
@@ -376,7 +434,21 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-4">
-            {/* High-Tech Language Switcher Dropdown for Dashboard */}
+            {/* Sync Indicator for Dashboard */}
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-full border border-slate-100 dark:border-slate-700">
+               {isSyncing ? (
+                 <RefreshCw size={12} className="text-[#D4AF37] animate-spin" />
+               ) : SHEET_API_URL ? (
+                 // Fix: Changed CloudCloud to Cloud
+                 <Cloud size={12} className="text-emerald-500" />
+               ) : (
+                 <CloudOff size={12} className="text-slate-400" />
+               )}
+               <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
+                 {isSyncing ? "Saving..." : lastSync ? `Last Sync: ${new Date(lastSync).toLocaleTimeString()}` : "Cloud Ready"}
+               </span>
+            </div>
+
             {role === UserRole.STUDENT && (
               <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" />
             )}
@@ -385,14 +457,12 @@ const App: React.FC = () => {
               <button 
                 onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
                 className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl border border-slate-100 dark:border-slate-700 hover:bg-slate-100 transition-all"
-                aria-label="Toggle Theme"
               >
                 {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
               </button>
               <button 
                 onClick={handleLogout} 
                 className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-rose-50 dark:bg-rose-950/30 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all shadow-md"
-                aria-label="Logout"
               >
                 <LogOut size={16} />
               </button>
@@ -404,6 +474,27 @@ const App: React.FC = () => {
       <main className={`container mx-auto px-4 py-6 space-y-8 flex-grow transition-all`}>
         {role === UserRole.ADMIN ? (
           <div className="grid grid-cols-1 gap-4">
+            {/* Database Control Header */}
+            <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm">
+               <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-600 text-white rounded-lg">
+                    <Database size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-black uppercase text-slate-900 dark:text-white">สถานะการเชื่อมต่อ Google Sheets</h2>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">{SHEET_API_URL ? "เชื่อมต่อคลาวด์แล้ว" : "ไม่ได้ระบุ Web App URL (ใช้ Local Storage)"}</p>
+                  </div>
+               </div>
+               <button 
+                onClick={fetchFromSheets} 
+                disabled={isLoading || !SHEET_API_URL}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-indigo-50 text-indigo-700 rounded-xl font-black uppercase text-[10px] transition-all disabled:opacity-30"
+               >
+                 {isLoading ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                 ดึงข้อมูลใหม่
+               </button>
+            </div>
+
             <section className={`rounded-2xl border transition-all overflow-hidden ${isStudentStatusExpanded ? 'bg-amber-50/50 dark:bg-amber-950/10 border-amber-200 dark:border-amber-900/40 p-4' : 'bg-white dark:bg-slate-900 border-slate-100 p-2'}`}>
                <div className="flex items-center justify-between gap-4 cursor-pointer" onClick={() => setIsStudentStatusExpanded(!isStudentStatusExpanded)}>
                   <div className="flex items-center gap-2.5">
@@ -425,7 +516,11 @@ const App: React.FC = () => {
                           </div>
                           <div className="flex gap-1">
                             <button onClick={() => { setEditingStatusRecord(record); setShowAdminStatusModal(true); }} className="p-1.5 text-slate-400 hover:text-amber-500"><Pencil size={12} /></button>
-                            <button onClick={() => setStudentStatuses(studentStatuses.filter(s => s.id !== record.id))} className="p-1.5 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
+                            <button onClick={() => {
+                              const updated = studentStatuses.filter(s => s.id !== record.id);
+                              setStudentStatuses(updated);
+                              syncToSheets('studentStatuses', updated);
+                            }} className="p-1.5 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
                           </div>
                         </div>
                       ))}
@@ -459,7 +554,11 @@ const App: React.FC = () => {
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100">
                           <button onClick={() => { setEditingSite(site); setShowSiteModal(true); }} className="p-1 text-slate-400 hover:text-rose-500"><Pencil size={12} /></button>
-                          <button onClick={() => setSites(sites.filter(s => s.id !== site.id))} className="p-1 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
+                          <button onClick={() => {
+                            const updated = sites.filter(s => s.id !== site.id);
+                            setSites(updated);
+                            syncToSheets('sites', updated);
+                          }} className="p-1 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
                         </div>
                       </div>
                     ))}
@@ -468,6 +567,7 @@ const App: React.FC = () => {
               )}
             </section>
 
+            {/* Other Admin Sections (Schedule, Forms) */}
             <section className={`rounded-2xl border transition-all overflow-hidden ${isScheduleExpanded ? 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900/40 p-4' : 'bg-white dark:bg-slate-900 border-slate-100 p-2'}`}>
               <div className="flex items-center justify-between gap-4 cursor-pointer" onClick={() => setIsScheduleExpanded(!isScheduleExpanded)}>
                 <div className="flex items-center gap-2.5">
@@ -484,7 +584,11 @@ const App: React.FC = () => {
                       <div key={item.id} className="p-3 rounded-xl border border-emerald-100 bg-white flex flex-col gap-1.5 relative group">
                         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100">
                           <button onClick={() => { setEditingSchedule(item); setShowScheduleModal(true); }} className="p-1 text-slate-400 hover:text-emerald-600"><Pencil size={12} /></button>
-                          <button onClick={() => setSchedules(schedules.filter(s => s.id !== item.id))} className="p-1 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
+                          <button onClick={() => {
+                            const updated = schedules.filter(s => s.id !== item.id);
+                            setSchedules(updated);
+                            syncToSheets('schedules', updated);
+                          }} className="p-1 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
                         </div>
                         <h4 className="font-bold text-slate-900 text-[11px] pr-8">{getLocalized(item.event)}</h4>
                         <div className="flex flex-col text-[9px] font-bold text-slate-500">
@@ -521,7 +625,11 @@ const App: React.FC = () => {
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100">
                           <button onClick={() => { setEditingForm(form); setShowFormModal(true); }} className="p-1 text-slate-400 hover:text-indigo-600"><Pencil size={12} /></button>
-                          <button onClick={() => setForms(forms.filter(f => f.id !== form.id))} className="p-1 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
+                          <button onClick={() => {
+                            const updated = forms.filter(f => f.id !== form.id);
+                            setForms(updated);
+                            syncToSheets('forms', updated);
+                          }} className="p-1 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
                         </div>
                       </div>
                     ))}
@@ -531,9 +639,17 @@ const App: React.FC = () => {
             </section>
           </div>
         ) : (
-          /* STUDENT VIEW */
-          <div className="space-y-10 sm:space-y-14">
-            {/* 1. กำหนดการสำคัญ (Schedule) */}
+          /* STUDENT VIEW (Same as before but with loading overlay) */
+          <div className="space-y-10 sm:space-y-14 relative">
+            {isLoading && (
+              <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-50/50 dark:bg-slate-950/50 backdrop-blur-sm rounded-3xl">
+                <div className="flex flex-col items-center gap-4 bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
+                  <RefreshCw size={32} className="text-[#630330] dark:text-[#D4AF37] animate-spin" />
+                  <span className="text-sm font-black uppercase text-slate-500">Updating Dashboard...</span>
+                </div>
+              </div>
+            )}
+            
             <section className="reveal-anim">
               <div className="flex items-center gap-3 mb-5 sm:mb-6">
                 <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-500/20">
@@ -569,7 +685,6 @@ const App: React.FC = () => {
               </div>
             </section>
 
-            {/* 2. Document Hub Card */}
             <section className="reveal-anim" style={{ animationDelay: '100ms' }}>
               <div 
                 onClick={() => setShowDocHub(true)}
@@ -601,7 +716,6 @@ const App: React.FC = () => {
               </div>
             </section>
 
-            {/* 3. Internship Sites Section */}
             <section className="reveal-anim" style={{ animationDelay: '200ms' }}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-5 sm:mb-6">
                 <div className="flex items-center gap-3">
@@ -652,7 +766,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* DOCUMENT HUB MODAL */}
+      {/* DOCUMENT HUB MODAL (Same as before) */}
       {showDocHub && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8 bg-slate-950/80 backdrop-blur-2xl reveal-anim">
           <div className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-[3rem] overflow-hidden shadow-3xl border border-white/10 flex flex-col max-h-[90svh]">
@@ -680,30 +794,19 @@ const App: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-1 gap-3">
                     {forms.filter(f => f.category === FormCategory.APPLICATION).map(form => (
-                      <a 
-                        key={form.id} 
-                        href={form.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="group flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 rounded-2xl transition-all"
-                      >
+                      <a key={form.id} href={form.url} target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 rounded-2xl transition-all">
                         <div className="flex items-center gap-4">
-                           <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm text-indigo-600">
-                             <FileText size={20} />
-                           </div>
+                           <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm text-indigo-600"><FileText size={20} /></div>
                            <h5 className="font-bold text-slate-800 dark:text-white text-sm sm:text-base">{getLocalized(form.title)}</h5>
                         </div>
                         <div className="flex items-center gap-4">
                            <span className="hidden sm:inline-block text-[10px] font-black text-slate-300 uppercase">PDF / DOCX</span>
-                           <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                              <Download size={18} />
-                           </div>
+                           <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><Download size={18} /></div>
                         </div>
                       </a>
                     ))}
                   </div>
                </div>
-
                <div className="space-y-4">
                   <div className="flex items-center gap-2 px-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
@@ -711,31 +814,20 @@ const App: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-1 gap-3">
                     {forms.filter(f => f.category === FormCategory.MONITORING).map(form => (
-                      <a 
-                        key={form.id} 
-                        href={form.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="group flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 rounded-2xl transition-all"
-                      >
+                      <a key={form.id} href={form.url} target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 rounded-2xl transition-all">
                         <div className="flex items-center gap-4">
-                           <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm text-indigo-600">
-                             <FileText size={20} />
-                           </div>
+                           <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm text-indigo-600"><FileText size={20} /></div>
                            <h5 className="font-bold text-slate-800 dark:text-white text-sm sm:text-base">{getLocalized(form.title)}</h5>
                         </div>
                         <div className="flex items-center gap-4">
                            <span className="hidden sm:inline-block text-[10px] font-black text-slate-300 uppercase">PDF / DOCX</span>
-                           <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                              <Download size={18} />
-                           </div>
+                           <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><Download size={18} /></div>
                         </div>
                       </a>
                     ))}
                   </div>
                </div>
             </div>
-
             <div className="p-8 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 text-center">
                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">{currentT.docHubContact}</p>
             </div>
@@ -743,7 +835,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Admin Modals */}
+      {/* Admin Modals (Modified to show syncing) */}
       {showAdminStatusModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim">
           <div className="w-full max-w-[440px] bg-white dark:bg-slate-900 rounded-[1.5rem] p-6 shadow-2xl">
@@ -768,7 +860,9 @@ const App: React.FC = () => {
               </div>
               <div className="flex gap-2.5 pt-4">
                 <button type="button" onClick={() => setShowAdminStatusModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-400 font-bold uppercase text-[10px]">ยกเลิก</button>
-                <button type="submit" className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white font-bold uppercase text-[10px]">บันทึก</button>
+                <button type="submit" disabled={isSyncing} className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white font-bold uppercase text-[10px] disabled:opacity-50">
+                  {isSyncing ? 'กำลังบันทึกลงคลาวด์...' : 'บันทึก'}
+                </button>
               </div>
             </form>
           </div>
@@ -796,8 +890,8 @@ const App: React.FC = () => {
               </div>
               <div className="flex gap-2.5 pt-4">
                 <button type="button" onClick={() => setShowScheduleModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-400 font-bold uppercase text-[10px]">ยกเลิก</button>
-                <button type="submit" disabled={isTranslating} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-bold uppercase text-[10px] disabled:opacity-50">
-                  {isTranslating ? 'กำลังแปลข้อมูล...' : 'บันทึก'}
+                <button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-bold uppercase text-[10px] disabled:opacity-50">
+                  {isTranslating ? 'กำลังแปลข้อมูล...' : isSyncing ? 'Saving...' : 'บันทึก'}
                 </button>
               </div>
             </form>
@@ -821,8 +915,8 @@ const App: React.FC = () => {
               <input name="url" defaultValue={editingForm?.url} required placeholder="ลิงก์ดาวน์โหลด" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
               <div className="flex gap-2.5 pt-4">
                 <button type="button" onClick={() => setShowFormModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-400 font-bold uppercase text-[10px]">ยกเลิก</button>
-                <button type="submit" disabled={isTranslating} className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-black uppercase text-[10px] disabled:opacity-50">
-                  {isTranslating ? 'กำลังแปล...' : 'บันทึก'}
+                <button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-black uppercase text-[10px] disabled:opacity-50">
+                  {isTranslating ? 'กำลังแปล...' : isSyncing ? 'Saving...' : 'บันทึก'}
                 </button>
               </div>
             </form>
@@ -877,8 +971,8 @@ const App: React.FC = () => {
               </div>
               <div className="flex gap-2.5 pt-4">
                 <button type="button" onClick={() => setShowSiteModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-400 font-bold uppercase text-[10px]">ยกเลิก</button>
-                <button type="submit" disabled={isTranslating} className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold uppercase text-[10px] disabled:opacity-50">
-                  {isTranslating ? 'กำลังแปล...' : 'บันทึก'}
+                <button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold uppercase text-[10px] disabled:opacity-50">
+                  {isTranslating ? 'กำลังแปล...' : isSyncing ? 'Saving...' : 'บันทึก'}
                 </button>
               </div>
             </form>
