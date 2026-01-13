@@ -62,7 +62,7 @@ export interface InternshipSite {
 
 export interface DocumentForm {
   id: string;
-  title: string;
+  title: LocalizedString;
   category: FormCategory;
   url: string;
 }
@@ -129,4 +129,9 @@ export interface Translation {
   studentLabel: string;
   currentStatusLabel: string;
   adminStudentSearchPlaceholder: string;
+  startDateLabel: string;
+  endDateLabel: string;
+  docHubTitle: string;
+  docHubButton: string;
+  docHubContact: string;
 }

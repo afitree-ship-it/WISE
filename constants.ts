@@ -55,7 +55,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     searchButton: "ค้นหาข้อมูล",
     studentLabel: "นักศึกษา",
     currentStatusLabel: "สถานะปัจจุบัน",
-    adminStudentSearchPlaceholder: "ค้นหาชื่อหรือรหัสนักศึกษา..."
+    adminStudentSearchPlaceholder: "ค้นหาชื่อหรือรหัสนักศึกษา...",
+    startDateLabel: "เริ่ม:",
+    endDateLabel: "สิ้นสุด:",
+    docHubTitle: "ดาวน์โหลดแบบฟอร์มและเอกสารสำคัญ",
+    docHubButton: "เปิดศูนย์บริการเอกสาร",
+    docHubContact: "หากพบปัญหาในการดาวน์โหลด กรุณาติดต่อเจ้าหน้าที่ วบง."
   },
   [Language.EN]: {
     title: "Work-Integrated Science Education Unit (WISE)",
@@ -110,7 +115,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     searchButton: "Search Information",
     studentLabel: "Student",
     currentStatusLabel: "Current Status",
-    adminStudentSearchPlaceholder: "Search name or student ID..."
+    adminStudentSearchPlaceholder: "Search name or student ID...",
+    startDateLabel: "Start:",
+    endDateLabel: "End:",
+    docHubTitle: "Download Forms & Important Documents",
+    docHubButton: "Open Document Hub",
+    docHubContact: "If you have trouble downloading, please contact WISE staff."
   },
   [Language.AR]: {
     title: "وحدة تعليم العلوم المتكاملة مع العمل (WISE)",
@@ -165,7 +175,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     searchButton: "بحث",
     studentLabel: "طالب",
     currentStatusLabel: "الحالة الحالية",
-    adminStudentSearchPlaceholder: "البحث عن الاسم หรือ الرقم الجامعي..."
+    adminStudentSearchPlaceholder: "البحث عن الاسم หรือ الرقم الجامعي...",
+    startDateLabel: "يبدأ:",
+    endDateLabel: "ينتهي:",
+    docHubTitle: "تحميل النماذج والوثائق الهامة",
+    docHubButton: "افتح مركز الوثائق",
+    docHubContact: "إذا واجهت مشاكل في التحميل ، يرجى الاتصال بموظفي WISE."
   },
   [Language.MS]: {
     title: "Unit Pendidikan Sains Bersepadu Kerja (WISE)",
@@ -220,7 +235,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     searchButton: "Cari Maklumat",
     studentLabel: "Pelajar",
     currentStatusLabel: "Status Semasa",
-    adminStudentSearchPlaceholder: "Cari nama หรือ ID Pelajar..."
+    adminStudentSearchPlaceholder: "Cari nama หรือ ID Pelajar...",
+    startDateLabel: "Mula:",
+    endDateLabel: "Tamat:",
+    docHubTitle: "Muat Turun Borang & Dokumen Penting",
+    docHubButton: "Buka Pusat Dokumen",
+    docHubContact: "Jika anda menghadapi masalah memuat turun, sila hubungi kakitangan WISE."
   }
 };
 
@@ -229,8 +249,8 @@ export const INITIAL_SITES: InternshipSite[] = [
     id: "1",
     name: { th: "บริษัท ฮาลาลแลนด์ จำกัด", en: "Halal Land Co., Ltd.", ar: "شركة أرض الحلال المحدودة", ms: "Halal Land Sdn Bhd" },
     location: { th: "กรุงเทพมหานคร", en: "Bangkok", ar: "بانكوك", ms: "Bangkok" },
-    description: { th: "วิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาลมาตรฐานสากล", en: "Research and development of international standard halal food products.", ar: "البحث والتطوير لمنتجات الأغذية الحلال ذات المعايير الدولية.", ms: "Penyelidikan dan pembangunan produk makanan halal bertaraf antarabangsa." },
-    position: { th: "เจ้าหน้าที่ควบคุมคุณภาพ (QC)", en: "Quality Control Officer (QC)", ar: "مسؤول مراقبة الجودة", ms: "Pegawai Kawalan Kualiti" },
+    description: { th: "วิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาลมาตรฐานสากล", en: "Research and development of international standard halal food products.", ar: "البحث والتطوير لمنتجات الأغذية الحلال ذات المعايير الدولية.", ms: "Penyelidikanและ pembangunan produk makanan halal bertaraf antarabangsa." },
+    position: { th: "เจ้าหน้าที่ควบคุมคุณภาพ (QC)", en: "Quality Control Officer (QC)", ar: "مسؤول مراกبة الجودة", ms: "Pegawai Kawalan Kualiti" },
     status: 'active',
     major: Major.HALAL_FOOD,
     email: "hr@halalland.com",
@@ -250,10 +270,50 @@ export const INITIAL_SITES: InternshipSite[] = [
 ];
 
 export const INITIAL_FORMS: DocumentForm[] = [
-  { id: "f1", title: "แบบฟอร์มขอฝึกงาน (วบง. 01)", category: FormCategory.APPLICATION, url: "#" },
-  { id: "f2", title: "ใบสมัครสหกิจศึกษา (วบง. 02)", category: FormCategory.APPLICATION, url: "#" },
-  { id: "f3", title: "แบบบันทึกการปฏิบัติงานรายสัปดาห์", category: FormCategory.MONITORING, url: "#" },
-  { id: "f4", title: "แบบประเมินผลการฝึกงาน (สำหรับพี่เลี้ยง)", category: FormCategory.MONITORING, url: "#" }
+  { 
+    id: "f1", 
+    title: { 
+      th: "แบบฟอร์มขอฝึกงาน (วบง. 01)", 
+      en: "Internship Request Form (WISE 01)", 
+      ar: "نموذج طلب التدريب (วบง. 01)", 
+      ms: "Borang Permohonan Latihan (WISE 01)" 
+    }, 
+    category: FormCategory.APPLICATION, 
+    url: "#" 
+  },
+  { 
+    id: "f2", 
+    title: { 
+      th: "ใบสมัครสหกิจศึกษา (วบง. 02)", 
+      en: "Co-operative Education Application (WISE 02)", 
+      ar: "طلب التعليم التعاوني (วบง. 02)", 
+      ms: "Permohonan Pendidikan Ko-operatif (WISE 02)" 
+    }, 
+    category: FormCategory.APPLICATION, 
+    url: "#" 
+  },
+  { 
+    id: "f3", 
+    title: { 
+      th: "แบบบันทึกการปฏิบัติงานรายสัปดาห์", 
+      en: "Weekly Performance Record", 
+      ar: "سجل الأداء الأسبوعي", 
+      ms: "Rekod Prestasi Mingguan" 
+    }, 
+    category: FormCategory.MONITORING, 
+    url: "#" 
+  },
+  { 
+    id: "f4", 
+    title: { 
+      th: "แบบประเมินผลการฝึกงาน (สำหรับพี่เลี้ยง)", 
+      en: "Internship Evaluation Form (For Supervisors)", 
+      ar: "نموذج تقييم التدريب (للمشرفين)", 
+      ms: "Borang Penilaian Latihan (Untuk Penyelia)" 
+    }, 
+    category: FormCategory.MONITORING, 
+    url: "#" 
+  }
 ];
 
 export const INITIAL_SCHEDULE: ScheduleEvent[] = [

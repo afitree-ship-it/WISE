@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Language, 
   UserRole, 
@@ -13,136 +13,40 @@ import {
   StudentStatusRecord
 } from './types';
 import { TRANSLATIONS, INITIAL_SITES, INITIAL_FORMS, INITIAL_SCHEDULE, INITIAL_STUDENT_STATUSES } from './constants';
-import LanguageSwitcher from './components/LanguageSwitcher';
 import InternshipCard from './components/InternshipCard';
+import LandingPage from './LandingPage';
+import LanguageSwitcher from './components/LanguageSwitcher';
 import { GoogleGenAI, Type } from "@google/genai";
 import { 
   LogOut, 
   Plus, 
-  FileDown, 
   Pencil, 
-  Fingerprint, 
-  LockKeyhole, 
-  X, 
   Search, 
   Database, 
-  ChevronRight, 
-  ClipboardCheck, 
-  Navigation, 
   Cpu, 
   Globe, 
-  Briefcase, 
   GraduationCap, 
-  Microscope, 
   Salad, 
-  Code, 
-  ShieldCheck, 
-  Building2, 
-  Atom, 
-  AlertCircle, 
   ChevronDown,
-  Save,
   Trash,
-  Loader2,
-  Sparkles,
-  Calendar,
-  ArrowRight,
   Copy,
   LayoutGrid,
   Sun,
   Moon,
-  LucideIcon,
-  Check,
   UserCircle,
-  Activity,
-  History,
   Timer,
-  Link as LinkIcon,
   LayoutDashboard,
-  Filter
+  Building2,
+  X,
+  FileText,
+  CalendarDays,
+  ExternalLink,
+  Download,
+  Link2,
+  Info,
+  Files,
+  ArrowRight
 } from 'lucide-react';
-
-const MouseGlow: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      const isDesktop = window.innerWidth >= 1024;
-      const zoomFactor = isDesktop ? 0.74 : 1;
-
-      requestAnimationFrame(() => {
-        const x = e.clientX / zoomFactor;
-        const y = e.clientY / zoomFactor;
-        
-        document.documentElement.style.setProperty('--mouse-x', `${x}px`);
-        document.documentElement.style.setProperty('--mouse-y', `${y}px`);
-      });
-    };
-    
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
-  return <div className="mouse-glow" />;
-};
-
-const TechMeteorShower: React.FC = () => {
-  const meteors = useMemo(() => {
-    return Array.from({ length: 18 }).map((_, i) => ({
-      id: i,
-      left: `${Math.random() * 100}%`,
-      delay: `${Math.random() * 8}s`,
-      duration: `${2.5 + Math.random() * 3}s`,
-    }));
-  }, []);
-
-  return (
-    <div className="meteor-container">
-      {meteors.map((m) => (
-        <div 
-          key={m.id} 
-          className="tech-meteor"
-          style={{
-            left: m.left,
-            animation: `tech-shoot-up ${m.duration} ease-out ${m.delay} infinite`,
-          }}
-        />
-      ))}
-    </div>
-  );
-};
-
-const ModernWaves: React.FC = () => {
-  return (
-    <div className="waves-container">
-      <div className="wave-layer animate-wave-slow bob-slow opacity-20">
-        <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path className="wave-line" stroke="#D4AF37" d="M0,160 C320,300 420,10 720,160 C1020,310 1120,20 1440,160 C1760,300 1860,10 2160,160 C2460,310 2560,20 2880,160"></path>
-        </svg>
-      </div>
-      <div className="wave-layer animate-wave-mid bob-mid opacity-10">
-        <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path className="wave-line" stroke="#FFFFFF" d="M0,192 C240,120 480,240 720,192 C960,144 1200,240 1440,192 C1680,120 1920,240 2160,192 C2400,144 2640,240 2880,192"></path>
-        </svg>
-      </div>
-      <div className="wave-layer animate-wave-slow bob-slow opacity-30">
-        <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path fill="#7A0B3D" fillOpacity="1" d="M0,160 L120,170.7 C240,181,480,203,720,202.7 C960,203,1200,181,1320,170.7 L1440,160 L1560,170.7 C1680,181,1920,203,2160,202.7 C2400,203,2640,181,2760,170.7 L2880,160 V320 H0 Z"></path>
-        </svg>
-      </div>
-      <div className="wave-layer animate-wave-mid bob-mid opacity-20" style={{ marginBottom: '2px' }}>
-        <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path fill="#D4AF37" fillOpacity="1" d="M0,224 L120,213.3 C240,203,480,181,720,181.3 C960,181,1200,203,1320,213.3 L1440,224 L1560,213.3 C1680,203,1920,181,2160,181.3 C2400,203,2640,181,2760,213.3 L2880,224 V320 H0 Z"></path>
-        </svg>
-      </div>
-      <div className="wave-layer animate-wave-fast bob-fast opacity-50">
-        <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path fill="#630330" fillOpacity="1" d="M0,288 L120,277.3 C240,267,480,245,720,245.3 C960,245,1200,267,1320,277.3 L1440,288 L1560,277.3 C1680,267,1920,245,2160,245.3 C2400,245,2640,267,2760,277.3 L2880,288 V320 H0 Z"></path>
-        </svg>
-      </div>
-    </div>
-  );
-};
 
 const App: React.FC = () => {
   const [lang, setLang] = useState<Language>(() => {
@@ -169,64 +73,48 @@ const App: React.FC = () => {
 
   const [viewState, setViewState] = useState<'landing' | 'dashboard'>('landing');
   const [role, setRole] = useState<UserRole>(UserRole.STUDENT);
-  const [sites, setSites] = useState<InternshipSite[]>(INITIAL_SITES);
-  const [forms, setForms] = useState<DocumentForm[]>(INITIAL_FORMS);
-  const [schedule, setSchedule] = useState<ScheduleEvent[]>(INITIAL_SCHEDULE);
+  
+  // Data States
+  const [sites, setSites] = useState<InternshipSite[]>(() => {
+    const saved = localStorage.getItem('wise_sites');
+    return saved ? JSON.parse(saved) : INITIAL_SITES;
+  });
   const [studentStatuses, setStudentStatuses] = useState<StudentStatusRecord[]>(() => {
     const saved = localStorage.getItem('wise_student_statuses');
     return saved ? JSON.parse(saved) : INITIAL_STUDENT_STATUSES;
   });
-  const [activeMajor, setActiveMajor] = useState<Major | 'all'>('all');
-  const [adminStudentActiveMajor, setAdminStudentActiveMajor] = useState<Major | 'all'>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [adminStudentSearchTerm, setAdminStudentSearchTerm] = useState('');
-  const [isTranslating, setIsTranslating] = useState(false);
-
-  const [isStudentStatusExpanded, setIsStudentStatusExpanded] = useState(true);
-  const [isSitesExpanded, setIsSitesExpanded] = useState(true);
-  const [isScheduleExpanded, setIsScheduleExpanded] = useState(true);
-  const [isFormsExpanded, setIsFormsExpanded] = useState(true);
-
-  const [showStatusCheckModal, setShowStatusCheckModal] = useState(false);
-  const [searchStudentId, setSearchStudentId] = useState('');
-  const [foundStatus, setFoundStatus] = useState<StudentStatusRecord | null | undefined>(undefined);
-
-  const [frequentPositions, setFrequentPositions] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('wise_frequent_positions');
-      return saved ? JSON.parse(saved) : ['เจ้าหน้าที่ควบคุมคุณภาพ', 'นักพัฒนาซอฟต์แวร์', 'นักวิจัยอาหาร', 'เจ้าหน้าที่ไอที'];
-    } catch (e) {
-      return [];
-    }
+  const [schedules, setSchedules] = useState<ScheduleEvent[]>(() => {
+    const saved = localStorage.getItem('wise_schedules');
+    return saved ? JSON.parse(saved) : INITIAL_SCHEDULE;
+  });
+  const [forms, setForms] = useState<DocumentForm[]>(() => {
+    const saved = localStorage.getItem('wise_forms');
+    return saved ? JSON.parse(saved) : INITIAL_FORMS;
   });
 
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
+  // UI States
+  const [activeMajor, setActiveMajor] = useState<Major | 'all'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
 
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
-  const [adminPassInput, setAdminPassInput] = useState('');
-  const [loginError, setLoginError] = useState(false);
-  const [isNavLangOpen, setIsNavLangOpen] = useState(false);
+  // Accordion States (Admin only)
+  const [isStudentStatusExpanded, setIsStudentStatusExpanded] = useState(false);
+  const [isSitesExpanded, setIsSitesExpanded] = useState(false);
+  const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
+  const [isFormsExpanded, setIsFormsExpanded] = useState(false);
 
+  // Modal States
   const [showSiteModal, setShowSiteModal] = useState(false);
   const [editingSite, setEditingSite] = useState<InternshipSite | null>(null);
-  const [modalMajor, setModalMajor] = useState<Major>(Major.HALAL_FOOD);
-  
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [editingSchedule, setEditingSchedule] = useState<ScheduleEvent | null>(null);
-
-  const [showFormModal, setShowFormModal] = useState(false);
-  const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
-
   const [showAdminStatusModal, setShowAdminStatusModal] = useState(false);
   const [editingStatusRecord, setEditingStatusRecord] = useState<StudentStatusRecord | null>(null);
-
-  useEffect(() => {
-    if (editingSite) {
-      setModalMajor(editingSite.major);
-    } else {
-      setModalMajor(Major.HALAL_FOOD);
-    }
-  }, [editingSite, showSiteModal]);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<ScheduleEvent | null>(null);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
+  
+  // Student Document Hub State
+  const [showDocHub, setShowDocHub] = useState(false);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -238,55 +126,11 @@ const App: React.FC = () => {
     localStorage.setItem('wise_portal_theme', theme);
   }, [theme]);
 
-  useEffect(() => {
-    localStorage.setItem('wise_frequent_positions', JSON.stringify(frequentPositions));
-  }, [frequentPositions]);
-
-  useEffect(() => {
-    localStorage.setItem('wise_student_statuses', JSON.stringify(studentStatuses));
-  }, [studentStatuses]);
-
-  useEffect(() => {
-    const handleKeydown = (e: KeyboardEvent) => {
-      const isDevKey = 
-        e.key === 'F12' || 
-        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
-        (e.ctrlKey && e.key === 'u');
-      
-      if (isDevKey) {
-        e.preventDefault();
-        return false;
-      }
-    };
-
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      setContextMenu({ x: e.clientX, y: e.clientY });
-      return false;
-    };
-
-    const handleClick = () => {
-      setContextMenu(null);
-    };
-
-    window.addEventListener('keydown', handleKeydown);
-    window.addEventListener('contextmenu', handleContextMenu);
-    window.addEventListener('click', handleClick);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeydown);
-      window.removeEventListener('contextmenu', handleContextMenu);
-      window.removeEventListener('click', handleClick);
-    };
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wise_portal_lang', lang);
-    } catch (e) {
-      console.warn("Could not save language preference:", e);
-    }
-  }, [lang]);
+  // Persistence Effects
+  useEffect(() => { localStorage.setItem('wise_student_statuses', JSON.stringify(studentStatuses)); }, [studentStatuses]);
+  useEffect(() => { localStorage.setItem('wise_sites', JSON.stringify(sites)); }, [sites]);
+  useEffect(() => { localStorage.setItem('wise_schedules', JSON.stringify(schedules)); }, [schedules]);
+  useEffect(() => { localStorage.setItem('wise_forms', JSON.stringify(forms)); }, [forms]);
 
   const currentT = useMemo(() => {
     const t = role === UserRole.ADMIN ? TRANSLATIONS[Language.TH] : TRANSLATIONS[lang];
@@ -295,28 +139,25 @@ const App: React.FC = () => {
 
   const isRtl = lang === Language.AR && role !== UserRole.ADMIN;
 
-  const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAdminLogin = (password: string): boolean => {
     const validPasswords = ['fst111', '24725', '5990'];
-    if (validPasswords.includes(adminPassInput)) {
+    if (validPasswords.includes(password)) {
       setRole(UserRole.ADMIN);
       setLang(Language.TH); 
       setTheme('light'); 
-      setShowAdminLogin(false);
-      setAdminPassInput('');
-      setLoginError(false);
       setViewState('dashboard');
-    } else {
-      setLoginError(true);
-      setAdminPassInput('');
+      setIsStudentStatusExpanded(false);
+      setIsSitesExpanded(false);
+      setIsScheduleExpanded(false);
+      setIsFormsExpanded(false);
+      return true;
     }
+    return false;
   };
 
   const handleLogout = () => {
     setRole(UserRole.STUDENT);
     setViewState('landing');
-    setShowAdminLogin(false);
-    setIsNavLangOpen(false);
   };
 
   const getLocalized = (localized: LocalizedString) => {
@@ -366,21 +207,65 @@ const App: React.FC = () => {
 
   const filteredSites = sites.filter(s => {
     const localizedName = getLocalized(s.name).toLowerCase();
-    const localizedLoc = getLocalized(s.location).toLowerCase();
-    const localizedPos = getLocalized(s.position).toLowerCase();
-    const majorLabel = s.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor;
-    const searchableString = `${localizedName} ${localizedLoc} ${majorLabel} ${localizedPos}`.toLowerCase();
     const matchesMajor = activeMajor === 'all' || s.major === activeMajor;
-    const matchesSearch = searchableString.includes(searchTerm.toLowerCase());
+    const matchesSearch = localizedName.includes(searchTerm.toLowerCase());
     return matchesMajor && matchesSearch;
   });
 
-  const filteredAdminStudentStatuses = studentStatuses.filter(s => {
-    const term = adminStudentSearchTerm.toLowerCase();
-    const matchesSearch = s.name.toLowerCase().includes(term) || s.studentId.toLowerCase().includes(term);
-    const matchesMajor = adminStudentActiveMajor === 'all' || s.major === adminStudentActiveMajor;
-    return matchesSearch && matchesMajor;
-  });
+  const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const thEvent = formData.get('event_th') as string;
+    const thStart = formData.get('start_th') as string;
+    const thEnd = formData.get('end_th') as string;
+
+    setIsTranslating(true);
+    const results = await performBatchTranslation([
+      { key: 'event', value: thEvent },
+      { key: 'start', value: thStart, isDate: true },
+      { key: 'end', value: thEnd, isDate: true }
+    ]);
+    setIsTranslating(false);
+
+    const newEvent: ScheduleEvent = {
+      id: editingSchedule?.id || Date.now().toString(),
+      event: results['event'] || { th: thEvent, en: thEvent, ar: thEvent, ms: thEvent },
+      startDate: results['start'] || { th: thStart, en: thStart, ar: thStart, ms: thStart },
+      endDate: results['end'] || { th: thEnd, en: thEnd, ar: thEnd, ms: thEnd },
+      status: 'upcoming'
+    };
+
+    if (editingSchedule) setSchedules(schedules.map(s => s.id === editingSchedule.id ? newEvent : s));
+    else setSchedules([newEvent, ...schedules]);
+    setShowScheduleModal(false);
+    setEditingSchedule(null);
+  };
+
+  const handleSaveForm = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const thTitle = formData.get('title') as string;
+    const category = formData.get('category') as FormCategory;
+    const url = formData.get('url') as string;
+
+    setIsTranslating(true);
+    const results = await performBatchTranslation([
+      { key: 'title', value: thTitle }
+    ]);
+    setIsTranslating(false);
+
+    const newForm: DocumentForm = {
+      id: editingForm?.id || Date.now().toString(),
+      title: results['title'] || { th: thTitle, en: thTitle, ar: thTitle, ms: thTitle },
+      category,
+      url: url.startsWith('http') ? url : `https://${url}`
+    };
+
+    if (editingForm) setForms(forms.map(f => f.id === editingForm.id ? newForm : f));
+    else setForms([newForm, ...forms]);
+    setShowFormModal(false);
+    setEditingForm(null);
+  };
 
   const handleSaveSite = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -389,31 +274,27 @@ const App: React.FC = () => {
     const thLoc = formData.get('loc_th') as string;
     const thDesc = formData.get('desc_th') as string;
     const thPos = formData.get('pos_th') as string;
-    let rawUrl = (formData.get('url') as string).trim();
-    if (rawUrl && !/^https?:\/\//i.test(rawUrl)) rawUrl = `https://${rawUrl}`;
-    if (thPos && !frequentPositions.includes(thPos)) setFrequentPositions(prev => [thPos, ...prev].slice(0, 20));
-    const itemsToTranslate = [];
-    if (!editingSite || editingSite.name.th !== thName) itemsToTranslate.push({ key: 'name', value: thName });
-    if (!editingSite || editingSite.location.th !== thLoc) itemsToTranslate.push({ key: 'loc', value: thLoc });
-    if (!editingSite || editingSite.description.th !== thDesc) itemsToTranslate.push({ key: 'desc', value: thDesc });
-    if (!editingSite || editingSite.position.th !== thPos) itemsToTranslate.push({ key: 'pos', value: thPos });
-    let results: Record<string, any> = {};
-    if (itemsToTranslate.length > 0) {
-      setIsTranslating(true);
-      results = await performBatchTranslation(itemsToTranslate);
-      setIsTranslating(false);
-    }
+    const major = formData.get('major') as Major;
+    const contactLink = formData.get('contact_link') as string;
+    
+    setIsTranslating(true);
+    const results = await performBatchTranslation([
+      { key: 'name', value: thName },
+      { key: 'loc', value: thLoc },
+      { key: 'desc', value: thDesc },
+      { key: 'pos', value: thPos }
+    ]);
+    setIsTranslating(false);
+
     const newSite: InternshipSite = {
       id: editingSite?.id || Date.now().toString(),
-      name: results['name'] || editingSite?.name || { th: thName, en: thName, ar: thName, ms: thName },
-      location: results['loc'] || editingSite?.location || { th: thLoc, en: thLoc, ar: thLoc, ms: thLoc },
-      description: results['desc'] || editingSite?.description || { th: thDesc, en: thDesc, ar: thDesc, ms: thDesc },
-      position: results['pos'] || editingSite?.position || { th: thPos, en: thPos, ar: thPos, ms: thPos },
-      status: formData.get('status') as 'active' | 'archived',
-      major: modalMajor,
-      contactLink: rawUrl,
-      email: formData.get('email') as string,
-      phone: formData.get('phone') as string,
+      name: results['name'],
+      location: results['loc'],
+      description: results['desc'],
+      position: results['pos'],
+      status: 'active',
+      major,
+      contactLink: contactLink || undefined,
       createdAt: editingSite?.createdAt || Date.now()
     };
     if (editingSite) setSites(sites.map(s => s.id === editingSite.id ? newSite : s));
@@ -425,87 +306,18 @@ const App: React.FC = () => {
   const handleSaveStatus = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const sId = formData.get('student_id') as string;
-    const name = formData.get('student_name') as string;
-    const status = formData.get('status') as ApplicationStatus;
-    const major = formData.get('major') as Major;
     const newRecord: StudentStatusRecord = {
       id: editingStatusRecord?.id || Date.now().toString(),
-      studentId: sId,
-      name: name,
-      status: status,
-      major: major,
+      studentId: formData.get('student_id') as string,
+      name: formData.get('student_name') as string,
+      status: formData.get('status') as ApplicationStatus,
+      major: formData.get('major') as Major,
       lastUpdated: Date.now()
     };
     if (editingStatusRecord) setStudentStatuses(studentStatuses.map(s => s.id === editingStatusRecord.id ? newRecord : s));
     else setStudentStatuses([newRecord, ...studentStatuses]);
     setShowAdminStatusModal(false);
     setEditingStatusRecord(null);
-  };
-
-  const handleCheckStatus = (e: React.FormEvent) => {
-    e.preventDefault();
-    const found = studentStatuses.find(s => s.studentId === searchStudentId);
-    setFoundStatus(found || null);
-  };
-
-  const handleDeleteSite = (id: string) => {
-    if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลหน่วยงานนี้?')) setSites(sites.filter(s => s.id !== id));
-  };
-
-  const handleSaveSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const thEvent = formData.get('event_th') as string;
-    const startDateRaw = formData.get('start_date') as string;
-    const endDateRaw = formData.get('end_date') as string;
-    const formatReadable = (ds: string) => {
-      if (!ds) return '';
-      const d = new Date(ds);
-      return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
-    };
-    const startReadable = formatReadable(startDateRaw);
-    const endReadable = formatReadable(endDateRaw);
-    const itemsToTranslate = [];
-    if (!editingSchedule || editingSchedule.event.th !== thEvent) itemsToTranslate.push({ key: 'event', value: thEvent });
-    if (!editingSchedule || editingSchedule.startDate.th !== startReadable) itemsToTranslate.push({ key: 'start', value: startReadable, isDate: true });
-    if (!editingSchedule || editingSchedule.endDate.th !== endReadable) itemsToTranslate.push({ key: 'end', value: endReadable, isDate: true });
-    let results: Record<string, any> = {};
-    if (itemsToTranslate.length > 0) {
-      setIsTranslating(true);
-      results = await performBatchTranslation(itemsToTranslate);
-      setIsTranslating(false);
-    }
-    const newEvent: ScheduleEvent = {
-      id: editingSchedule?.id || Date.now().toString(),
-      event: results['event'] || editingSchedule?.event || { th: thEvent, en: thEvent, ar: thEvent, ms: thEvent },
-      startDate: results['start'] || editingSchedule?.startDate || { th: startReadable, en: startDateRaw, ar: startDateRaw, ms: startDateRaw },
-      endDate: results['end'] || editingSchedule?.endDate || { th: endReadable, en: endDateRaw, ar: endDateRaw, ms: endDateRaw },
-      status: formData.get('status') as 'upcoming' | 'past'
-    };
-    if (editingSchedule) setSchedule(schedule.map(s => s.id === editingSchedule.id ? newEvent : s));
-    else setSchedule([...schedule, newEvent]);
-    setShowScheduleModal(false);
-    setEditingSchedule(null);
-  };
-
-  const handleSaveForm = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const title = formData.get('title') as string;
-    const category = formData.get('category') as FormCategory;
-    const url = formData.get('url') as string;
-    const newForm: DocumentForm = { id: editingForm?.id || Date.now().toString(), title, category, url };
-    if (editingForm) setForms(forms.map(f => f.id === editingForm.id ? newForm : f));
-    else setForms([...forms, newForm]);
-    setShowFormModal(false);
-    setEditingForm(null);
-  };
-
-  const handleCopy = () => {
-    const text = window.getSelection()?.toString();
-    if (text) navigator.clipboard.writeText(text);
-    setContextMenu(null);
   };
 
   const getStatusColor = (status: ApplicationStatus) => {
@@ -528,351 +340,87 @@ const App: React.FC = () => {
     }
   };
 
-  const scrollingIcons: { icon: LucideIcon, label: string }[] = [
-    { icon: Cpu, label: 'Tech' },
-    { icon: Salad, label: 'Halal Food' },
-    { icon: Code, label: 'Digital' },
-    { icon: Microscope, label: 'Research' },
-    { icon: Briefcase, label: 'Internship' },
-    { icon: ShieldCheck, label: 'Safety' },
-    { icon: GraduationCap, label: 'Education' },
-    { icon: Building2, label: 'Enterprise' },
-    { icon: Atom, label: 'Science' },
-    { icon: Globe, label: 'Standard' },
-  ];
-
-  /* --- LANDING PAGE SECTION --- */
   if (viewState === 'landing') {
     return (
-      <div className={`min-h-[100svh] w-full flex flex-col items-center luxe-mangosteen-bg relative overflow-hidden desktop-zoom-74 ${isRtl ? 'rtl' : ''}`}>
-        <MouseGlow />
-        <div className="bg-video-wrap"><video autoPlay loop muted playsInline><source src="https://assets.mixkit.co/videos/preview/mixkit-business-people-working-in-a-busy-office-33824-large.mp4" type="video/mp4" /></video></div>
-        <div className="video-overlay"></div>
-        <div className="islamic-tech-watermark"></div>
-        <TechMeteorShower />
-        <ModernWaves />
-        
-        <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-6 py-4 reveal-anim pt-2 sm:pt-10">
-          <div className="flex flex-col items-center space-y-4 sm:space-y-8">
-             <div className="px-4 sm:px-8 py-2 sm:py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
-               <div className="flex flex-row items-center gap-2 sm:gap-6 whitespace-nowrap overflow-hidden">
-                 <span className="text-[8px] sm:text-xs font-bold uppercase text-white tracking-normal opacity-90">
-                   {lang === Language.TH ? "คณะวิทยาศาสตร์และเทคโนโลยี" : (lang === Language.AR ? "كلية العلوم والتكنولوجيا" : "Faculty of Science and Technology")}
-                 </span>
-                 <div className="w-1 h-1 sm:w-2 sm:h-2 bg-[#D4AF37] rounded-full opacity-40"></div>
-                 <span className="text-[8px] sm:text-xs font-bold uppercase text-[#D4AF37] tracking-normal">
-                   {lang === Language.TH ? "มหาวิทยาลัยฟาฏอนี" : (lang === Language.AR ? "جامعة فطاني" : "Fatoni University")}
-                 </span>
-               </div>
-             </div>
-
-             <div className="relative flex flex-col items-center group text-center max-w-full">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[100px] w-60 h-60 sm:w-80 sm:h-80 bg-[#D4AF37] rounded-full"></div>
-                <h2 className="relative text-6xl sm:text-[10rem] md:text-[11rem] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-[#D4AF37] leading-tight transition-all duration-700 group-hover:scale-105 drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)] select-none">
-                  WISE
-                </h2>
-                <div className="relative flex flex-col items-center -mt-2 sm:-mt-8 space-y-2 px-4 w-full overflow-hidden">
-                  <div className="h-px w-20 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent mb-1"></div>
-                  <span className="text-[#D4AF37] text-[9px] sm:text-xl md:text-2xl font-extrabold tracking-tight uppercase opacity-95 drop-shadow-lg leading-none whitespace-nowrap">
-                    Work-Integrated Science Education Unit
-                  </span>
-                  <span className="text-[#D4AF37] text-[8px] sm:text-base md:text-lg font-semibold opacity-90 drop-shadow-md leading-none whitespace-nowrap">
-                    หน่วยจัดการศึกษาวิทยาศาสตร์บูรณาการกับการทำงาน
-                  </span>
-                  <div className="h-px w-14 bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent mt-1"></div>
-                </div>
-             </div>
-          </div>
-
-          <div className="mt-4 sm:mt-8 space-y-6 sm:space-y-8 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 flex flex-col items-center">
-            <h1 className="text-center text-[10px] min-[360px]:text-[12px] min-[400px]:text-[14px] min-[480px]:text-base sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight whitespace-nowrap mx-auto">
-              {currentT.landingHeading}
-            </h1>
-
-            <div className="flex flex-col items-center w-full gap-6 sm:gap-10">
-              <div className="transform transition-all duration-500 hover:scale-105 scale-90 sm:scale-100">
-                <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} />
-              </div>
-              
-              <div className="flex flex-col items-center w-full">
-                <div className="flex flex-row items-center justify-center gap-3 sm:gap-4">
-                  <button 
-                    onClick={() => setViewState('dashboard')}
-                    className="group relative px-8 sm:px-14 py-4 sm:py-5 bg-white text-[#630330] rounded-full font-black uppercase text-base sm:text-xl transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.15)]"
-                  >
-                    <div className="absolute inset-0 rounded-full border-2 border-white/0 group-hover:border-white/50 group-hover:animate-ring-expand pointer-events-none"></div>
-                    <span className="relative z-10 flex items-center gap-2 sm:gap-4 tracking-tight whitespace-nowrap">
-                      {currentT.startNow} 
-                      <div className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-[#630330]/5 group-hover:bg-[#630330] group-hover:text-white transition-all duration-500">
-                        <ChevronRight size={18} className={isRtl ? 'rotate-180' : ''} />
-                      </div>
-                    </span>
-                  </button>
-
-                  <button 
-                    onClick={() => {
-                      setSearchStudentId('');
-                      setFoundStatus(undefined);
-                      setShowStatusCheckModal(true);
-                    }}
-                    className="group relative px-5 sm:px-8 py-4 sm:py-5 bg-[#D4AF37] hover:bg-[#b8952c] text-[#2A0114] rounded-full font-bold uppercase text-[10px] sm:text-sm transition-all hover:scale-105 active:scale-95 shadow-[0_10px_20px_rgba(212,175,55,0.2)]"
-                  >
-                    <span className="flex items-center gap-2 tracking-tight whitespace-nowrap">
-                      <Timer size={16} className="group-hover:rotate-12 transition-transform" />
-                      {currentT.checkStatus}
-                    </span>
-                  </button>
-                </div>
-
-                <button 
-                  onClick={() => {
-                    setLoginError(false);
-                    setShowAdminLogin(true);
-                  }}
-                  className="flex items-center gap-2 mt-8 opacity-30 hover:opacity-100 transition-all duration-500 group"
-                  title="Staff Access"
-                >
-                  <LockKeyhole size={12} className="text-[#D4AF37] group-hover:scale-110 transition-transform" />
-                  <span className="text-[10px] font-bold uppercase text-[#D4AF37] tracking-[0.2em] group-hover:tracking-[0.3em] transition-all">Staff Access</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Student Status Check Modal */}
-        {showStatusCheckModal && (
-          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-xl reveal-anim">
-            <div className="w-full max-w-[520px] bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-3xl relative overflow-hidden">
-               <button onClick={() => setShowStatusCheckModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 transition-colors z-10">
-                 <X size={20} className="text-slate-400" />
-               </button>
-               <div className="flex flex-col items-center mb-8">
-                 <div className="p-4 bg-[#D4AF37]/10 rounded-2xl mb-4">
-                   <Timer size={32} className="text-[#D4AF37]" />
-                 </div>
-                 <h3 className="text-xl font-black text-[#2A0114] uppercase text-center">{currentT.statusTitle}</h3>
-                 <p className="text-[12px] text-slate-400 font-bold uppercase mt-1">{currentT.statusCheckPrompt}</p>
-               </div>
-
-               <form onSubmit={handleCheckStatus} className="space-y-5">
-                 <div className="relative group">
-                   <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors">
-                     <UserCircle size={24} />
-                   </div>
-                   <input 
-                    type="text" 
-                    placeholder={currentT.studentIdPlaceholder}
-                    value={searchStudentId}
-                    onChange={e => setSearchStudentId(e.target.value)}
-                    className="w-full pl-16 pr-8 py-5 bg-slate-50 border-2 border-transparent focus:border-[#D4AF37] focus:bg-white rounded-2xl outline-none font-bold text-lg transition-all"
-                   />
-                 </div>
-                 <button type="submit" className="w-full bg-[#2A0114] text-white py-5 rounded-2xl font-black uppercase text-sm shadow-xl shadow-[#2A0114]/20 transform active:scale-[0.98] transition-all">
-                   {currentT.searchButton}
-                 </button>
-               </form>
-
-               <div className="mt-8 min-h-[160px]">
-                 {foundStatus === undefined ? null : foundStatus === null ? (
-                   <div className="flex flex-col items-center justify-center py-8 text-slate-400 gap-2 border-2 border-dashed border-slate-100 rounded-2xl">
-                     <AlertCircle size={24} />
-                     <p className="text-[12px] font-bold uppercase tracking-tight">{currentT.noStatusFound}</p>
-                   </div>
-                 ) : (
-                   <div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-100 reveal-anim space-y-6">
-                     <div className="flex items-center gap-4">
-                       <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-[#2A0114] shadow-sm border border-slate-100">
-                         <GraduationCap size={28} />
-                       </div>
-                       <div>
-                         <p className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1.5">{currentT.studentLabel}</p>
-                         <h4 className="font-bold text-slate-900 leading-tight text-lg">{foundStatus.name}</h4>
-                         <p className="text-[11px] font-bold text-[#D4AF37] uppercase tracking-tight">{foundStatus.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor}</p>
-                       </div>
-                     </div>
-                     
-                     <div className="space-y-4">
-                        <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-400 px-1">
-                          <span>Timeline Progress</span>
-                          <span className={`${foundStatus.status === ApplicationStatus.ACCEPTED ? 'text-emerald-500' : 'text-amber-500'}`}>{getStatusLabel(foundStatus.status)}</span>
-                        </div>
-                        <div className="relative h-1 bg-slate-200 rounded-full overflow-hidden">
-                           <div 
-                             className={`absolute top-0 left-0 h-full transition-all duration-1000 ${foundStatus.status === ApplicationStatus.REJECTED ? 'bg-rose-500' : 'bg-[#D4AF37]'}`}
-                             style={{ 
-                               width: foundStatus.status === ApplicationStatus.PENDING ? '25%' : 
-                                      foundStatus.status === ApplicationStatus.PREPARING ? '50%' : '100%' 
-                             }}
-                           ></div>
-                        </div>
-                     </div>
-
-                     <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase justify-end pt-2 border-t border-slate-100/50">
-                       <Activity size={12} /> {currentT.lastUpdated}: {new Date(foundStatus.lastUpdated).toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                     </div>
-                   </div>
-                 )}
-               </div>
-            </div>
-          </div>
-        )}
-
-        {showAdminLogin && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-3xl reveal-anim overflow-y-auto">
-            <div className="w-full max-w-[420px] my-auto flex flex-col items-center relative p-8 sm:p-14 rounded-[2.5rem] sm:rounded-[3rem] border border-white/10 bg-white/5 shadow-3xl">
-              <button onClick={() => setShowAdminLogin(false)} className="absolute top-6 right-6 sm:top-8 sm:right-8 p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all">
-                <X size={24} />
-              </button>
-              <div className="inline-flex p-6 sm:p-7 rounded-[1.5rem] sm:rounded-[2rem] bg-[#D4AF37]/10 text-[#D4AF37] mb-6 sm:mb-8 shadow-[0_0_50px_rgba(212,175,55,0.2)]">
-                <Fingerprint size={48} className="animate-pulse" />
-              </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-white uppercase mb-1 text-center">Staff Access</h3>
-              <form onSubmit={handleAdminLogin} className="w-full space-y-6 sm:space-y-8">
-                <div className="relative">
-                  <input 
-                    type="password" 
-                    autoFocus 
-                    placeholder="••••••" 
-                    value={adminPassInput} 
-                    onChange={e => {
-                      setAdminPassInput(e.target.value);
-                      if (loginError) setLoginError(false);
-                    }} 
-                    className={`w-full px-4 py-6 sm:py-7 rounded-2xl bg-white/5 border-2 outline-none font-bold text-center text-5xl sm:text-6xl transition-all
-                      ${loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
-                  />
-                </div>
-                <button type="submit" className="w-full bg-[#630330] hover:bg-[#7a0b3d] text-white py-5 sm:py-7 rounded-2xl font-black uppercase text-sm sm:text-base shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all">ยืนยัน</button>
-              </form>
-            </div>
-          </div>
-        )}
-      </div>
+      <LandingPage 
+        lang={lang}
+        setLang={setLang}
+        currentT={currentT}
+        isRtl={isRtl}
+        onEnterDashboard={() => setViewState('dashboard')}
+        onAdminLogin={handleAdminLogin}
+        studentStatuses={studentStatuses}
+      />
     );
   }
 
-  /* --- COMPACT DASHBOARD SECTION --- */
   return (
     <div className={`min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-slate-950 transition-colors duration-300 ${isRtl ? 'rtl' : ''}`}>
-      {contextMenu && (
-        <div 
-          className="fixed z-[999] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl rounded-xl py-2 min-w-[120px] reveal-anim"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          <button onClick={handleCopy} className="w-full px-4 py-2 flex items-center gap-3 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
-            <Copy size={14} className="text-[#630330] dark:text-[#D4AF37]" /> คัดลอก
-          </button>
-        </div>
-      )}
-
-      {/* COMPACT NAVBAR */}
-      <div className="sticky top-0 z-50 w-full px-4 py-3">
-        <nav className="container mx-auto h-auto min-h-[70px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-[1.25rem] px-5 sm:px-8 flex items-center justify-between border border-slate-100 dark:border-slate-800 shadow-xl py-2">
-          <div className="flex items-center gap-6">
+      {/* NAVBAR */}
+      <div className="sticky top-0 z-50 w-full px-2 sm:px-4 py-3">
+        <nav className="container mx-auto h-auto min-h-[70px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-[1.25rem] px-4 sm:px-8 flex items-center justify-between border border-slate-100 dark:border-slate-800 shadow-xl py-2">
+          <div className="flex items-center gap-4 sm:gap-6">
             <div className="flex flex-col cursor-pointer" onClick={() => setViewState('landing')}>
-              <span className="block text-2xl font-black leading-none uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#630330] via-[#8B1A4F] to-[#D4AF37]">
+              <span className="block text-xl sm:text-2xl font-black leading-none uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#630330] via-[#8B1A4F] to-[#D4AF37]">
                 WISE
               </span>
-              <span className="block text-[8px] text-[#D4AF37] font-black uppercase mt-0.5 tracking-tight opacity-90">
-                Work-Integrated Science
+              <span className="block text-[7px] sm:text-[8px] text-[#D4AF37] font-black uppercase mt-0.5 tracking-tight opacity-90 hidden sm:block">
+                Work-Integrated Science Education Unit
               </span>
             </div>
-            
-            {role === UserRole.ADMIN && (
-              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 dark:bg-rose-950/20 rounded-lg text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50">
-                <LayoutDashboard size={14} />
-                <span className="text-[10px] font-black uppercase">Admin Panel</span>
-              </div>
-            )}
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 sm:gap-4">
+            {/* High-Tech Language Switcher Dropdown for Dashboard */}
+            {role === UserRole.STUDENT && (
+              <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" />
+            )}
+            
+            <div className="flex items-center gap-1 sm:gap-2">
               <button 
                 onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-95"
+                className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl border border-slate-100 dark:border-slate-700 hover:bg-slate-100 transition-all"
+                aria-label="Toggle Theme"
               >
-                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+                {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
               </button>
-
-              <div className="relative">
-                <button onClick={() => setIsNavLangOpen(!isNavLangOpen)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all font-bold">
-                  <Globe size={16} className="text-[#630330] dark:text-[#D4AF37]" />
-                  <span className="text-[11px] font-bold uppercase hidden sm:inline">{lang}</span>
-                  <ChevronDown size={12} className={`transition-transform duration-300 ${isNavLangOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {isNavLangOpen && (
-                  <div className="absolute right-0 top-full mt-2 p-1.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-2xl z-[60] min-w-[140px] reveal-anim">
-                    {(Object.keys(Language) as Array<keyof typeof Language>).map((key) => (
-                      <button
-                        key={key}
-                        onClick={() => { setLang(Language[key]); setIsNavLangOpen(false); }}
-                        className={`w-full text-left px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase transition-all flex items-center justify-between
-                          ${lang === Language[key] ? 'bg-[#630330] text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                      >
-                        {Language[key]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button 
+                onClick={handleLogout} 
+                className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-rose-50 dark:bg-rose-950/30 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all shadow-md"
+                aria-label="Logout"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
-            
-            <div className="h-8 w-px bg-slate-100 dark:bg-slate-800 mx-1"></div>
-            
-            <button onClick={handleLogout} className="w-10 h-10 flex items-center justify-center bg-rose-50 dark:bg-rose-950/30 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all shadow-md active:scale-90">
-              <LogOut size={18} />
-            </button>
           </div>
         </nav>
       </div>
 
-      <main className={`container mx-auto px-4 ${role === UserRole.ADMIN ? 'py-3 space-y-4' : 'py-6 space-y-8'} flex-grow transition-all`}>
-        {role === UserRole.ADMIN && (
-          <>
-            {/* ADMIN STATUS PANEL - COMPACT */}
+      <main className={`container mx-auto px-4 py-6 space-y-8 flex-grow transition-all`}>
+        {role === UserRole.ADMIN ? (
+          <div className="grid grid-cols-1 gap-4">
             <section className={`rounded-2xl border transition-all overflow-hidden ${isStudentStatusExpanded ? 'bg-amber-50/50 dark:bg-amber-950/10 border-amber-200 dark:border-amber-900/40 p-4' : 'bg-white dark:bg-slate-900 border-slate-100 p-2'}`}>
-               <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => setIsStudentStatusExpanded(!isStudentStatusExpanded)}>
-                     <div className="p-2 bg-amber-500 text-white rounded-lg shadow-md"><Timer size={16} /></div>
-                     <div>
-                       <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-1.5">
-                         จัดการสถานะนักศึกษา
-                         <ChevronDown size={14} className={`transition-transform duration-500 text-slate-400 ${isStudentStatusExpanded ? '' : '-rotate-90'}`} />
-                       </h2>
-                     </div>
+               <div className="flex items-center justify-between gap-4 cursor-pointer" onClick={() => setIsStudentStatusExpanded(!isStudentStatusExpanded)}>
+                  <div className="flex items-center gap-2.5">
+                     <div className="p-2 bg-amber-500 text-white rounded-lg"><Timer size={16} /></div>
+                     <h2 className="text-sm font-black uppercase text-slate-900 dark:text-white">จัดการสถานะนักศึกษา</h2>
                   </div>
+                  <ChevronDown size={14} className={`transition-transform ${isStudentStatusExpanded ? '' : '-rotate-90'}`} />
                </div>
                {isStudentStatusExpanded && (
-                 <div className="mt-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <div className="flex flex-col sm:flex-row items-stretch gap-2">
-                       <div className="relative flex-grow flex items-center">
-                          <div className="absolute left-4 text-slate-300"><Search size={14} /></div>
-                          <input type="text" placeholder={currentT.adminStudentSearchPlaceholder} value={adminStudentSearchTerm} onChange={e => setAdminStudentSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-lg bg-white dark:bg-slate-800 border border-amber-200 dark:border-slate-700 text-xs font-bold dark:text-white outline-none focus:ring-2 focus:ring-amber-500/10" />
-                       </div>
-                       <button onClick={() => { setEditingStatusRecord(null); setShowAdminStatusModal(true); }} className="px-4 py-2 rounded-lg bg-[#2A0114] text-white font-black uppercase text-[10px] flex items-center justify-center gap-1.5 shadow-sm transform transition-all hover:scale-105 active:scale-95">
-                         <Plus size={14} /> เพิ่มสถานะ
-                       </button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
-                      {filteredAdminStudentStatuses.map(record => (
-                        <div key={record.id} className="p-3 rounded-xl border border-amber-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:shadow-md transition-all group">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-2 overflow-hidden">
-                              <div className="w-7 h-7 flex-shrink-0 rounded-lg bg-amber-50 dark:bg-slate-800 flex items-center justify-center text-amber-500"><UserCircle size={14} /></div>
-                              <div className="overflow-hidden">
-                                <h4 className="font-bold text-slate-900 dark:text-white text-[11px] leading-none truncate">{record.name}</h4>
-                                <p className="text-[9px] font-bold text-slate-400 mt-1">{record.studentId}</p>
-                              </div>
-                            </div>
-                            <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => { setEditingStatusRecord(record); setShowAdminStatusModal(true); }} className="p-1 text-slate-400 hover:text-amber-500"><Pencil size={12} /></button>
-                              <button onClick={() => setStudentStatuses(studentStatuses.filter(s => s.id !== record.id))} className="p-1 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
-                            </div>
+                 <div className="mt-4 space-y-3">
+                    <button onClick={() => { setEditingStatusRecord(null); setShowAdminStatusModal(true); }} className="px-4 py-2 rounded-lg bg-amber-600 text-white font-black uppercase text-[10px] flex items-center gap-1.5"><Plus size={14} /> เพิ่มสถานะ</button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                      {studentStatuses.map(record => (
+                        <div key={record.id} className="p-3 rounded-xl border border-amber-100 bg-white flex items-center justify-between">
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-[11px] leading-none">{record.name}</h4>
+                            <p className="text-[9px] font-bold text-slate-400 mt-1">{record.studentId}</p>
+                            <div className={`mt-1.5 px-1.5 py-0.5 rounded text-[7px] font-black uppercase border inline-block ${getStatusColor(record.status)}`}>{getStatusLabel(record.status)}</div>
                           </div>
-                          <div className={`mt-2 px-2 py-0.5 rounded-md text-[8px] font-black uppercase border inline-block ${getStatusColor(record.status)}`}>
-                            {getStatusLabel(record.status)}
+                          <div className="flex gap-1">
+                            <button onClick={() => { setEditingStatusRecord(record); setShowAdminStatusModal(true); }} className="p-1.5 text-slate-400 hover:text-amber-500"><Pencil size={12} /></button>
+                            <button onClick={() => setStudentStatuses(studentStatuses.filter(s => s.id !== record.id))} className="p-1.5 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
                           </div>
                         </div>
                       ))}
@@ -881,37 +429,32 @@ const App: React.FC = () => {
                )}
             </section>
 
-            {/* ADMIN SITES PANEL - COMPACT */}
             <section className={`rounded-2xl border transition-all overflow-hidden ${isSitesExpanded ? 'bg-rose-50/50 dark:bg-rose-950/10 border-rose-200 dark:border-rose-900/40 p-4' : 'bg-white dark:bg-slate-900 border-slate-100 p-2'}`}>
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => setIsSitesExpanded(!isSitesExpanded)}>
-                  <div className="p-2 bg-rose-600 text-white rounded-lg shadow-md"><Database size={16} /></div>
-                  <div>
-                    <h2 className="text-sm sm:text-base font-black uppercase tracking-tight flex items-center gap-1.5 text-slate-900 dark:text-white">
-                      {currentT.internshipSites}
-                      <ChevronDown size={14} className={`transition-transform duration-500 text-slate-400 ${isSitesExpanded ? '' : '-rotate-90'}`} />
-                    </h2>
-                  </div>
+              <div className="flex items-center justify-between gap-4 cursor-pointer" onClick={() => setIsSitesExpanded(!isSitesExpanded)}>
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-rose-600 text-white rounded-lg"><Database size={16} /></div>
+                  <h2 className="text-sm font-black uppercase text-slate-900 dark:text-white">ฐานข้อมูลสถานประกอบการ</h2>
                 </div>
+                <ChevronDown size={14} className={`transition-transform ${isSitesExpanded ? '' : '-rotate-90'}`} />
               </div>
               {isSitesExpanded && (
-                <div className="mt-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <div className="flex flex-col sm:flex-row items-stretch gap-2">
-                    <div className="relative flex-grow flex items-center">
-                      <div className="absolute left-4 text-slate-300"><Search size={14} /></div>
-                      <input type="text" placeholder={currentT.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-lg bg-white dark:bg-slate-800 border border-rose-200 dark:border-slate-700 text-xs font-bold dark:text-white outline-none focus:ring-2 focus:ring-rose-500/10" />
-                    </div>
-                    <button onClick={() => { setEditingSite(null); setShowSiteModal(true); }} className="px-4 py-2 rounded-lg bg-rose-600 text-white font-black uppercase text-[10px] flex items-center justify-center gap-1.5 shadow-sm transform transition-all hover:scale-105 active:scale-95">
-                      <Plus size={14} /> เพิ่มหน่วยงาน
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {filteredSites.map(site => (
-                      <div key={site.id} className="relative group scale-95 hover:scale-100 transition-transform origin-center">
-                        <InternshipCard site={site} lang={lang} />
-                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                          <button onClick={() => { setEditingSite(site); setShowSiteModal(true); }} className="p-1 bg-white/90 text-slate-600 rounded-md shadow hover:bg-rose-600 hover:text-white transition-all"><Pencil size={10} /></button>
-                          <button onClick={() => handleDeleteSite(site.id)} className="p-1 bg-white/90 text-rose-500 rounded-md shadow hover:bg-rose-500 hover:text-white transition-all"><Trash size={10} /></button>
+                <div className="mt-4 space-y-3">
+                  <button onClick={() => { setEditingSite(null); setShowSiteModal(true); }} className="px-4 py-2 rounded-lg bg-rose-600 text-white font-black uppercase text-[10px] flex items-center gap-1.5"><Plus size={14} /> เพิ่มหน่วยงาน</button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {sites.map(site => (
+                      <div key={site.id} className="p-3 rounded-xl border border-rose-100 bg-white flex items-center justify-between group">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white ${site.major === Major.HALAL_FOOD ? 'bg-amber-500' : 'bg-blue-600'}`}>
+                            {site.major === Major.HALAL_FOOD ? <Salad size={14} /> : <Cpu size={14} />}
+                          </div>
+                          <div className="overflow-hidden">
+                            <h4 className="font-bold text-slate-900 text-[11px] truncate leading-tight">{getLocalized(site.name)}</h4>
+                            <p className="text-[8px] font-bold text-slate-400 truncate">{getLocalized(site.location)}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                          <button onClick={() => { setEditingSite(site); setShowSiteModal(true); }} className="p-1 text-slate-400 hover:text-rose-500"><Pencil size={12} /></button>
+                          <button onClick={() => setSites(sites.filter(s => s.id !== site.id))} className="p-1 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
                         </div>
                       </div>
                     ))}
@@ -919,108 +462,363 @@ const App: React.FC = () => {
                 </div>
               )}
             </section>
-          </>
-        )}
 
-        {role === UserRole.STUDENT && (
-          <>
-            {/* COMPACT STUDENT DASHBOARD */}
-            <section className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 sm:p-8 rounded-[1.5rem] shadow-xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-[#630330] dark:bg-amber-500 text-white rounded-xl shadow-lg shadow-rose-500/10"><LayoutGrid size={20} /></div>
-                  <div>
-                    <h2 className="text-xl font-black uppercase text-slate-900 dark:text-white leading-none">{currentT.internshipSites}</h2>
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mt-1 tracking-tight">Explore opportunities</p>
+            <section className={`rounded-2xl border transition-all overflow-hidden ${isScheduleExpanded ? 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900/40 p-4' : 'bg-white dark:bg-slate-900 border-slate-100 p-2'}`}>
+              <div className="flex items-center justify-between gap-4 cursor-pointer" onClick={() => setIsScheduleExpanded(!isScheduleExpanded)}>
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-600 text-white rounded-lg"><CalendarDays size={16} /></div>
+                  <h2 className="text-sm font-black uppercase text-slate-900 dark:text-white">จัดการกำหนดการสำคัญ</h2>
+                </div>
+                <ChevronDown size={14} className={`transition-transform ${isScheduleExpanded ? '' : '-rotate-90'}`} />
+              </div>
+              {isScheduleExpanded && (
+                <div className="mt-4 space-y-3">
+                  <button onClick={() => { setEditingSchedule(null); setShowScheduleModal(true); }} className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-black uppercase text-[10px] flex items-center gap-1.5"><Plus size={14} /> เพิ่มกำหนดการ</button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {schedules.map(item => (
+                      <div key={item.id} className="p-3 rounded-xl border border-emerald-100 bg-white flex flex-col gap-1.5 relative group">
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100">
+                          <button onClick={() => { setEditingSchedule(item); setShowScheduleModal(true); }} className="p-1 text-slate-400 hover:text-emerald-600"><Pencil size={12} /></button>
+                          <button onClick={() => setSchedules(schedules.filter(s => s.id !== item.id))} className="p-1 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
+                        </div>
+                        <h4 className="font-bold text-slate-900 text-[11px] pr-8">{getLocalized(item.event)}</h4>
+                        <div className="flex flex-col text-[9px] font-bold text-slate-500">
+                          <div>เริ่ม: {getLocalized(item.startDate)}</div>
+                          <div>สิ้นสุด: {getLocalized(item.endDate)}</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-                  <button onClick={() => setActiveMajor('all')} className={`flex-shrink-0 px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1.5 ${activeMajor === 'all' ? 'bg-[#630330] text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:bg-slate-100'}`}>
-                    <LayoutGrid size={12} /> {currentT.allMajors}
-                  </button>
-                  <button onClick={() => setActiveMajor(Major.HALAL_FOOD)} className={`flex-shrink-0 px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1.5 ${activeMajor === Major.HALAL_FOOD ? 'bg-amber-500 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:bg-slate-100'}`}>
-                    <Salad size={12} /> {currentT.halalMajor}
-                  </button>
-                  <button onClick={() => setActiveMajor(Major.DIGITAL_TECH)} className={`flex-shrink-0 px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1.5 ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:bg-slate-100'}`}>
-                    <Cpu size={12} /> {currentT.digitalMajor}
-                  </button>
+              )}
+            </section>
+
+            <section className={`rounded-2xl border transition-all overflow-hidden ${isFormsExpanded ? 'bg-indigo-50/50 dark:bg-indigo-950/10 border-indigo-200 dark:border-indigo-900/40 p-4' : 'bg-white dark:bg-slate-900 border-slate-100 p-2'}`}>
+              <div className="flex items-center justify-between gap-4 cursor-pointer" onClick={() => setIsFormsExpanded(!isFormsExpanded)}>
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-indigo-600 text-white rounded-lg"><FileText size={16} /></div>
+                  <h2 className="text-sm font-black uppercase text-slate-900 dark:text-white">แบบฟอร์มและไฟล์สำคัญ</h2>
+                </div>
+                <ChevronDown size={14} className={`transition-transform ${isFormsExpanded ? '' : '-rotate-90'}`} />
+              </div>
+              {isFormsExpanded && (
+                <div className="mt-4 space-y-3">
+                  <button onClick={() => { setEditingForm(null); setShowFormModal(true); }} className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-black uppercase text-[10px] flex items-center gap-1.5"><Plus size={14} /> เพิ่มแบบฟอร์ม</button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {forms.map(form => (
+                      <div key={form.id} className="p-3 rounded-xl border border-indigo-100 bg-white flex items-center justify-between group">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Download size={12} /></div>
+                          <div className="overflow-hidden">
+                            <h4 className="font-bold text-slate-900 text-[11px] truncate leading-tight">{getLocalized(form.title)}</h4>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase">{form.category}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                          <button onClick={() => { setEditingForm(form); setShowFormModal(true); }} className="p-1 text-slate-400 hover:text-indigo-600"><Pencil size={12} /></button>
+                          <button onClick={() => setForms(forms.filter(f => f.id !== form.id))} className="p-1 text-slate-400 hover:text-rose-500"><Trash size={12} /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+        ) : (
+          /* STUDENT VIEW */
+          <div className="space-y-10 sm:space-y-14">
+            {/* 1. กำหนดการสำคัญ (Schedule) */}
+            <section className="reveal-anim">
+              <div className="flex items-center gap-3 mb-5 sm:mb-6">
+                <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-500/20">
+                  <CalendarDays size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black uppercase text-slate-900 dark:text-white leading-none">{currentT.schedule}</h2>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-wider">Stay updated with key dates</p>
                 </div>
               </div>
-
-              <div className="space-y-6">
-                <div className="relative group max-w-xl">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#630330] transition-colors"><Search size={18} /></div>
-                  <input type="text" placeholder={currentT.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-12 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-sm font-bold dark:text-white outline-none focus:ring-4 focus:ring-[#630330]/5 transition-all" />
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-                  {filteredSites.map(site => <InternshipCard key={site.id} site={site} lang={lang} />)}
-                  {filteredSites.length === 0 && (
-                    <div className="col-span-full py-16 flex flex-col items-center justify-center text-slate-300 dark:text-slate-700 gap-3 border-2 border-dashed border-slate-50 dark:border-slate-800 rounded-3xl">
-                      <Database size={48} />
-                      <p className="text-sm font-bold uppercase tracking-tight">ไม่พบข้อมูลที่คุณค้นหา</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {schedules.map(item => (
+                  <div key={item.id} className="group p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4 border-l-emerald-500">
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-3 text-sm line-clamp-2 leading-tight">
+                      {getLocalized(item.event)}
+                    </h4>
+                    <div className="flex flex-col gap-2">
+                       <div className="flex items-center gap-2">
+                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                         <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                           <span className="text-emerald-600 dark:text-emerald-400 mr-1">{currentT.startDateLabel}</span> {getLocalized(item.startDate)}
+                         </p>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
+                         <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                           <span className="text-rose-500 mr-1">{currentT.endDateLabel}</span> {getLocalized(item.endDate)}
+                         </p>
+                       </div>
                     </div>
-                  )}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* 2. Document Hub Card */}
+            <section className="reveal-anim" style={{ animationDelay: '100ms' }}>
+              <div 
+                onClick={() => setShowDocHub(true)}
+                className="group relative overflow-hidden bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[1.5rem] p-6 sm:p-8 shadow-xl shadow-indigo-200/50 dark:shadow-none cursor-pointer hover:shadow-2xl transition-all"
+              >
+                <div className="absolute -right-10 -bottom-10 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                  <Files size={180} />
+                </div>
+                <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+                  <div className="flex items-center gap-6">
+                    <div className="hidden sm:flex items-center justify-center w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl text-white">
+                       <FileText size={28} />
+                    </div>
+                    <div className="space-y-1.5 text-center sm:text-left">
+                       <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
+                         {currentT.docHubTitle}
+                       </h3>
+                       <div className="flex items-center gap-3 justify-center sm:justify-start">
+                          <span className="text-indigo-200 text-[10px] font-black uppercase tracking-widest">Document Hub</span>
+                          <div className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></div>
+                          <span className="text-white/60 text-[10px] font-bold uppercase tracking-tight">{forms.length} FILES AVAILABLE</span>
+                       </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 px-6 py-3 bg-white text-indigo-700 rounded-full font-black uppercase text-[10px] shadow-lg group-hover:gap-5 transition-all">
+                     {currentT.docHubButton} <ArrowRight size={14} />
+                  </div>
                 </div>
               </div>
             </section>
-          </>
+
+            {/* 3. Internship Sites Section */}
+            <section className="reveal-anim" style={{ animationDelay: '200ms' }}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-5 sm:mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-[#630330] dark:bg-amber-500 text-white rounded-xl shadow-lg">
+                    <LayoutGrid size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-black uppercase text-slate-900 dark:text-white leading-none">{currentT.internshipSites}</h2>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-wider">Explore available opportunities</p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-2">
+                   <div className="relative mr-2">
+                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                     <input 
+                       type="text" 
+                       placeholder={currentT.searchPlaceholder}
+                       value={searchTerm}
+                       onChange={e => setSearchTerm(e.target.value)}
+                       className="pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl text-[12px] font-bold focus:outline-none focus:ring-2 focus:ring-[#630330]/20 min-w-[240px]"
+                     />
+                   </div>
+                  <button onClick={() => setActiveMajor('all')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm ${activeMajor === 'all' ? 'bg-[#630330] text-white' : 'bg-white dark:bg-slate-900 text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-slate-50'}`}>
+                    {currentT.allMajors}
+                  </button>
+                  <button onClick={() => setActiveMajor(Major.HALAL_FOOD)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm ${activeMajor === Major.HALAL_FOOD ? 'bg-amber-500 text-white' : 'bg-white dark:bg-slate-900 text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-slate-50'}`}>
+                    {currentT.halalMajor}
+                  </button>
+                  <button onClick={() => setActiveMajor(Major.DIGITAL_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-900 text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-slate-50'}`}>
+                    {currentT.digitalMajor}
+                  </button>
+                </div>
+              </div>
+
+              {filteredSites.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                  {filteredSites.map(site => <InternshipCard key={site.id} site={site} lang={lang} />)}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+                  <Info size={40} className="text-slate-200 mb-4" />
+                  <p className="text-slate-400 font-bold uppercase text-[12px]">ไม่พบข้อมูลที่ค้นหา</p>
+                </div>
+              )}
+            </section>
+          </div>
         )}
       </main>
 
-      {/* FOOTER - COMPACT */}
-      <footer className="mt-auto py-6 border-t border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
-        <div className="container mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-           <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[#630330] dark:text-[#D4AF37] font-black text-[10px]">W</div>
-             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">© 2025 WISE Fatoni University</p>
-           </div>
-           <div className="flex items-center gap-6">
-             <button className="text-[10px] font-bold text-slate-400 hover:text-[#630330] uppercase transition-colors">Privacy Policy</button>
-             <button className="text-[10px] font-bold text-slate-400 hover:text-[#630330] uppercase transition-colors">Contact Support</button>
-           </div>
-        </div>
-      </footer>
+      {/* DOCUMENT HUB MODAL */}
+      {showDocHub && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8 bg-slate-950/80 backdrop-blur-2xl reveal-anim">
+          <div className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-[3rem] overflow-hidden shadow-3xl border border-white/10 flex flex-col max-h-[90svh]">
+            <div className="p-8 sm:p-12 bg-indigo-600 text-white relative">
+               <button 
+                onClick={() => setShowDocHub(false)}
+                className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+               >
+                 <X size={24} />
+               </button>
+               <div className="flex items-center gap-4 mb-4">
+                  <div className="p-3 bg-white/20 rounded-2xl"><Files size={32} /></div>
+                  <div>
+                    <h3 className="text-3xl font-black uppercase leading-none">Document Hub</h3>
+                    <p className="text-indigo-200 text-xs font-bold uppercase mt-1 tracking-widest">Electronic Document Service</p>
+                  </div>
+               </div>
+            </div>
 
-      {/* Admin Modals - Mostly UI changes elsewhere but kept for logic */}
+            <div className="flex-grow overflow-y-auto p-8 sm:p-12 space-y-10">
+               <div className="space-y-4">
+                  <div className="flex items-center gap-2 px-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                    <h4 className="text-[12px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{currentT.appForms}</h4>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3">
+                    {forms.filter(f => f.category === FormCategory.APPLICATION).map(form => (
+                      <a 
+                        key={form.id} 
+                        href={form.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="group flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 rounded-2xl transition-all"
+                      >
+                        <div className="flex items-center gap-4">
+                           <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm text-indigo-600">
+                             <FileText size={20} />
+                           </div>
+                           <h5 className="font-bold text-slate-800 dark:text-white text-sm sm:text-base">{getLocalized(form.title)}</h5>
+                        </div>
+                        <div className="flex items-center gap-4">
+                           <span className="hidden sm:inline-block text-[10px] font-black text-slate-300 uppercase">PDF / DOCX</span>
+                           <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                              <Download size={18} />
+                           </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+               </div>
+
+               <div className="space-y-4">
+                  <div className="flex items-center gap-2 px-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                    <h4 className="text-[12px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{currentT.monitoringForms}</h4>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3">
+                    {forms.filter(f => f.category === FormCategory.MONITORING).map(form => (
+                      <a 
+                        key={form.id} 
+                        href={form.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="group flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 rounded-2xl transition-all"
+                      >
+                        <div className="flex items-center gap-4">
+                           <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm text-indigo-600">
+                             <FileText size={20} />
+                           </div>
+                           <h5 className="font-bold text-slate-800 dark:text-white text-sm sm:text-base">{getLocalized(form.title)}</h5>
+                        </div>
+                        <div className="flex items-center gap-4">
+                           <span className="hidden sm:inline-block text-[10px] font-black text-slate-300 uppercase">PDF / DOCX</span>
+                           <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                              <Download size={18} />
+                           </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+               </div>
+            </div>
+
+            <div className="p-8 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 text-center">
+               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">{currentT.docHubContact}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Modals */}
       {showAdminStatusModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim">
-          <div className="w-full max-w-[440px] bg-white dark:bg-slate-900 rounded-[1.5rem] p-6 sm:p-8 shadow-2xl">
+          <div className="w-full max-w-[440px] bg-white dark:bg-slate-900 rounded-[1.5rem] p-6 shadow-2xl">
             <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-2">
               <Timer size={20} className="text-amber-500" />
               {editingStatusRecord ? 'แก้ไขสถานะ' : 'เพิ่มข้อมูลติดตาม'}
             </h3>
             <form onSubmit={handleSaveStatus} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">รหัสนักศึกษา</label>
-                <input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="Student ID" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">ชื่อ-นามสกุล</label>
-                <input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="Full Name" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-sm" />
-              </div>
+              <input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="รหัสนักศึกษา" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
+              <input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="ชื่อ-นามสกุล" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">สาขาวิชา</label>
-                  <select name="major" defaultValue={editingStatusRecord?.major || Major.HALAL_FOOD} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-[11px] appearance-none">
-                    <option value={Major.HALAL_FOOD}>{currentT.halalMajor}</option>
-                    <option value={Major.DIGITAL_TECH}>{currentT.digitalMajor}</option>
-                  </select>
+                <select name="major" defaultValue={editingStatusRecord?.major || Major.HALAL_FOOD} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-[11px] appearance-none">
+                  <option value={Major.HALAL_FOOD}>{currentT.halalMajor}</option>
+                  <option value={Major.DIGITAL_TECH}>{currentT.digitalMajor}</option>
+                </select>
+                <select name="status" defaultValue={editingStatusRecord?.status || ApplicationStatus.PENDING} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-[11px] appearance-none">
+                  <option value={ApplicationStatus.PENDING}>{currentT.statusPending}</option>
+                  <option value={ApplicationStatus.PREPARING}>{currentT.statusPreparing}</option>
+                  <option value={ApplicationStatus.ACCEPTED}>{currentT.statusAccepted}</option>
+                  <option value={ApplicationStatus.REJECTED}>{currentT.statusRejected}</option>
+                </select>
+              </div>
+              <div className="flex gap-2.5 pt-4">
+                <button type="button" onClick={() => setShowAdminStatusModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-400 font-bold uppercase text-[10px]">ยกเลิก</button>
+                <button type="submit" className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white font-bold uppercase text-[10px]">บันทึก</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim">
+          <div className="w-full max-w-[440px] bg-white dark:bg-slate-900 rounded-[1.5rem] p-6 shadow-2xl">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-2">
+              <CalendarDays size={20} className="text-emerald-500" />
+              {editingSchedule ? 'แก้ไขกำหนดการ' : 'เพิ่มกำหนดการใหม่'}
+            </h3>
+            <form onSubmit={handleSaveSchedule} className="space-y-4">
+              <input name="event_th" defaultValue={editingSchedule?.event.th} required placeholder="หัวข้อกิจกรรม (ไทย)" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1">วันเริ่มต้น</label>
+                  <input name="start_th" defaultValue={editingSchedule?.startDate.th} required placeholder="เช่น 1 ม.ค. 68" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-[11px]" />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">สถานะ</label>
-                  <select name="status" defaultValue={editingStatusRecord?.status || ApplicationStatus.PENDING} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-[11px] appearance-none">
-                    <option value={ApplicationStatus.PENDING}>{currentT.statusPending}</option>
-                    <option value={ApplicationStatus.PREPARING}>{currentT.statusPreparing}</option>
-                    <option value={ApplicationStatus.ACCEPTED}>{currentT.statusAccepted}</option>
-                    <option value={ApplicationStatus.REJECTED}>{currentT.statusRejected}</option>
-                  </select>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1">วันสิ้นสุด</label>
+                  <input name="end_th" defaultValue={editingSchedule?.endDate.th} required placeholder="เช่น 31 ม.ค. 68" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-[11px]" />
                 </div>
               </div>
               <div className="flex gap-2.5 pt-4">
-                <button type="button" onClick={() => setShowAdminStatusModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-400 font-bold uppercase text-[10px] hover:bg-slate-50 transition-all">ยกเลิก</button>
-                <button type="submit" className="flex-1 py-2.5 rounded-xl bg-[#2A0114] text-white font-bold uppercase text-[10px] shadow-lg transition-all active:scale-95">บันทึก</button>
+                <button type="button" onClick={() => setShowScheduleModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-400 font-bold uppercase text-[10px]">ยกเลิก</button>
+                <button type="submit" disabled={isTranslating} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-bold uppercase text-[10px] disabled:opacity-50">
+                  {isTranslating ? 'กำลังแปลข้อมูล...' : 'บันทึก'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showFormModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim">
+          <div className="w-full max-w-[440px] bg-white dark:bg-slate-900 rounded-[1.5rem] p-6 shadow-2xl">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-2">
+              <FileText size={20} className="text-indigo-500" />
+              {editingForm ? 'แก้ไขแบบฟอร์ม' : 'เพิ่มแบบฟอร์มใหม่'}
+            </h3>
+            <form onSubmit={handleSaveForm} className="space-y-4">
+              <input name="title" defaultValue={editingForm?.title.th} required placeholder="ชื่อเอกสาร" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
+              <select name="category" defaultValue={editingForm?.category || FormCategory.APPLICATION} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-[11px]">
+                <option value={FormCategory.APPLICATION}>เอกสารสมัครงาน</option>
+                <option value={FormCategory.MONITORING}>เอกสารระหว่างฝึกงาน</option>
+              </select>
+              <input name="url" defaultValue={editingForm?.url} required placeholder="ลิงก์ดาวน์โหลด" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
+              <div className="flex gap-2.5 pt-4">
+                <button type="button" onClick={() => setShowFormModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-400 font-bold uppercase text-[10px]">ยกเลิก</button>
+                <button type="submit" disabled={isTranslating} className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-black uppercase text-[10px] disabled:opacity-50">
+                  {isTranslating ? 'กำลังแปล...' : 'บันทึก'}
+                </button>
               </div>
             </form>
           </div>
@@ -1028,44 +826,34 @@ const App: React.FC = () => {
       )}
 
       {showSiteModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim overflow-y-auto">
-          <div className="w-full max-w-[600px] my-auto bg-white dark:bg-slate-900 rounded-[1.5rem] p-6 sm:p-8 shadow-2xl relative">
-            <button onClick={() => setShowSiteModal(false)} className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-400"><X size={18} /></button>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2.5 bg-rose-600 text-white rounded-xl shadow-lg"><Building2 size={20} /></div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase leading-none">{editingSite ? 'แก้ไขหน่วยงาน' : 'เพิ่มหน่วยงานใหม่'}</h3>
-                <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Internship Site Database</p>
-              </div>
-            </div>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim">
+          <div className="w-full max-w-[500px] bg-white dark:bg-slate-900 rounded-[1.5rem] p-6 shadow-2xl">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-2">
+              <Building2 size={20} className="text-rose-600" />
+              {editingSite ? 'แก้ไขหน่วยงาน' : 'เพิ่มหน่วยงานใหม่'}
+            </h3>
             <form onSubmit={handleSaveSite} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">ชื่อหน่วยงาน (ไทย)</label>
-                  <input name="name_th" defaultValue={editingSite?.name.th} required className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-600 outline-none font-bold text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">จังหวัด</label>
-                  <input name="loc_th" defaultValue={editingSite?.location.th} required className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-600 outline-none font-bold text-sm" />
-                </div>
+              <div className="grid grid-cols-2 gap-4">
+                <input name="name_th" defaultValue={editingSite?.name.th} required placeholder="ชื่อหน่วยงาน" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
+                <input name="loc_th" defaultValue={editingSite?.location.th} required placeholder="จังหวัด" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
+              </div>
+              <textarea name="desc_th" defaultValue={editingSite?.description.th} required placeholder="รายละเอียด" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm min-h-[80px]"></textarea>
+              <div className="grid grid-cols-2 gap-4">
+                <input name="pos_th" defaultValue={editingSite?.position.th} required placeholder="ตำแหน่งงาน" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
+                <select name="major" defaultValue={editingSite?.major || Major.HALAL_FOOD} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-[11px]">
+                   <option value={Major.HALAL_FOOD}>ฮาลาล</option>
+                   <option value={Major.DIGITAL_TECH}>ดิจิทัล</option>
+                </select>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">รายละเอียด</label>
-                <textarea name="desc_th" defaultValue={editingSite?.description.th} required className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-600 outline-none font-bold text-sm min-h-[80px]"></textarea>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">อีเมล</label>
-                  <input name="email" defaultValue={editingSite?.email} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-600 outline-none font-bold text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">ตำแหน่งงาน</label>
-                  <input name="pos_th" defaultValue={editingSite?.position.th} required className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-600 outline-none font-bold text-sm" />
-                </div>
+                <label className="text-[9px] font-black uppercase text-slate-400 ml-1 flex items-center gap-1"><Link2 size={10} /> ลิงก์เว็บไซต์ (URL)</label>
+                <input name="contact_link" defaultValue={editingSite?.contactLink} placeholder="https://..." className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
               </div>
               <div className="flex gap-2.5 pt-4">
-                <button type="button" onClick={() => setShowSiteModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-400 font-bold uppercase text-[10px] hover:bg-slate-50 transition-all">ยกเลิก</button>
-                <button type="submit" className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold uppercase text-[10px] shadow-lg active:scale-95">บันทึก</button>
+                <button type="button" onClick={() => setShowSiteModal(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-400 font-bold uppercase text-[10px]">ยกเลิก</button>
+                <button type="submit" disabled={isTranslating} className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold uppercase text-[10px] disabled:opacity-50">
+                  {isTranslating ? 'กำลังแปล...' : 'บันทึก'}
+                </button>
               </div>
             </form>
           </div>
