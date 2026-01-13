@@ -643,7 +643,7 @@ const App: React.FC = () => {
                            <div className="absolute -inset-1 w-full h-full rounded-full border border-emerald-500/30 animate-pulse"></div>
                          </div>
                          {/* Removed truncate, added line-clamp-2 to see more text while keeping row aesthetic */}
-                         <h4 className="text-[10px] min-[360px]:text-[11px] sm:text-base font-black text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2 break-words">
+                         <h4 className="text-[10px] min-[360px]:text-[11px] sm:text-base font-black text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-3 break-words">
                            {getLocalized(item.event)}
                          </h4>
                       </div>
