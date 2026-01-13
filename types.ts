@@ -72,6 +72,8 @@ export interface ScheduleEvent {
   event: LocalizedString;
   startDate: LocalizedString;
   endDate: LocalizedString;
+  rawStartDate?: string; // YYYY-MM-DD format for date picker
+  rawEndDate?: string;   // YYYY-MM-DD format for date picker
   status: 'upcoming' | 'past';
 }
 

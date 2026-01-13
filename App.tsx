@@ -46,7 +46,6 @@ import {
   Info,
   Files,
   ArrowRight,
-  // Fix: CloudCloud is not a valid export from lucide-react. Changed to Cloud.
   Cloud,
   CloudOff,
   RefreshCw,
@@ -74,9 +73,9 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
       const savedTheme = localStorage.getItem('wise_portal_theme');
-      return (savedTheme === 'dark' || savedTheme === 'light') ? savedTheme : 'light';
+      return (savedTheme === 'dark' || savedTheme === 'light') ? savedTheme : 'dark';
     } catch (e) {
-      return 'light';
+      return 'dark';
     }
   });
 
@@ -198,7 +197,6 @@ const App: React.FC = () => {
     if (validPasswords.includes(password)) {
       setRole(UserRole.ADMIN);
       setLang(Language.TH); 
-      setTheme('light'); 
       setViewState('dashboard');
       return true;
     }
@@ -266,22 +264,25 @@ const App: React.FC = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const thEvent = formData.get('event_th') as string;
-    const thStart = formData.get('start_th') as string;
-    const thEnd = formData.get('end_th') as string;
+    const rawStart = formData.get('start_th') as string; // Standard YYYY-MM-DD from picker
+    const rawEnd = formData.get('end_th') as string;   // Standard YYYY-MM-DD from picker
 
     setIsTranslating(true);
+    // Send standard date to AI to get nice localized strings
     const results = await performBatchTranslation([
       { key: 'event', value: thEvent },
-      { key: 'start', value: thStart, isDate: true },
-      { key: 'end', value: thEnd, isDate: true }
+      { key: 'start', value: rawStart, isDate: true },
+      { key: 'end', value: rawEnd, isDate: true }
     ]);
     setIsTranslating(false);
 
     const newEvent: ScheduleEvent = {
       id: editingSchedule?.id || Date.now().toString(),
       event: results['event'] || { th: thEvent, en: thEvent, ar: thEvent, ms: thEvent },
-      startDate: results['start'] || { th: thStart, en: thStart, ar: thStart, ms: thStart },
-      endDate: results['end'] || { th: thEnd, en: thEnd, ar: thEnd, ms: thEnd },
+      startDate: results['start'] || { th: rawStart, en: rawStart, ar: rawStart, ms: rawStart },
+      endDate: results['end'] || { th: rawEnd, en: rawEnd, ar: rawEnd, ms: rawEnd },
+      rawStartDate: rawStart,
+      rawEndDate: rawEnd,
       status: 'upcoming'
     };
 
@@ -434,20 +435,21 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-4">
-            {/* Sync Indicator for Dashboard */}
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-full border border-slate-100 dark:border-slate-700">
-               {isSyncing ? (
-                 <RefreshCw size={12} className="text-[#D4AF37] animate-spin" />
-               ) : SHEET_API_URL ? (
-                 // Fix: Changed CloudCloud to Cloud
-                 <Cloud size={12} className="text-emerald-500" />
-               ) : (
-                 <CloudOff size={12} className="text-slate-400" />
-               )}
-               <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
-                 {isSyncing ? "Saving..." : lastSync ? `Last Sync: ${new Date(lastSync).toLocaleTimeString()}` : "Cloud Ready"}
-               </span>
-            </div>
+            {/* Sync Indicator - Only visible to ADMIN */}
+            {role === UserRole.ADMIN && (
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-full border border-slate-100 dark:border-slate-700">
+                {isSyncing ? (
+                  <RefreshCw size={12} className="text-[#D4AF37] animate-spin" />
+                ) : SHEET_API_URL ? (
+                  <Cloud size={12} className="text-emerald-500" />
+                ) : (
+                  <CloudOff size={12} className="text-slate-400" />
+                )}
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
+                  {isSyncing ? "Saving..." : lastSync ? `Last Sync: ${new Date(lastSync).toLocaleTimeString()}` : "Cloud Ready"}
+                </span>
+              </div>
+            )}
 
             {role === UserRole.STUDENT && (
               <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" />
@@ -639,17 +641,8 @@ const App: React.FC = () => {
             </section>
           </div>
         ) : (
-          /* STUDENT VIEW (Same as before but with loading overlay) */
+          /* STUDENT VIEW - Optimized for immediate access without blocking overlay */
           <div className="space-y-10 sm:space-y-14 relative">
-            {isLoading && (
-              <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-50/50 dark:bg-slate-950/50 backdrop-blur-sm rounded-3xl">
-                <div className="flex flex-col items-center gap-4 bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
-                  <RefreshCw size={32} className="text-[#630330] dark:text-[#D4AF37] animate-spin" />
-                  <span className="text-sm font-black uppercase text-slate-500">Updating Dashboard...</span>
-                </div>
-              </div>
-            )}
-            
             <section className="reveal-anim">
               <div className="flex items-center gap-3 mb-5 sm:mb-6">
                 <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-500/20">
@@ -745,7 +738,7 @@ const App: React.FC = () => {
                   <button onClick={() => setActiveMajor(Major.HALAL_FOOD)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm ${activeMajor === Major.HALAL_FOOD ? 'bg-amber-500 text-white' : 'bg-white dark:bg-slate-900 text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-slate-50'}`}>
                     {currentT.halalMajor}
                   </button>
-                  <button onClick={() => setActiveMajor(Major.DIGITAL_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-900 text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-slate-50'}`}>
+                  <button onClick={() => { setActiveMajor(Major.DIGITAL_TECH); }} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-900 text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-slate-50'}`}>
                     {currentT.digitalMajor}
                   </button>
                 </div>
@@ -766,7 +759,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* DOCUMENT HUB MODAL (Same as before) */}
+      {/* DOCUMENT HUB MODAL */}
       {showDocHub && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8 bg-slate-950/80 backdrop-blur-2xl reveal-anim">
           <div className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-[3rem] overflow-hidden shadow-3xl border border-white/10 flex flex-col max-h-[90svh]">
@@ -835,7 +828,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Admin Modals (Modified to show syncing) */}
+      {/* Admin Modals */}
       {showAdminStatusModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim">
           <div className="w-full max-w-[440px] bg-white dark:bg-slate-900 rounded-[1.5rem] p-6 shadow-2xl">
@@ -881,11 +874,23 @@ const App: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[9px] font-black uppercase text-slate-400 ml-1">วันเริ่มต้น</label>
-                  <input name="start_th" defaultValue={editingSchedule?.startDate.th} required placeholder="เช่น 1 ม.ค. 68" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-[11px]" />
+                  <input 
+                    type="date"
+                    name="start_th" 
+                    defaultValue={editingSchedule?.rawStartDate} 
+                    required 
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-[11px]" 
+                  />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-black uppercase text-slate-400 ml-1">วันสิ้นสุด</label>
-                  <input name="end_th" defaultValue={editingSchedule?.endDate.th} required placeholder="เช่น 31 ม.ค. 68" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-[11px]" />
+                  <input 
+                    type="date"
+                    name="end_th" 
+                    defaultValue={editingSchedule?.rawEndDate} 
+                    required 
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-[11px]" 
+                  />
                 </div>
               </div>
               <div className="flex gap-2.5 pt-4">

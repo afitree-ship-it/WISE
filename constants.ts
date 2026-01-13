@@ -326,6 +326,8 @@ export const INITIAL_SCHEDULE: ScheduleEvent[] = [
     event: { th: "เปิดรับสมัครการฝึกงาน/สหกิจศึกษา", en: "Internship Application Period", ar: "فترة التقديم للتدريب", ms: "Tempoh Permohonan Latihan Industri" },
     startDate: { th: "1 มกราคม 2568", en: "Jan 1, 2025", ar: "١ يناير ٢٠٢٥", ms: "1 Jan 2025" },
     endDate: { th: "31 มกราคม 2568", en: "Jan 31, 2025", ar: "٣١ يناير ٢٠٢٥", ms: "31 Jan 2025" },
+    rawStartDate: "2025-01-01",
+    rawEndDate: "2025-01-31",
     status: 'upcoming'
   }
 ];
