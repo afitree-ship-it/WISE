@@ -52,7 +52,7 @@ export interface InternshipSite {
   location: LocalizedString;
   description: LocalizedString;
   position: LocalizedString;
-  status: 'active' | 'archived';
+  status: 'active' | 'senior_visited' | 'archived';
   major: Major;
   contactLink?: string;
   email?: string;
@@ -92,6 +92,7 @@ export interface Translation {
   allMajors: string;
   activeSites: string;
   pastSites: string;
+  seniorVisitedSites: string;
   download: string;
   adminPanel: string;
   addSite: string;

@@ -275,7 +275,10 @@ const App: React.FC = () => {
     const thDesc = formData.get('desc_th') as string;
     const thPos = formData.get('pos_th') as string;
     const major = formData.get('major') as Major;
+    const siteStatus = formData.get('status') as 'active' | 'senior_visited' | 'archived';
     const contactLink = formData.get('contact_link') as string;
+    const email = formData.get('email') as string;
+    const phone = formData.get('phone') as string;
     
     setIsTranslating(true);
     const results = await performBatchTranslation([
@@ -292,9 +295,11 @@ const App: React.FC = () => {
       location: results['loc'],
       description: results['desc'],
       position: results['pos'],
-      status: 'active',
+      status: siteStatus,
       major,
       contactLink: contactLink || undefined,
+      email: email || undefined,
+      phone: phone || undefined,
       createdAt: editingSite?.createdAt || Date.now()
     };
     if (editingSite) setSites(sites.map(s => s.id === editingSite.id ? newSite : s));
@@ -633,7 +638,7 @@ const App: React.FC = () => {
               </div>
 
               {filteredSites.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredSites.map(site => <InternshipCard key={site.id} site={site} lang={lang} />)}
                 </div>
               ) : (
@@ -844,6 +849,27 @@ const App: React.FC = () => {
                    <option value={Major.HALAL_FOOD}>ฮาลาล</option>
                    <option value={Major.DIGITAL_TECH}>ดิจิทัล</option>
                 </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">สถานะหน่วยงาน</label>
+                <div className="grid grid-cols-3 gap-2">
+                   <label className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-all border border-transparent has-[:checked]:border-emerald-500">
+                      <input type="radio" name="status" value="active" defaultChecked={!editingSite || editingSite.status === 'active'} className="hidden" />
+                      <span className="text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300">เปิดรับสมัคร</span>
+                   </label>
+                   <label className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-all border border-transparent has-[:checked]:border-amber-500">
+                      <input type="radio" name="status" value="senior_visited" defaultChecked={editingSite?.status === 'senior_visited'} className="hidden" />
+                      <span className="text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300">รุ่นพี่เคยมาแล้ว</span>
+                   </label>
+                   <label className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-all border border-transparent has-[:checked]:border-slate-400">
+                      <input type="radio" name="status" value="archived" defaultChecked={editingSite?.status === 'archived'} className="hidden" />
+                      <span className="text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300">คลังข้อมูล</span>
+                   </label>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <input name="email" defaultValue={editingSite?.email} placeholder="อีเมลติดต่อ" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
+                <input name="phone" defaultValue={editingSite?.phone} placeholder="เบอร์โทรศัพท์" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
               </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase text-slate-400 ml-1 flex items-center gap-1"><Link2 size={10} /> ลิงก์เว็บไซต์ (URL)</label>
