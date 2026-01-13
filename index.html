@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,6 +16,13 @@
           },
           animation: {
             'ring-expand': 'ring-expand 1s cubic-bezier(0, 0, 0.2, 1) infinite',
+            'flow-line': 'flow-line 3s linear infinite',
+          },
+          keyframes: {
+            'flow-line': {
+              '0%': { 'background-position': '0% 50%' },
+              '100%': { 'background-position': '200% 50%' },
+            }
           }
         },
       },
@@ -39,7 +47,6 @@
       transition: background-color 0.3s ease, color 0.3s ease;
     }
 
-    /* Desktop-only zoom for landing page to fit everything (80%) */
     @media (min-width: 1024px) {
       .desktop-zoom-80 {
         zoom: 0.80;
@@ -85,21 +92,18 @@
       mix-blend-mode: overlay;
     }
 
-    /* Fixed High-Tech Grid Mouse Glow Effect (Flashlight Style) */
     .mouse-glow {
       position: fixed;
-      inset: 0; /* เต็มหน้าจอแต่ล็อคไว้กับที่ */
+      inset: 0;
       pointer-events: none;
       z-index: 3;
       mix-blend-mode: screen;
-      /* ลายตารางคงที่ */
       background-image: 
         linear-gradient(rgba(212, 175, 55, 0.1) 1px, transparent 1px),
         linear-gradient(90deg, rgba(212, 175, 55, 0.1) 1px, transparent 1px),
         radial-gradient(rgba(212, 175, 55, 0.25) 1.5px, transparent 1.5px);
       background-size: 40px 40px, 40px 40px, 40px 40px;
       background-position: center center;
-      /* ใช้ Mask เพื่อส่องสว่างเฉพาะจุดที่เมาส์อยู่ */
       -webkit-mask-image: radial-gradient(
         300px circle at var(--mouse-x) var(--mouse-y), 
         black 0%, 
@@ -115,7 +119,6 @@
       will-change: mask-image;
     }
 
-    /* --- Layered Tech Meteor Shower --- */
     .meteor-container {
       position: absolute;
       bottom: 0;
@@ -144,7 +147,6 @@
       100% { transform: translateY(-240px) scaleY(0.5); opacity: 0; }
     }
 
-    /* --- Water Waves Layer --- */
     .waves-container {
       position: absolute;
       bottom: 0;
@@ -171,11 +173,6 @@
     @keyframes bob {
       0%, 100% { transform: translateY(0) scale(1, 1); }
       50% { transform: translateY(-15px) scale(1.02, 0.98); }
-    }
-
-    @keyframes ring-expand {
-      0% { transform: scale(1); opacity: 0.5; border-width: 2px; }
-      100% { transform: scale(1.4); opacity: 0; border-width: 1px; }
     }
 
     .animate-wave-slow { animation: move-wave 35s linear infinite; }

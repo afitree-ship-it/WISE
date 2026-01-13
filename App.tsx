@@ -49,11 +49,12 @@ import {
   Cloud,
   CloudOff,
   RefreshCw,
-  CheckCircle2
+  CheckCircle2,
+  Play,
+  Flag
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
-// ใส่ URL ของ Google Apps Script ที่ Deploy แล้วที่นี่
 const SHEET_API_URL = "https://script.google.com/macros/s/AKfycby-TUywvMFjsfpq629r1Fou59reZ4bBTghCxOHHpx8Cz9nxRPlha4Pxf2nS8QgHv13c/exec"; 
 
 const App: React.FC = () => {
@@ -125,20 +126,16 @@ const App: React.FC = () => {
   const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
   const [showDocHub, setShowDocHub] = useState(false);
 
-  // --- GOOGLE SHEETS SYNC LOGIC ---
-
   const fetchFromSheets = useCallback(async () => {
     if (!SHEET_API_URL) return;
     setIsLoading(true);
     try {
       const response = await fetch(SHEET_API_URL);
       const cloudData = await response.json();
-      
       if (cloudData.sites) setSites(cloudData.sites);
       if (cloudData.schedules) setSchedules(cloudData.schedules);
       if (cloudData.forms) setForms(cloudData.forms);
       if (cloudData.studentStatuses) setStudentStatuses(cloudData.studentStatuses);
-      
       setLastSync(Date.now());
     } catch (error) {
       console.error("Failed to fetch from Google Sheets:", error);
@@ -163,12 +160,10 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Initial Load
   useEffect(() => {
     fetchFromSheets();
   }, [fetchFromSheets]);
 
-  // Theme Sync
   useEffect(() => {
     const root = window.document.documentElement;
     if (theme === 'dark') {
@@ -179,7 +174,6 @@ const App: React.FC = () => {
     localStorage.setItem('wise_portal_theme', theme);
   }, [theme]);
 
-  // Local Storage Fallback
   useEffect(() => { localStorage.setItem('wise_student_statuses', JSON.stringify(studentStatuses)); }, [studentStatuses]);
   useEffect(() => { localStorage.setItem('wise_sites', JSON.stringify(sites)); }, [sites]);
   useEffect(() => { localStorage.setItem('wise_schedules', JSON.stringify(schedules)); }, [schedules]);
@@ -218,12 +212,12 @@ const App: React.FC = () => {
     if (items.length === 0) return {};
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-      const prompt = `Translate to EN, AR, MS: ${items.map(i => `${i.key}:"${i.value}"${i.isDate ? '(date)' : ''}`).join('|')}`;
+      const prompt = `Translate to EN, AR, MS: ${items.map(i => `${i.key}:"${i.value}"${i.isDate ? '(date-standard)' : ''}`).join('|')}`;
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
-          systemInstruction: "Translate to English, Arabic, Malay. Return JSON.",
+          systemInstruction: "You are a professional translator for an educational portal. For 'date-standard' items: In 'th' (Thai), MUST use Buddhist Era year (BE = current year + 543). In 'en', 'ar', 'ms', MUST use Gregorian year (AD). Example: 2025 AD is 2568 BE. Return JSON with th, en, ar, ms keys.",
           responseMimeType: "application/json",
           thinkingConfig: { thinkingBudget: 0 }, 
           responseSchema: {
@@ -264,18 +258,15 @@ const App: React.FC = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const thEvent = formData.get('event_th') as string;
-    const rawStart = formData.get('start_th') as string; // Standard YYYY-MM-DD from picker
-    const rawEnd = formData.get('end_th') as string;   // Standard YYYY-MM-DD from picker
-
+    const rawStart = formData.get('start_th') as string;
+    const rawEnd = formData.get('end_th') as string;
     setIsTranslating(true);
-    // Send standard date to AI to get nice localized strings
     const results = await performBatchTranslation([
       { key: 'event', value: thEvent },
       { key: 'start', value: rawStart, isDate: true },
       { key: 'end', value: rawEnd, isDate: true }
     ]);
     setIsTranslating(false);
-
     const newEvent: ScheduleEvent = {
       id: editingSchedule?.id || Date.now().toString(),
       event: results['event'] || { th: thEvent, en: thEvent, ar: thEvent, ms: thEvent },
@@ -285,11 +276,9 @@ const App: React.FC = () => {
       rawEndDate: rawEnd,
       status: 'upcoming'
     };
-
     let updated;
     if (editingSchedule) updated = schedules.map(s => s.id === editingSchedule.id ? newEvent : s);
     else updated = [newEvent, ...schedules];
-    
     setSchedules(updated);
     syncToSheets('schedules', updated);
     setShowScheduleModal(false);
@@ -302,22 +291,18 @@ const App: React.FC = () => {
     const thTitle = formData.get('title') as string;
     const category = formData.get('category') as FormCategory;
     const url = formData.get('url') as string;
-
     setIsTranslating(true);
     const results = await performBatchTranslation([{ key: 'title', value: thTitle }]);
     setIsTranslating(false);
-
     const newForm: DocumentForm = {
       id: editingForm?.id || Date.now().toString(),
       title: results['title'] || { th: thTitle, en: thTitle, ar: thTitle, ms: thTitle },
       category,
       url: url.startsWith('http') ? url : `https://${url}`
     };
-
     let updated;
     if (editingForm) updated = forms.map(f => f.id === editingForm.id ? newForm : f);
     else updated = [newForm, ...forms];
-    
     setForms(updated);
     syncToSheets('forms', updated);
     setShowFormModal(false);
@@ -331,14 +316,12 @@ const App: React.FC = () => {
     const thLoc = formData.get('loc_th') as string;
     const thDesc = formData.get('desc_th') as string;
     const thPos = formData.get('pos_th') as string;
-    
     setIsTranslating(true);
     const results = await performBatchTranslation([
       { key: 'name', value: thName }, { key: 'loc', value: thLoc },
       { key: 'desc', value: thDesc }, { key: 'pos', value: thPos }
     ]);
     setIsTranslating(false);
-
     const newSite: InternshipSite = {
       id: editingSite?.id || Date.now().toString(),
       name: results['name'],
@@ -346,17 +329,15 @@ const App: React.FC = () => {
       description: results['desc'],
       position: results['pos'],
       status: formData.get('status') as any,
-      major: formData.get('major') as Major,
+      major: Major.HALAL_FOOD, 
       contactLink: formData.get('contact_link') as string || undefined,
       email: formData.get('email') as string || undefined,
       phone: formData.get('phone') as string || undefined,
       createdAt: editingSite?.createdAt || Date.now()
     };
-    
     let updated;
     if (editingSite) updated = sites.map(s => s.id === editingSite.id ? newSite : s);
     else updated = [newSite, ...sites];
-    
     setSites(updated);
     syncToSheets('sites', updated);
     setShowSiteModal(false);
@@ -377,7 +358,6 @@ const App: React.FC = () => {
     let updated;
     if (editingStatusRecord) updated = studentStatuses.map(s => s.id === editingStatusRecord.id ? newRecord : s);
     else updated = [newRecord, ...studentStatuses];
-    
     setStudentStatuses(updated);
     syncToSheets('studentStatuses', updated);
     setShowAdminStatusModal(false);
@@ -435,7 +415,6 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-4">
-            {/* Sync Indicator - Only visible to ADMIN */}
             {role === UserRole.ADMIN && (
               <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-full border border-slate-100 dark:border-slate-700">
                 {isSyncing ? (
@@ -450,11 +429,9 @@ const App: React.FC = () => {
                 </span>
               </div>
             )}
-
             {role === UserRole.STUDENT && (
               <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" />
             )}
-            
             <div className="flex items-center gap-1 sm:gap-2">
               <button 
                 onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
@@ -476,24 +453,16 @@ const App: React.FC = () => {
       <main className={`container mx-auto px-4 py-6 space-y-8 flex-grow transition-all`}>
         {role === UserRole.ADMIN ? (
           <div className="grid grid-cols-1 gap-4">
-            {/* Database Control Header */}
             <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm">
                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-600 text-white rounded-lg">
-                    <Database size={20} />
-                  </div>
+                  <div className="p-2 bg-indigo-600 text-white rounded-lg"><Database size={20} /></div>
                   <div>
                     <h2 className="text-sm font-black uppercase text-slate-900 dark:text-white">สถานะการเชื่อมต่อ Google Sheets</h2>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">{SHEET_API_URL ? "เชื่อมต่อคลาวด์แล้ว" : "ไม่ได้ระบุ Web App URL (ใช้ Local Storage)"}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">{SHEET_API_URL ? "เชื่อมต่อคลาวด์แล้ว" : "ไม่ได้ระบุ Web App URL"}</p>
                   </div>
                </div>
-               <button 
-                onClick={fetchFromSheets} 
-                disabled={isLoading || !SHEET_API_URL}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-indigo-50 text-indigo-700 rounded-xl font-black uppercase text-[10px] transition-all disabled:opacity-30"
-               >
-                 {isLoading ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                 ดึงข้อมูลใหม่
+               <button onClick={fetchFromSheets} disabled={isLoading} className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-indigo-50 text-indigo-700 rounded-xl font-black uppercase text-[10px] transition-all">
+                 {isLoading ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />} ดึงข้อมูลใหม่
                </button>
             </div>
 
@@ -569,7 +538,6 @@ const App: React.FC = () => {
               )}
             </section>
 
-            {/* Other Admin Sections (Schedule, Forms) */}
             <section className={`rounded-2xl border transition-all overflow-hidden ${isScheduleExpanded ? 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900/40 p-4' : 'bg-white dark:bg-slate-900 border-slate-100 p-2'}`}>
               <div className="flex items-center justify-between gap-4 cursor-pointer" onClick={() => setIsScheduleExpanded(!isScheduleExpanded)}>
                 <div className="flex items-center gap-2.5">
@@ -641,40 +609,78 @@ const App: React.FC = () => {
             </section>
           </div>
         ) : (
-          /* STUDENT VIEW - Optimized for immediate access without blocking overlay */
+          /* STUDENT VIEW - OPTIMIZED SINGLE-ROW COMPACT LAYOUT FOR MOBILE */
           <div className="space-y-10 sm:space-y-14 relative">
             <section className="reveal-anim">
-              <div className="flex items-center gap-3 mb-5 sm:mb-6">
+              <div className="flex items-center gap-3 mb-6">
                 <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-500/20">
                   <CalendarDays size={20} />
                 </div>
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black uppercase text-slate-900 dark:text-white leading-none">{currentT.schedule}</h2>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-wider">Stay updated with key dates</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-wider">Stay updated with key dates and deadlines</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {schedules.map(item => (
-                  <div key={item.id} className="group p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4 border-l-emerald-500">
-                    <h4 className="font-bold text-slate-900 dark:text-white mb-3 text-sm line-clamp-2 leading-tight">
-                      {getLocalized(item.event)}
-                    </h4>
-                    <div className="flex flex-col gap-2">
-                       <div className="flex items-center gap-2">
-                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                         <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
-                           <span className="text-emerald-600 dark:text-emerald-400 mr-1">{currentT.startDateLabel}</span> {getLocalized(item.startDate)}
-                         </p>
-                       </div>
-                       <div className="flex items-center gap-2">
-                         <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
-                         <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
-                           <span className="text-rose-500 mr-1">{currentT.endDateLabel}</span> {getLocalized(item.endDate)}
-                         </p>
-                       </div>
+              
+              <div className="flex flex-col gap-3">
+                {schedules.length > 0 ? (
+                  schedules.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="group relative flex flex-row items-center justify-between p-2 sm:p-5 
+                        bg-white/70 dark:bg-slate-900/70 backdrop-blur-md 
+                        border border-slate-100 dark:border-slate-800 
+                        rounded-2xl transition-all duration-300
+                        border-l-[6px] border-l-emerald-500 overflow-hidden
+                        shadow-[0_0_15px_rgba(16,185,129,0.15)] 
+                        hover:shadow-[0_0_25px_rgba(16,185,129,0.3)] dark:hover:shadow-[0_0_30px_rgba(16,185,129,0.2)]"
+                    >
+                      {/* Left: Event Title with Universal Intense Pulse - Optimized for Wrapping */}
+                      <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1 pr-1 sm:pr-4">
+                         <div className="relative shrink-0 flex items-center justify-center w-3.5 h-3.5 sm:w-4 sm:h-4">
+                           <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,1)]"></div>
+                           <div className="absolute inset-0 w-full h-full rounded-full border border-emerald-400 animate-ping opacity-75"></div>
+                           <div className="absolute -inset-1 w-full h-full rounded-full border border-emerald-500/30 animate-pulse"></div>
+                         </div>
+                         {/* Removed truncate, added line-clamp-2 to see more text while keeping row aesthetic */}
+                         <h4 className="text-[10px] min-[360px]:text-[11px] sm:text-base font-black text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2 break-words">
+                           {getLocalized(item.event)}
+                         </h4>
+                      </div>
+
+                      {/* Right: Flowing Timeline Path (Ultra Compact and Shrunk on Mobile) */}
+                      <div className="flex items-center gap-0.5 sm:gap-3 flex-shrink-0">
+                         {/* START COMPACT CHIP - EXTREMELY SHRUNK ON MOBILE */}
+                         <div className="flex items-center gap-1 px-1 sm:px-3 py-1 sm:py-1.5 bg-emerald-50/80 dark:bg-emerald-950/40 rounded-lg sm:rounded-xl border border-emerald-100 dark:border-emerald-800/40 transition-transform group-hover:scale-105">
+                            <Play size={7} className="text-emerald-500 fill-emerald-500 shrink-0" />
+                            <div className="flex flex-col leading-none">
+                              <span className="hidden sm:block text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter mb-1">{currentT.startDateLabel}</span>
+                              <span className="text-[8px] min-[400px]:text-[9px] sm:text-[12px] font-black text-emerald-900 dark:text-emerald-200 whitespace-nowrap">{getLocalized(item.startDate)}</span>
+                            </div>
+                         </div>
+                         
+                         {/* CONNECTING FLOWING LINE - HIDDEN ON MOBILE TO SAVE SPACE */}
+                         <div className="hidden md:block w-16 h-[3px] relative overflow-hidden rounded-full">
+                            <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 rounded-full"></div>
+                            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(16,185,129,0)_0%,rgba(16,185,129,1)_50%,rgba(16,185,129,0)_100%)] bg-[length:200%_100%] animate-flow-line"></div>
+                         </div>
+
+                         {/* END COMPACT CHIP - EXTREMELY SHRUNK ON MOBILE */}
+                         <div className="flex items-center gap-1 px-1 sm:px-3 py-1 sm:py-1.5 bg-rose-50/80 dark:bg-rose-950/40 rounded-lg sm:rounded-xl border border-rose-100 dark:border-rose-800/40 transition-transform group-hover:scale-105">
+                            <Flag size={7} className="text-rose-500 fill-rose-500 shrink-0" />
+                            <div className="flex flex-col leading-none">
+                              <span className="hidden sm:block text-[8px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-tighter mb-1">{currentT.endDateLabel}</span>
+                              <span className="text-[8px] min-[400px]:text-[9px] sm:text-[12px] font-black text-rose-900 dark:text-rose-200 whitespace-nowrap">{getLocalized(item.endDate)}</span>
+                            </div>
+                         </div>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="p-10 text-center text-[12px] font-bold text-slate-400 uppercase border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl bg-white/30">
+                    No upcoming events scheduled
                   </div>
-                ))}
+                )}
               </div>
             </section>
 
@@ -720,7 +726,6 @@ const App: React.FC = () => {
                     <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-wider">Explore available opportunities</p>
                   </div>
                 </div>
-                
                 <div className="flex flex-wrap items-center gap-2">
                    <div className="relative mr-2">
                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -743,7 +748,6 @@ const App: React.FC = () => {
                   </button>
                 </div>
               </div>
-
               {filteredSites.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredSites.map(site => <InternshipCard key={site.id} site={site} lang={lang} />)}
@@ -778,7 +782,6 @@ const App: React.FC = () => {
                   </div>
                </div>
             </div>
-
             <div className="flex-grow overflow-y-auto p-8 sm:p-12 space-y-10">
                <div className="space-y-4">
                   <div className="flex items-center gap-2 px-2">
@@ -944,7 +947,7 @@ const App: React.FC = () => {
               <textarea name="desc_th" defaultValue={editingSite?.description.th} required placeholder="รายละเอียด" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm min-h-[80px]"></textarea>
               <div className="grid grid-cols-2 gap-4">
                 <input name="pos_th" defaultValue={editingSite?.position.th} required placeholder="ตำแหน่งงาน" className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-none outline-none font-bold text-sm" />
-                <select name="major" defaultValue={editingSite?.major || Major.HALAL_FOOD} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-[11px]">
+                <select name="major" defaultValue={Major.HALAL_FOOD} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-[11px]">
                    <option value={Major.HALAL_FOOD}>ฮาลาล</option>
                    <option value={Major.DIGITAL_TECH}>ดิจิทัล</option>
                 </select>
