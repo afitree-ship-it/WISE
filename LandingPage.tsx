@@ -86,15 +86,15 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className={`fixed inset-0 w-full h-full flex flex-col items-center luxe-mangosteen-bg overflow-y-auto desktop-zoom-74 ${isRtl ? 'rtl' : ''}`}>
+    <div className={`fixed inset-0 w-full h-full flex flex-col items-center luxe-mangosteen-bg overflow-y-auto desktop-zoom-90 ${isRtl ? 'rtl' : ''}`}>
       <MouseGlow />
-      <div className="bg-video-wrap fixed">
+      <div className="bg-video-wrap fixed inset-0">
         <video autoPlay loop muted playsInline>
           <source src="https://assets.mixkit.co/videos/preview/mixkit-business-people-working-in-a-busy-office-33824-large.mp4" type="video/mp4" />
         </video>
       </div>
-      <div className="video-overlay fixed"></div>
-      <div className="islamic-tech-watermark fixed"></div>
+      <div className="video-overlay fixed inset-0"></div>
+      <div className="islamic-tech-watermark fixed inset-0"></div>
       <TechMeteorShower />
       <ModernWaves />
       
