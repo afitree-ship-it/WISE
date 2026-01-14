@@ -486,7 +486,7 @@ const App: React.FC = () => {
                   ))}
                   <div className="hidden md:block mt-4 p-5 rounded-2xl bg-gradient-to-br from-[#2A0114] to-[#630330] text-white shadow-xl shadow-[#2A0114]/20 border border-white/5">
                     <p className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37] mb-1">WISE Portal</p>
-                    <h4 className="font-bold text-xs leading-tight opacity-90">ระบบจัดการหลังบ้าน</h4>
+                    <h4 className="font-bold text-xs leading-tight opacity-90">ระบบจัดการหลังบ้าน <br /> คณะวิทยาศาสตร์ฯ มฟน.</h4>
                     <button onClick={fetchFromSheets} disabled={isLoading} className="mt-3 flex items-center gap-2 text-[9px] font-black uppercase text-[#D4AF37] hover:text-white transition-all">
                       <RefreshCw size={10} className={isLoading ? 'animate-spin' : ''} /> รีเฟรชข้อมูล
                     </button>
