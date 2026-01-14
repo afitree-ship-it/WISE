@@ -86,7 +86,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className={`fixed inset-0 w-full h-[100svh] flex flex-col items-center luxe-mangosteen-bg overflow-hidden desktop-zoom-74 touch-none ${isRtl ? 'rtl' : ''}`}>
+    <div className={`fixed inset-0 w-full h-[100svh] flex flex-col items-center luxe-mangosteen-bg overflow-hidden desktop-zoom-70 touch-none ${isRtl ? 'rtl' : ''}`}>
       <MouseGlow />
       <div className="bg-video-wrap">
         <video autoPlay loop muted playsInline>
