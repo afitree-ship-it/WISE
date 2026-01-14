@@ -86,19 +86,19 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className={`fixed inset-0 w-full h-[100svh] flex flex-col items-center luxe-mangosteen-bg overflow-hidden desktop-zoom-70 touch-none ${isRtl ? 'rtl' : ''}`}>
+    <div className={`fixed inset-0 w-full h-full flex flex-col items-center luxe-mangosteen-bg overflow-y-auto desktop-zoom-74 ${isRtl ? 'rtl' : ''}`}>
       <MouseGlow />
-      <div className="bg-video-wrap">
+      <div className="bg-video-wrap fixed">
         <video autoPlay loop muted playsInline>
           <source src="https://assets.mixkit.co/videos/preview/mixkit-business-people-working-in-a-busy-office-33824-large.mp4" type="video/mp4" />
         </video>
       </div>
-      <div className="video-overlay"></div>
-      <div className="islamic-tech-watermark"></div>
+      <div className="video-overlay fixed"></div>
+      <div className="islamic-tech-watermark fixed"></div>
       <TechMeteorShower />
       <ModernWaves />
       
-      <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-6 reveal-anim h-full">
+      <div className="relative flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-6 py-12 reveal-anim min-h-screen">
         <div className="flex flex-col items-center space-y-4 sm:space-y-6">
            <div className="px-4 sm:px-8 py-2 sm:py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
              <div className="flex flex-row items-center gap-2 sm:gap-6 whitespace-nowrap overflow-hidden">
@@ -131,7 +131,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
         </div>
 
         <div className="mt-6 sm:mt-10 space-y-6 sm:space-y-10 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 flex flex-col items-center">
-          <h1 className="text-center text-[11px] min-[360px]:text-[13px] min-[400px]:text-[15px] min-[480px]:text-base sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight whitespace-nowrap mx-auto">
+          <h1 className="text-center text-[10px] min-[360px]:text-[12px] min-[400px]:text-[14px] min-[480px]:text-base sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight whitespace-nowrap mx-auto">
             {currentT.landingHeading}
           </h1>
 
@@ -141,13 +141,13 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </div>
             
             <div className="flex flex-col items-center w-full">
-              <div className="flex flex-row items-center justify-center gap-2 sm:gap-4 px-2">
+              <div className="flex flex-col min-[500px]:flex-row items-center justify-center gap-3 sm:gap-4 px-2 w-full max-w-[90vw]">
                 <button 
                   onClick={onEnterDashboard}
-                  className="group relative px-5 sm:px-14 py-4 sm:py-5 bg-white text-[#630330] rounded-full font-black uppercase text-[12px] min-[400px]:text-[13px] sm:text-xl transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-hidden"
+                  className="group relative px-6 sm:px-14 py-3.5 sm:py-5 bg-white text-[#630330] rounded-full font-black uppercase text-[11px] min-[400px]:text-[12px] sm:text-xl transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-hidden w-full min-[500px]:w-auto"
                 >
                   <div className="absolute inset-0 rounded-full border-2 border-white/0 group-hover:border-white/50 group-hover:animate-ring-expand pointer-events-none"></div>
-                  <span className="relative z-10 flex items-center gap-1.5 sm:gap-4 tracking-tight whitespace-nowrap">
+                  <span className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-4 tracking-tight whitespace-nowrap">
                     {currentT.startNow} 
                     <div className="flex items-center justify-center w-5 h-5 sm:w-8 sm:h-8 rounded-full bg-[#630330]/5 group-hover:bg-[#630330] group-hover:text-white transition-all duration-500">
                       <ChevronRight size={14} className={`sm:w-[18px] sm:h-[18px] ${isRtl ? 'rotate-180' : ''}`} />
@@ -161,9 +161,9 @@ const LandingPage: React.FC<LandingPageProps> = ({
                     setFoundStatus(undefined);
                     setShowStatusCheckModal(true);
                   }}
-                  className="group relative px-4 sm:px-8 py-4 sm:py-5 bg-[#D4AF37] hover:bg-[#b8952c] text-[#2A0114] rounded-full font-bold uppercase text-[10px] sm:text-sm transition-all hover:scale-105 active:scale-95 shadow-[0_10px_20px_rgba(212,175,55,0.2)]"
+                  className="group relative px-6 sm:px-8 py-3.5 sm:py-5 bg-[#D4AF37] hover:bg-[#b8952c] text-[#2A0114] rounded-full font-bold uppercase text-[10px] sm:text-sm transition-all hover:scale-105 active:scale-95 shadow-[0_10px_20px_rgba(212,175,55,0.2)] w-full min-[500px]:w-auto"
                 >
-                  <span className="flex items-center gap-2 tracking-tight whitespace-nowrap">
+                  <span className="flex items-center justify-center gap-2 tracking-tight whitespace-nowrap">
                     <Timer size={14} className="sm:w-[16px] sm:h-[16px] group-hover:rotate-12 transition-transform" />
                     {currentT.checkStatus}
                   </span>
@@ -175,7 +175,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   setLoginError(false);
                   setShowAdminLogin(true);
                 }}
-                className="flex items-center gap-2 mt-8 opacity-30 hover:opacity-100 transition-all duration-500 group touch-auto"
+                className="flex items-center gap-2 mt-8 opacity-30 hover:opacity-100 transition-all duration-500 group touch-auto py-2"
                 title="Staff Access"
               >
                 <LockKeyhole size={12} className="text-[#D4AF37] group-hover:scale-110 transition-transform" />
@@ -188,8 +188,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
       {/* Student Status Check Modal */}
       {showStatusCheckModal && (
-        <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-xl reveal-anim touch-auto">
-          <div className="w-full max-w-[520px] bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-3xl relative overflow-hidden">
+        <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-xl reveal-anim touch-auto overflow-y-auto">
+          <div className="w-full max-w-[520px] bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-3xl relative overflow-hidden my-auto">
              <button onClick={() => setShowStatusCheckModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 transition-colors z-10">
                <X size={20} className="text-slate-400" />
              </button>
