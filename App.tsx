@@ -53,7 +53,8 @@ import {
   Play,
   Flag,
   Users,
-  Briefcase
+  Briefcase,
+  Filter
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
@@ -112,7 +113,10 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   
   const [adminStudentSearch, setAdminStudentSearch] = useState('');
+  const [adminStudentStatusFilter, setAdminStudentStatusFilter] = useState<ApplicationStatus | 'all'>('all');
+  
   const [adminSiteSearch, setAdminSiteSearch] = useState('');
+  const [adminSiteMajorFilter, setAdminSiteMajorFilter] = useState<Major | 'all'>('all');
 
   const [isTranslating, setIsTranslating] = useState(false);
 
@@ -188,7 +192,6 @@ const App: React.FC = () => {
     const validPasswords = ['fst111', '24725', '5990'];
     if (validPasswords.includes(password)) {
       setRole(UserRole.ADMIN);
-      setLang(Language.TH); 
       setViewState('dashboard');
       return true;
     }
@@ -244,23 +247,35 @@ const App: React.FC = () => {
   });
 
   const filteredAdminStudents = useMemo(() => {
-    if (!adminStudentSearch) return studentStatuses;
-    const search = adminStudentSearch.toLowerCase();
-    return studentStatuses.filter(s => 
-      (s.name || "").toLowerCase().includes(search) || 
-      String(s.studentId || "").toLowerCase().includes(search)
-    );
-  }, [studentStatuses, adminStudentSearch]);
+    let result = studentStatuses;
+    if (adminStudentSearch) {
+      const search = adminStudentSearch.toLowerCase();
+      result = result.filter(s => 
+        (s.name || "").toLowerCase().includes(search) || 
+        String(s.studentId || "").toLowerCase().includes(search)
+      );
+    }
+    if (adminStudentStatusFilter !== 'all') {
+      result = result.filter(s => s.status === adminStudentStatusFilter);
+    }
+    return result;
+  }, [studentStatuses, adminStudentSearch, adminStudentStatusFilter]);
 
   const filteredAdminSites = useMemo(() => {
-    if (!adminSiteSearch) return sites;
-    const search = adminSiteSearch.toLowerCase();
-    return sites.filter(s => 
-      getLocalized(s.name).toLowerCase().includes(search) || 
-      getLocalized(s.location).toLowerCase().includes(search) ||
-      getLocalized(s.position).toLowerCase().includes(search)
-    );
-  }, [sites, adminSiteSearch]);
+    let result = sites;
+    if (adminSiteSearch) {
+      const search = adminSiteSearch.toLowerCase();
+      result = result.filter(s => 
+        getLocalized(s.name).toLowerCase().includes(search) || 
+        getLocalized(s.location).toLowerCase().includes(search) ||
+        getLocalized(s.position).toLowerCase().includes(search)
+      );
+    }
+    if (adminSiteMajorFilter !== 'all') {
+      result = result.filter(s => s.major === adminSiteMajorFilter);
+    }
+    return result;
+  }, [sites, adminSiteSearch, adminSiteMajorFilter]);
 
   const sortedSchedules = useMemo(() => {
     return [...schedules].sort((a, b) => (a.rawStartDate || '').localeCompare(b.rawStartDate || ''));
@@ -408,22 +423,22 @@ const App: React.FC = () => {
   ];
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-slate-50 dark:bg-slate-950' : 'bg-[#F8FAFC] dark:bg-slate-900'}`}>
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-[#e4d4bc] dark:bg-slate-950 overflow-hidden' : 'bg-[#F8FAFC] dark:bg-slate-900'}`}>
       {/* NAVBAR */}
-      <div className="sticky top-0 z-50 w-full px-2 sm:px-4 py-3">
-        <nav className="container mx-auto h-auto min-h-[70px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-[1.25rem] px-4 sm:px-8 flex items-center justify-between border border-slate-100 dark:border-slate-800 py-2 shadow-xl shadow-slate-200/50 dark:shadow-none">
+      <div className="sticky top-0 z-[100] w-full px-2 sm:px-4 pt-2">
+        <nav className="container mx-auto h-auto min-h-[64px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-[1.25rem] px-4 sm:px-8 flex items-center justify-between border border-slate-100 dark:border-slate-800 py-1.5 shadow-xl shadow-slate-200/20 dark:shadow-none">
           <div className="flex items-center gap-4 sm:gap-6">
             <div className="flex flex-col cursor-pointer" onClick={() => setViewState('landing')}>
               <span className="block text-xl sm:text-2xl font-black leading-none uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#630330] via-[#8B1A4F] to-[#D4AF37]">
                 WISE
               </span>
-              {role === UserRole.ADMIN && <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest leading-none mt-1">Admin Panel</span>}
+              {role === UserRole.ADMIN && <span className="text-[10px] font-black text-[#630330] uppercase tracking-widest leading-none mt-1">Admin Panel</span>}
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-4">
             {role === UserRole.ADMIN && (
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-full border border-slate-100 dark:border-slate-700">
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/50 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
                 {isSyncing ? <RefreshCw size={12} className="text-[#D4AF37] animate-spin" /> : <Cloud size={12} className="text-emerald-500" />}
                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
                   {isSyncing ? "Saving..." : lastSync ? `Synced: ${new Date(lastSync).toLocaleTimeString()}` : "Cloud Ready"}
@@ -431,7 +446,7 @@ const App: React.FC = () => {
               </div>
             )}
             <div className="flex items-center gap-1 sm:gap-2">
-              <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl border border-slate-100 dark:border-slate-700 hover:bg-slate-100 transition-all">
+              <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-white/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-white transition-all">
                 {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
               </button>
               <button onClick={handleLogout} className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-rose-50 dark:bg-rose-950/30 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all shadow-md">
@@ -442,21 +457,21 @@ const App: React.FC = () => {
         </nav>
       </div>
 
-      <div className="container mx-auto px-2 sm:px-4 py-4 flex flex-col md:flex-row gap-6 h-full flex-grow">
+      <div className={`container mx-auto px-2 sm:px-4 ${role === UserRole.ADMIN ? 'h-[calc(100vh-100px)] pt-4 pb-4' : 'py-4'} flex flex-col md:flex-row gap-6 flex-grow relative`}>
         {role === UserRole.ADMIN ? (
           <>
-            {/* SIDEBAR NAVIGATION - DESKTOP / TOP NAVIGATION - MOBILE */}
-            <aside className="w-full md:w-64 lg:w-72 flex-shrink-0">
-               <div className="md:sticky md:top-28 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 hide-scrollbar">
+            {/* SIDEBAR NAVIGATION */}
+            <aside className="w-full md:w-64 lg:w-72 flex-shrink-0 flex flex-col h-fit md:h-full overflow-y-auto hide-scrollbar z-[60]">
+               <div className="flex flex-row md:flex-col gap-2 p-1.5 md:p-0 bg-[#e4d4bc]/80 dark:bg-slate-950/80 backdrop-blur-md md:bg-transparent rounded-2xl">
                   {adminMenu.map(item => (
                     <button
                       key={item.id}
                       onClick={() => setAdminActiveTab(item.id as any)}
                       className={`
-                        flex items-center gap-3 px-5 py-4 rounded-2xl font-black uppercase text-sm transition-all whitespace-nowrap md:w-full
+                        flex items-center gap-3 px-5 py-3.5 rounded-2xl font-black uppercase text-[11px] min-[400px]:text-sm transition-all whitespace-nowrap md:w-full
                         ${adminActiveTab === item.id 
                           ? `bg-[#630330] text-white shadow-lg shadow-[#630330]/20` 
-                          : 'bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800'
+                          : 'bg-white/90 dark:bg-slate-900 text-slate-600 dark:text-slate-500 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-800'
                         }
                       `}
                     >
@@ -464,40 +479,41 @@ const App: React.FC = () => {
                       {item.label}
                     </button>
                   ))}
-                  <div className="hidden md:block mt-6 p-6 rounded-2xl bg-gradient-to-br from-[#2A0114] to-[#630330] text-white">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-1">WISE Portal</p>
-                    <h4 className="font-bold text-sm leading-tight opacity-90">ระบบจัดการหลังบ้าน<br/>คณะวิทยาศาสตร์ฯ</h4>
-                    <button onClick={fetchFromSheets} disabled={isLoading} className="mt-4 flex items-center gap-2 text-[10px] font-black uppercase text-[#D4AF37] hover:text-white transition-all">
-                      <RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} /> รีเฟรชข้อมูล
+                  <div className="hidden md:block mt-4 p-5 rounded-2xl bg-gradient-to-br from-[#2A0114] to-[#630330] text-white shadow-xl shadow-[#2A0114]/20 border border-white/5">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37] mb-1">WISE Portal</p>
+                    <h4 className="font-bold text-xs leading-tight opacity-90">ระบบจัดการหลังบ้าน</h4>
+                    <button onClick={fetchFromSheets} disabled={isLoading} className="mt-3 flex items-center gap-2 text-[9px] font-black uppercase text-[#D4AF37] hover:text-white transition-all">
+                      <RefreshCw size={10} className={isLoading ? 'animate-spin' : ''} /> รีเฟรชข้อมูล
                     </button>
                   </div>
                </div>
             </aside>
 
-            {/* MAIN CONTENT AREA */}
-            <main className="flex-grow reveal-anim">
-              <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm min-h-[600px] overflow-hidden">
-                {/* Content Header */}
-                <header className="px-8 py-8 border-b border-slate-50 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                   <div className="flex items-center gap-4">
-                      <div className={`p-4 rounded-2xl bg-${adminActiveTab === 'students' ? 'amber' : adminActiveTab === 'sites' ? 'rose' : adminActiveTab === 'schedule' ? 'emerald' : 'indigo'}-50 dark:bg-slate-800 text-${adminActiveTab === 'students' ? 'amber' : adminActiveTab === 'sites' ? 'rose' : adminActiveTab === 'schedule' ? 'emerald' : 'indigo'}-600`}>
-                        {adminMenu.find(m => m.id === adminActiveTab)?.icon}
+            {/* MAIN CONTENT AREA - Internal Scrolling */}
+            <main className="flex-grow reveal-anim relative h-full flex flex-col overflow-hidden">
+              <div className="bg-white/95 dark:bg-slate-900 rounded-[2.25rem] border border-slate-200/50 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col h-full">
+                
+                {/* STATIC HEADER - Locked at top of content box */}
+                <header className="flex-shrink-0 z-[50] px-6 sm:px-8 py-4 sm:py-6 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                   <div className="flex items-center gap-3">
+                      <div className={`p-2.5 sm:p-3 rounded-2xl bg-${adminActiveTab === 'students' ? 'amber' : adminActiveTab === 'sites' ? 'rose' : adminActiveTab === 'schedule' ? 'emerald' : 'indigo'}-50 dark:bg-slate-800 text-${adminActiveTab === 'students' ? 'amber' : adminActiveTab === 'sites' ? 'rose' : adminActiveTab === 'schedule' ? 'emerald' : 'indigo'}-600 shadow-inner`}>
+                        {React.cloneElement(adminMenu.find(m => m.id === adminActiveTab)?.icon as React.ReactElement<any>, { size: 20 })}
                       </div>
                       <div>
-                        <h2 className="text-2xl font-black uppercase text-slate-900 dark:text-white leading-none">{adminMenu.find(m => m.id === adminActiveTab)?.label}</h2>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Management Module</p>
+                        <h2 className="text-lg sm:text-2xl font-black uppercase text-slate-900 dark:text-white leading-none tracking-tight">{adminMenu.find(m => m.id === adminActiveTab)?.label}</h2>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Management Suite</p>
                       </div>
                    </div>
 
-                   <div className="flex flex-col sm:flex-row items-center gap-4">
-                      <div className="relative w-full sm:w-64 lg:w-72">
-                         <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                   <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <div className="relative w-full sm:w-60 group">
+                         <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors" />
                          <input 
                            type="text" 
-                           placeholder="ค้นหาข้อมูล..." 
+                           placeholder="ค้นหา..." 
                            value={adminActiveTab === 'students' ? adminStudentSearch : adminSiteSearch}
                            onChange={(e) => adminActiveTab === 'students' ? setAdminStudentSearch(e.target.value) : setAdminSiteSearch(e.target.value)}
-                           className="w-full pl-12 pr-6 py-3.5 bg-slate-50 dark:bg-slate-800 dark:text-white border-none rounded-xl outline-none font-bold text-sm"
+                           className="w-full pl-11 pr-5 py-2.5 bg-slate-50/50 dark:bg-slate-800 dark:text-white border border-slate-200/50 dark:border-slate-700 rounded-xl outline-none font-bold text-xs sm:text-sm focus:ring-2 focus:ring-[#D4AF37]/20 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-inner"
                          />
                       </div>
                       <button 
@@ -507,119 +523,190 @@ const App: React.FC = () => {
                           else if(adminActiveTab === 'schedule') { setEditingSchedule(null); setShowScheduleModal(true); }
                           else { setEditingForm(null); setShowFormModal(true); }
                         }}
-                        className={`w-full sm:w-auto px-8 py-3.5 rounded-xl bg-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600 text-white font-black uppercase text-xs flex items-center justify-center gap-3 shadow-lg transition-all hover:scale-105 active:scale-95`}
+                        className={`w-full sm:w-auto px-6 py-2.5 rounded-xl bg-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600 text-white font-black uppercase text-[11px] sm:text-xs flex items-center justify-center gap-2 shadow-lg shadow-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600/20 transition-all hover:scale-105 active:scale-95`}
                       >
                         <Plus size={18} /> เพิ่มข้อมูล
                       </button>
                    </div>
                 </header>
 
-                <div className="p-8">
-                  {/* STUDENTS TAB */}
-                  {adminActiveTab === 'students' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                      {filteredAdminStudents.map(record => (
-                        <div key={record.id} className="p-6 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex items-center justify-between group hover:border-amber-200 transition-all">
-                          <div className="space-y-1 overflow-hidden pr-2">
-                            <h4 className="font-black text-slate-900 dark:text-white text-lg truncate">{record.name}</h4>
-                            <p className="text-xs font-bold text-slate-400 dark:text-slate-500">{record.studentId}</p>
-                            <div className={`mt-2 px-3 py-1 rounded-full text-[9px] font-black uppercase border inline-block ${getStatusColor(record.status)}`}>{getStatusLabel(record.status)}</div>
-                          </div>
-                          <div className="flex gap-2 shrink-0">
-                            <button onClick={() => { setEditingStatusRecord(record); setShowAdminStatusModal(true); }} className="p-3 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-xl transition-all"><Pencil size={18} /></button>
-                            <button onClick={() => {
-                              if(confirm('ลบข้อมูลนี้?')) {
-                                const updated = studentStatuses.filter(s => s.id !== record.id);
-                                setStudentStatuses(updated);
-                                syncToSheets('studentStatuses', updated);
-                              }
-                            }} className="p-3 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                {/* SCROLLABLE AREA */}
+                <div className="flex-grow overflow-y-auto relative custom-scrollbar">
+                   {/* Fog Effect Overlay */}
+                   <div className="sticky top-0 left-0 right-0 h-8 bg-gradient-to-b from-white dark:from-slate-900 to-transparent z-[40] pointer-events-none opacity-80" />
 
-                  {/* SITES TAB */}
-                  {adminActiveTab === 'sites' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                      {filteredAdminSites.map(site => (
-                        <div key={site.id} className="p-6 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex items-center justify-between group hover:border-rose-200 transition-all">
-                          <div className="flex items-center gap-4 overflow-hidden">
-                            <div className={`w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center text-white ${site.major === Major.HALAL_FOOD ? 'bg-amber-500' : 'bg-blue-600'}`}>
-                              {site.major === Major.HALAL_FOOD ? <Salad size={24} /> : <Cpu size={24} />}
-                            </div>
-                            <div className="overflow-hidden space-y-0.5">
-                              <h4 className="font-black text-slate-900 dark:text-white text-base truncate">{getLocalized(site.name)}</h4>
-                              <p className="text-[10px] font-bold text-slate-400 truncate uppercase tracking-widest">{getLocalized(site.location)}</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-1 shrink-0">
-                            <button onClick={() => { setEditingSite(site); setShowSiteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Pencil size={16} /></button>
-                            <button onClick={() => {
-                              if(confirm('ลบหน่วยงานนี้?')) {
-                                const updated = sites.filter(s => s.id !== site.id);
-                                setSites(updated);
-                                syncToSheets('sites', updated);
-                              }
-                            }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={16} /></button>
-                          </div>
+                   <div className="px-6 sm:px-8 pb-12">
+                    {/* STUDENTS TAB */}
+                    {adminActiveTab === 'students' && (
+                      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        {/* Status Filters Strip */}
+                        <div className="flex flex-wrap items-center gap-2 mb-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
+                          <button 
+                            onClick={() => setAdminStudentStatusFilter('all')}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === 'all' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                          >
+                             ทั้งหมด ({studentStatuses.length})
+                          </button>
+                          {[
+                            { id: ApplicationStatus.PENDING, label: currentT.statusPending, color: 'amber' },
+                            { id: ApplicationStatus.PREPARING, label: currentT.statusPreparing, color: 'blue' },
+                            { id: ApplicationStatus.ACCEPTED, label: currentT.statusAccepted, color: 'emerald' },
+                            { id: ApplicationStatus.REJECTED, label: currentT.statusRejected, color: 'rose' }
+                          ].map(st => {
+                            const count = studentStatuses.filter(s => s.status === st.id).length;
+                            return (
+                              <button 
+                                key={st.id}
+                                onClick={() => setAdminStudentStatusFilter(st.id)}
+                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2
+                                  ${adminStudentStatusFilter === st.id 
+                                    ? `bg-${st.color}-500 text-white shadow-md` 
+                                    : `text-slate-500 hover:bg-${st.color}-50 dark:hover:bg-${st.color}-950/20`
+                                  }
+                                `}
+                              >
+                                <div className={`w-1.5 h-1.5 rounded-full ${adminStudentStatusFilter === st.id ? 'bg-white' : `bg-${st.color}-400`}`} />
+                                {st.label} ({count})
+                              </button>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
-                  )}
 
-                  {/* SCHEDULE TAB */}
-                  {adminActiveTab === 'schedule' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                      {schedules.map(item => (
-                        <div key={item.id} className="p-6 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex flex-col gap-4 relative group hover:border-emerald-200 transition-all">
-                          <div className="absolute top-4 right-4 flex gap-1">
-                            <button onClick={() => { setEditingSchedule(item); setShowScheduleModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-emerald-500 rounded-xl transition-all"><Pencil size={16} /></button>
-                            <button onClick={() => {
-                              if(confirm('ลบกำหนดการ?')) {
-                                const updated = schedules.filter(s => s.id !== item.id);
-                                setSchedules(updated);
-                                syncToSheets('schedules', updated);
-                              }
-                            }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={16} /></button>
-                          </div>
-                          <h4 className="font-black text-slate-900 dark:text-white text-lg pr-14 leading-tight">{getLocalized(item.event)}</h4>
-                          <div className="flex flex-col text-[11px] font-black uppercase text-slate-400 gap-1">
-                            <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> START: {getLocalized(item.startDate)}</span>
-                            <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-500"></div> END: {getLocalized(item.endDate)}</span>
-                          </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                          {filteredAdminStudents.map(record => (
+                            <div key={record.id} className="p-5 rounded-[1.75rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex items-center justify-between group hover:border-amber-200 hover:shadow-xl transition-all shadow-sm">
+                              <div className="space-y-1 overflow-hidden pr-2">
+                                <h4 className="font-black text-slate-900 dark:text-white text-base truncate">{record.name}</h4>
+                                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">ID: {record.studentId}</p>
+                                <div className={`mt-2 px-3 py-1 rounded-full text-[9px] font-black uppercase border inline-block ${getStatusColor(record.status)}`}>{getStatusLabel(record.status)}</div>
+                              </div>
+                              <div className="flex gap-1.5 shrink-0">
+                                <button onClick={() => { setEditingStatusRecord(record); setShowAdminStatusModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-xl transition-all"><Pencil size={18} /></button>
+                                <button onClick={() => {
+                                  if(confirm('ลบข้อมูลนี้?')) {
+                                    const updated = studentStatuses.filter(s => s.id !== record.id);
+                                    setStudentStatuses(updated);
+                                    syncToSheets('studentStatuses', updated);
+                                  }
+                                }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
+                              </div>
+                            </div>
+                          ))}
+                          {filteredAdminStudents.length === 0 && (
+                            <div className="col-span-full py-20 flex flex-col items-center justify-center bg-slate-50/30 dark:bg-slate-800/20 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-700">
+                               <Filter size={48} className="text-slate-200 mb-6" />
+                               <p className="text-slate-400 font-black uppercase text-xs tracking-widest">ไม่พบข้อมูลตามเงื่อนไข</p>
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    )}
 
-                  {/* FORMS TAB */}
-                  {adminActiveTab === 'forms' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                      {forms.map(form => (
-                        <div key={form.id} className="p-6 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex items-center justify-between group hover:border-indigo-200 transition-all">
-                          <div className="flex items-center gap-4 overflow-hidden">
-                            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-xl"><Download size={20} /></div>
-                            <div className="overflow-hidden">
-                              <h4 className="font-black text-slate-900 dark:text-white text-base truncate">{getLocalized(form.title)}</h4>
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{form.category}</p>
+                    {/* SITES TAB */}
+                    {adminActiveTab === 'sites' && (
+                      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        {/* Major Filter Strip */}
+                        <div className="flex flex-wrap items-center gap-2 mb-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
+                          <button 
+                            onClick={() => setAdminSiteMajorFilter('all')}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminSiteMajorFilter === 'all' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                          >
+                             ทุกสาขา ({sites.length})
+                          </button>
+                          <button 
+                            onClick={() => setAdminSiteMajorFilter(Major.HALAL_FOOD)}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminSiteMajorFilter === Major.HALAL_FOOD ? 'bg-amber-500 text-white shadow-md' : 'text-slate-500 hover:bg-amber-50 dark:hover:bg-amber-950/20'}`}
+                          >
+                             <Salad size={14} /> {currentT.halalMajor}
+                          </button>
+                          <button 
+                            onClick={() => setAdminSiteMajorFilter(Major.DIGITAL_TECH)}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminSiteMajorFilter === Major.DIGITAL_TECH ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-950/20'}`}
+                          >
+                             <Cpu size={14} /> {currentT.digitalMajor}
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                          {filteredAdminSites.map(site => (
+                            <div key={site.id} className="p-5 rounded-[1.75rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex items-center justify-between group hover:border-rose-200 hover:shadow-xl transition-all shadow-sm">
+                              <div className="flex items-center gap-4 overflow-hidden">
+                                <div className={`w-14 h-14 rounded-2xl flex-shrink-0 flex items-center justify-center text-white ${site.major === Major.HALAL_FOOD ? 'bg-amber-500' : 'bg-blue-600'} shadow-lg`}>
+                                  {site.major === Major.HALAL_FOOD ? <Salad size={24} /> : <Cpu size={24} />}
+                                </div>
+                                <div className="overflow-hidden space-y-0.5">
+                                  <h4 className="font-black text-slate-900 dark:text-white text-sm sm:text-base truncate">{getLocalized(site.name)}</h4>
+                                  <p className="text-[10px] font-bold text-slate-400 truncate uppercase tracking-widest">{getLocalized(site.location)}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5 shrink-0">
+                                <button onClick={() => { setEditingSite(site); setShowSiteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Pencil size={18} /></button>
+                                <button onClick={() => {
+                                  if(confirm('ลบหน่วยงานนี้?')) {
+                                    const updated = sites.filter(s => s.id !== site.id);
+                                    setSites(updated);
+                                    syncToSheets('sites', updated);
+                                  }
+                                }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SCHEDULE TAB */}
+                    {adminActiveTab === 'schedule' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        {schedules.map(item => (
+                          <div key={item.id} className="p-5 rounded-[1.75rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex flex-col gap-4 relative group hover:border-emerald-200 hover:shadow-xl transition-all shadow-sm">
+                            <div className="absolute top-4 right-4 flex gap-1">
+                              <button onClick={() => { setEditingSchedule(item); setShowScheduleModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-emerald-500 rounded-xl transition-all"><Pencil size={18} /></button>
+                              <button onClick={() => {
+                                if(confirm('ลบกำหนดการ?')) {
+                                  const updated = schedules.filter(s => s.id !== item.id);
+                                  setSchedules(updated);
+                                  syncToSheets('schedules', updated);
+                                }
+                              }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
+                            </div>
+                            <h4 className="font-black text-slate-900 dark:text-white text-base sm:text-lg pr-12 leading-tight">{getLocalized(item.event)}</h4>
+                            <div className="flex flex-col text-[11px] font-black uppercase text-slate-400 gap-1.5 mt-auto">
+                              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></div> START: {getLocalized(item.startDate)}</span>
+                              <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-500 shadow-sm shadow-rose-500/50"></div> END: {getLocalized(item.endDate)}</span>
                             </div>
                           </div>
-                          <div className="flex gap-1 shrink-0">
-                            <button onClick={() => { setEditingForm(form); setShowFormModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-indigo-500 rounded-xl transition-all"><Pencil size={16} /></button>
-                            <button onClick={() => {
-                              if(confirm('ลบเอกสาร?')) {
-                                const updated = forms.filter(f => f.id !== form.id);
-                                setForms(updated);
-                                syncToSheets('forms', updated);
-                              }
-                            }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={16} /></button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* FORMS TAB */}
+                    {adminActiveTab === 'forms' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        {forms.map(form => (
+                          <div key={form.id} className="p-5 rounded-[1.75rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex items-center justify-between group hover:border-indigo-200 hover:shadow-xl transition-all shadow-sm">
+                            <div className="flex items-center gap-4 overflow-hidden">
+                              <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-2xl shadow-inner"><Download size={22} /></div>
+                              <div className="overflow-hidden">
+                                <h4 className="font-black text-slate-900 dark:text-white text-sm sm:text-base truncate">{getLocalized(form.title)}</h4>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{form.category}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-1.5 shrink-0">
+                              <button onClick={() => { setEditingForm(form); setShowFormModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-indigo-500 rounded-xl transition-all"><Pencil size={18} /></button>
+                              <button onClick={() => {
+                                if(confirm('ลบเอกสาร?')) {
+                                  const updated = forms.filter(f => f.id !== form.id);
+                                  setForms(updated);
+                                  syncToSheets('forms', updated);
+                                }
+                              }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    )}
+                   </div>
                 </div>
               </div>
             </main>
