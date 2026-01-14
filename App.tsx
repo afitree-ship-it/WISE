@@ -54,7 +54,12 @@ import {
   Flag,
   Users,
   Briefcase,
-  Filter
+  Filter,
+  Clock,
+  ClipboardList,
+  ShieldCheck,
+  ShieldX,
+  Check
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
@@ -497,7 +502,7 @@ const App: React.FC = () => {
                 <header className="flex-shrink-0 z-[50] px-6 sm:px-8 py-4 sm:py-6 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                    <div className="flex items-center gap-3">
                       <div className={`p-2.5 sm:p-3 rounded-2xl bg-${adminActiveTab === 'students' ? 'amber' : adminActiveTab === 'sites' ? 'rose' : adminActiveTab === 'schedule' ? 'emerald' : 'indigo'}-50 dark:bg-slate-800 text-${adminActiveTab === 'students' ? 'amber' : adminActiveTab === 'sites' ? 'rose' : adminActiveTab === 'schedule' ? 'emerald' : 'indigo'}-600 shadow-inner`}>
-                        {React.cloneElement(adminMenu.find(m => m.id === adminActiveTab)?.icon as React.ReactElement<any>, { size: 20 })}
+                        {React.cloneElement(adminMenu.find(m => m.id === adminActiveTab)?.icon as React.ReactElement<any>, { size: 24 })}
                       </div>
                       <div>
                         <h2 className="text-lg sm:text-2xl font-black uppercase text-slate-900 dark:text-white leading-none tracking-tight">{adminMenu.find(m => m.id === adminActiveTab)?.label}</h2>
@@ -506,14 +511,14 @@ const App: React.FC = () => {
                    </div>
 
                    <div className="flex flex-col sm:flex-row items-center gap-3">
-                      <div className="relative w-full sm:w-60 group">
-                         <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors" />
+                      <div className="relative w-full sm:w-64 group">
+                         <Search size={22} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors" />
                          <input 
                            type="text" 
                            placeholder="ค้นหา..." 
                            value={adminActiveTab === 'students' ? adminStudentSearch : adminSiteSearch}
                            onChange={(e) => adminActiveTab === 'students' ? setAdminStudentSearch(e.target.value) : setAdminSiteSearch(e.target.value)}
-                           className="w-full pl-11 pr-5 py-2.5 bg-slate-50/50 dark:bg-slate-800 dark:text-white border border-slate-200/50 dark:border-slate-700 rounded-xl outline-none font-bold text-xs sm:text-sm focus:ring-2 focus:ring-[#D4AF37]/20 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-inner"
+                           className="w-full pl-12 pr-5 py-3 bg-slate-50/50 dark:bg-slate-800 dark:text-white border border-slate-200/50 dark:border-slate-700 rounded-xl outline-none font-bold text-sm sm:text-base focus:ring-2 focus:ring-[#D4AF37]/20 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-inner"
                          />
                       </div>
                       <button 
@@ -523,9 +528,9 @@ const App: React.FC = () => {
                           else if(adminActiveTab === 'schedule') { setEditingSchedule(null); setShowScheduleModal(true); }
                           else { setEditingForm(null); setShowFormModal(true); }
                         }}
-                        className={`w-full sm:w-auto px-6 py-2.5 rounded-xl bg-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600 text-white font-black uppercase text-[11px] sm:text-xs flex items-center justify-center gap-2 shadow-lg shadow-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600/20 transition-all hover:scale-105 active:scale-95`}
+                        className={`w-full sm:w-auto px-8 py-3 rounded-xl bg-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600 text-white font-black uppercase text-sm sm:text-base flex items-center justify-center gap-3 shadow-lg shadow-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600/20 transition-all hover:scale-105 active:scale-95`}
                       >
-                        <Plus size={18} /> เพิ่มข้อมูล
+                        <Plus size={22} /> เพิ่มข้อมูล
                       </button>
                    </div>
                 </header>
@@ -543,7 +548,7 @@ const App: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-2 mb-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
                           <button 
                             onClick={() => setAdminStudentStatusFilter('all')}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === 'all' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === 'all' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                           >
                              ทั้งหมด ({studentStatuses.length})
                           </button>
@@ -558,14 +563,14 @@ const App: React.FC = () => {
                               <button 
                                 key={st.id}
                                 onClick={() => setAdminStudentStatusFilter(st.id)}
-                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2
+                                className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2
                                   ${adminStudentStatusFilter === st.id 
                                     ? `bg-${st.color}-500 text-white shadow-md` 
                                     : `text-slate-500 hover:bg-${st.color}-50 dark:hover:bg-${st.color}-950/20`
                                   }
                                 `}
                               >
-                                <div className={`w-1.5 h-1.5 rounded-full ${adminStudentStatusFilter === st.id ? 'bg-white' : `bg-${st.color}-400`}`} />
+                                <div className={`w-2 h-2 rounded-full ${adminStudentStatusFilter === st.id ? 'bg-white' : `bg-${st.color}-400`}`} />
                                 {st.label} ({count})
                               </button>
                             );
@@ -609,21 +614,21 @@ const App: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-2 mb-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
                           <button 
                             onClick={() => setAdminSiteMajorFilter('all')}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminSiteMajorFilter === 'all' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminSiteMajorFilter === 'all' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                           >
                              ทุกสาขา ({sites.length})
                           </button>
                           <button 
                             onClick={() => setAdminSiteMajorFilter(Major.HALAL_FOOD)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminSiteMajorFilter === Major.HALAL_FOOD ? 'bg-amber-500 text-white shadow-md' : 'text-slate-500 hover:bg-amber-50 dark:hover:bg-amber-950/20'}`}
+                            className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminSiteMajorFilter === Major.HALAL_FOOD ? 'bg-amber-500 text-white shadow-md' : 'text-slate-500 hover:bg-amber-50 dark:hover:bg-amber-950/20'}`}
                           >
-                             <Salad size={14} /> {currentT.halalMajor}
+                             <Salad size={16} /> {currentT.halalMajor}
                           </button>
                           <button 
                             onClick={() => setAdminSiteMajorFilter(Major.DIGITAL_TECH)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminSiteMajorFilter === Major.DIGITAL_TECH ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-950/20'}`}
+                            className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminSiteMajorFilter === Major.DIGITAL_TECH ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-950/20'}`}
                           >
-                             <Cpu size={14} /> {currentT.digitalMajor}
+                             <Cpu size={16} /> {currentT.digitalMajor}
                           </button>
                         </div>
 
@@ -867,39 +872,86 @@ const App: React.FC = () => {
 
       {/* Admin Modals */}
       {showAdminStatusModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim">
-          <div className="w-full max-w-[480px] bg-white dark:bg-slate-900 rounded-[2rem] p-8">
-            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3"><Timer size={24} className="text-amber-500" />{editingStatusRecord ? 'แก้ไขสถานะ' : 'เพิ่มข้อมูลติดตาม'}</h3>
-            <form onSubmit={handleSaveStatus} className="space-y-5">
-              <div className="space-y-1">
-                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">รหัสนักศึกษา</label>
-                <input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="Ex: 406XXXXXX" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-xl transition-all" />
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim touch-auto">
+          <div className="w-full max-w-[540px] bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl overflow-y-auto max-h-[90svh]">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-8 uppercase flex items-center gap-3"><Timer size={28} className="text-amber-500" />{editingStatusRecord ? 'แก้ไขข้อมูลนักศึกษา' : 'เพิ่มข้อมูลติดตาม'}</h3>
+            <form onSubmit={handleSaveStatus} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">รหัสนักศึกษา</label>
+                <input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="6XXXXXXXX" className="w-full px-6 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-xl transition-all" />
               </div>
-              <div className="space-y-1">
-                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ชื่อ-นามสกุล</label>
-                <input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="Full Name" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-xl transition-all" />
+              <div className="space-y-2">
+                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ชื่อ-นามสกุล</label>
+                <input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="ชื่อจริง - นามสกุล" className="w-full px-6 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-lg transition-all" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">สาขาวิชา</label>
-                  <select name="major" defaultValue={editingStatusRecord?.major || Major.HALAL_FOOD} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-lg appearance-none border-2 border-transparent focus:border-amber-500">
-                    <option value={Major.HALAL_FOOD}>{currentT.halalMajor}</option>
-                    <option value={Major.DIGITAL_TECH}>{currentT.digitalMajor}</option>
-                  </select>
+              
+              <div className="space-y-3">
+                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ตัวเลือกสาขาวิชา</label>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { id: Major.HALAL_FOOD, label: currentT.halalMajor, icon: <Salad size={26} />, color: 'amber' },
+                    { id: Major.DIGITAL_TECH, label: currentT.digitalMajor, icon: <Cpu size={26} />, color: 'indigo' }
+                  ].map((mj) => (
+                    <label key={mj.id} className="relative cursor-pointer group">
+                      <input 
+                        type="radio" 
+                        name="major" 
+                        value={mj.id} 
+                        defaultChecked={editingStatusRecord?.major === mj.id || (!editingStatusRecord && mj.id === Major.HALAL_FOOD)} 
+                        className="peer hidden" 
+                      />
+                      <div className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all duration-300 text-center active:scale-95 relative
+                        bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700
+                        peer-checked:border-${mj.color}-500 peer-checked:bg-${mj.color}-50/60 dark:peer-checked:bg-${mj.color}-950/30 peer-checked:shadow-md
+                      `}>
+                        <div className={`absolute top-2 right-2 p-1 rounded-full bg-${mj.color}-500 text-white scale-0 peer-checked:scale-100 transition-transform`}>
+                          <Check size={12} />
+                        </div>
+                        <div className={`text-slate-300 group-hover:scale-110 transition-transform peer-checked:text-${mj.color}-600 dark:peer-checked:text-${mj.color}-400 mb-3`}>{mj.icon}</div>
+                        <span className={`text-base sm:text-lg font-black leading-tight text-slate-500 dark:text-slate-400 peer-checked:text-${mj.color}-700 dark:peer-checked:text-${mj.color}-300`}>{mj.label}</span>
+                      </div>
+                    </label>
+                  ))}
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">สถานะ</label>
-                  <select name="status" defaultValue={editingStatusRecord?.status || ApplicationStatus.PENDING} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-lg appearance-none border-2 border-transparent focus:border-amber-500">
-                    <option value={ApplicationStatus.PENDING}>{currentT.statusPending}</option>
-                    <option value={ApplicationStatus.PREPARING}>{currentT.statusPreparing}</option>
-                    <option value={ApplicationStatus.ACCEPTED}>{currentT.statusAccepted}</option>
-                    <option value={ApplicationStatus.REJECTED}>{currentT.statusRejected}</option>
-                  </select>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ตัวเลือก สถานะปัจจุบัน (คลิกเพื่อเลือก)</label>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { id: ApplicationStatus.PENDING, label: currentT.statusPending, color: 'amber', icon: <Clock size={24} /> },
+                    { id: ApplicationStatus.PREPARING, label: currentT.statusPreparing, color: 'blue', icon: <ClipboardList size={24} /> },
+                    { id: ApplicationStatus.ACCEPTED, label: currentT.statusAccepted, color: 'emerald', icon: <ShieldCheck size={24} /> },
+                    { id: ApplicationStatus.REJECTED, label: currentT.statusRejected, color: 'rose', icon: <ShieldX size={24} /> }
+                  ].map((st) => {
+                    return (
+                      <label key={st.id} className="relative cursor-pointer group">
+                        <input 
+                          type="radio" 
+                          name="status" 
+                          value={st.id} 
+                          defaultChecked={editingStatusRecord?.status === st.id || (!editingStatusRecord && st.id === ApplicationStatus.PENDING)} 
+                          className="peer hidden" 
+                        />
+                        <div className={`flex items-center gap-3 p-6 rounded-2xl border-2 transition-all duration-300 active:scale-95 relative
+                          bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700
+                          peer-checked:border-${st.color}-500 peer-checked:bg-${st.color}-50/60 dark:peer-checked:bg-${st.color}-950/30 peer-checked:shadow-sm
+                        `}>
+                          <div className={`absolute top-2 right-2 p-1 rounded-full bg-${st.color}-500 text-white scale-0 peer-checked:scale-100 transition-transform`}>
+                            <Check size={10} />
+                          </div>
+                          <div className={`text-slate-200 peer-checked:text-${st.color}-600 dark:peer-checked:text-${st.color}-400 transition-colors`}>{st.icon}</div>
+                          <span className={`text-base font-black uppercase text-slate-500 dark:text-slate-400 peer-checked:text-${st.color}-700 dark:peer-checked:text-${st.color}-300 leading-tight`}>{st.label}</span>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setShowAdminStatusModal(false)} className="flex-1 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-xs">ยกเลิก</button>
-                <button type="submit" disabled={isSyncing} className="flex-1 py-3.5 rounded-2xl bg-amber-600 text-white font-black uppercase text-xs disabled:opacity-50">{isSyncing ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</button>
+
+              <div className="flex gap-4 pt-6">
+                <button type="button" onClick={() => setShowAdminStatusModal(false)} className="flex-1 py-5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-sm sm:text-base hover:bg-slate-50 transition-colors">ยกเลิก</button>
+                <button type="submit" disabled={isSyncing} className="flex-1 py-5 rounded-2xl bg-[#630330] text-white font-black uppercase text-sm sm:text-base shadow-lg shadow-[#630330]/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50">{isSyncing ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</button>
               </div>
             </form>
           </div>
