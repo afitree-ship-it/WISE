@@ -5,7 +5,7 @@ export const MouseGlow: React.FC = () => {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       const isDesktop = window.innerWidth >= 1024;
-      const zoomFactor = isDesktop ? 0.90 : 1;
+      const zoomFactor = isDesktop ? 0.74 : 1;
       requestAnimationFrame(() => {
         const x = e.clientX / zoomFactor;
         const y = e.clientY / zoomFactor;
