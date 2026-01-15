@@ -260,16 +260,15 @@ const App: React.FC = () => {
 
           <div className="relative z-10 flex items-center gap-4 sm:gap-6">
             <div className="flex flex-col cursor-pointer group/logo" onClick={() => { setViewState('landing'); window.history.back(); }}>
-              <div className="flex items-center gap-3">
-                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-[#D4AF37] to-[#B8952C] rounded-lg rotate-45 flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] group-hover/logo:rotate-90 transition-transform duration-500">
-                    <span className="-rotate-45 font-black text-mangosteen-deep text-lg sm:text-xl group-hover/logo:scale-110 transition-transform">W</span>
-                 </div>
-                 <div className="flex flex-col">
-                   <span className="block text-xl sm:text-2xl font-black leading-none uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-white to-[#D4AF37] drop-shadow-sm">
-                     WISE
-                   </span>
-                   <div className="h-0.5 w-0 group-hover/logo:w-full bg-gradient-to-r from-[#D4AF37] to-transparent transition-all duration-500 rounded-full mt-0.5"></div>
-                 </div>
+              <div className="flex flex-col">
+                <span className="block text-2xl sm:text-3xl font-black leading-none uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-white to-[#D4AF37] drop-shadow-sm">
+                  WISE
+                </span>
+                {role === UserRole.ADMIN ? (
+                  <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest leading-none mt-1 opacity-80">Admin Panel</span>
+                ) : (
+                  <div className="h-0.5 w-full bg-gradient-to-r from-[#D4AF37] via-white/50 to-transparent opacity-60 mt-1"></div>
+                )}
               </div>
             </div>
           </div>
