@@ -94,6 +94,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
   
+  // Validation State
+  const [statusError, setStatusError] = useState<string | null>(null);
+  
   // File Upload States
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadMethod, setUploadMethod] = useState<'url' | 'file'>('url');
@@ -216,7 +219,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     
     let fileData = null;
     if (uploadMethod === 'file' && selectedFile) {
-      setIsTranslating(true); // Re-use loading state for upload
+      setIsTranslating(true);
       try {
         fileData = await fileToBase64(selectedFile);
         url = `PENDING_UPLOAD:${selectedFile.name}`;
@@ -291,15 +294,51 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleSaveStatus = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setStatusError(null); // Clear previous error
     const formData = new FormData(e.currentTarget);
+    
+    const rawStudentId = (formData.get('student_id') as string) || "";
+    const rawName = (formData.get('student_name') as string) || "";
+    
+    // Normalize data for strict comparison
+    const normStudentId = rawStudentId.trim().replace(/\s+/g, '');
+    const normName = rawName.trim().replace(/\s+/g, ' ').toLowerCase();
+
+    // Check for duplicates
+    let duplicateType: string | null = null;
+    const isDuplicate = studentStatuses.some(record => {
+      // Skip the current record if we are editing
+      if (editingStatusRecord && record.id === editingStatusRecord.id) return false;
+      
+      const existingId = String(record.studentId || "").trim().replace(/\s+/g, '');
+      const existingName = String(record.name || "").trim().replace(/\s+/g, ' ').toLowerCase();
+      
+      if (existingId === normStudentId) {
+        duplicateType = "รหัสประจำตัวนักศึกษา";
+        return true;
+      }
+      if (existingName === normName) {
+        duplicateType = "ชื่อ-นามสกุล";
+        return true;
+      }
+      return false;
+    });
+
+    if (isDuplicate) {
+      const errorMsg = `🚨 พบข้อมูลซ้ำในระบบ: ${duplicateType} "${duplicateType === 'รหัสประจำตัวนักศึกษา' ? rawStudentId : rawName}" มีข้อมูลอยู่แล้ว กรุณาตรวจสอบอีกครั้ง`;
+      setStatusError(errorMsg);
+      return; // Stop the save process and keep modal open
+    }
+
     const newRecord: StudentStatusRecord = {
       id: editingStatusRecord?.id || Date.now().toString(),
-      studentId: formData.get('student_id') as string,
-      name: formData.get('student_name') as string,
+      studentId: rawStudentId.trim(),
+      name: rawName.trim(),
       status: formData.get('status') as ApplicationStatus,
       major: formData.get('major') as Major,
       lastUpdated: Date.now()
     };
+
     let updated = editingStatusRecord ? studentStatuses.map(s => s.id === editingStatusRecord.id ? newRecord : s) : [newRecord, ...studentStatuses];
     setStudentStatuses(updated);
     syncToSheets('studentStatuses', updated);
@@ -381,7 +420,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   return (
     <>
-      {/* SIDEBAR NAVIGATION */}
       <aside className="w-full md:w-64 lg:w-72 flex-shrink-0 flex flex-col h-fit md:h-full overflow-y-auto hide-scrollbar z-[60]">
          <div className="flex flex-row md:flex-col gap-2 p-1.5 md:p-0 bg-[#e4d4bc]/80 dark:bg-slate-950/80 backdrop-blur-md md:bg-transparent rounded-2xl">
             {adminMenu.map(item => (
@@ -410,7 +448,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
          </div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
       <main className="flex-grow reveal-anim relative h-full flex flex-col overflow-hidden">
         <div className="bg-white/95 dark:bg-slate-900 rounded-[2.25rem] border border-slate-200/50 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col h-full">
           <header className="flex-shrink-0 z-[50] px-6 sm:px-8 py-4 sm:py-6 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -436,7 +473,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
                 <button 
                   onClick={() => {
-                    if(adminActiveTab === 'students') { setEditingStatusRecord(null); setShowAdminStatusModal(true); }
+                    if(adminActiveTab === 'students') { 
+                      setEditingStatusRecord(null); 
+                      setStatusError(null);
+                      setShowAdminStatusModal(true); 
+                    }
                     else if(adminActiveTab === 'sites') { setEditingSite(null); setShowSiteModal(true); }
                     else if(adminActiveTab === 'schedule') { setEditingSchedule(null); setShowScheduleModal(true); }
                     else { 
@@ -478,7 +519,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           <div className={`mt-2 px-3 py-1 rounded-full text-[9px] font-black uppercase border inline-block ${getStatusColor(record.status)}`}>{getStatusLabel(record.status)}</div>
                         </div>
                         <div className="flex gap-1.5 shrink-0">
-                          <button onClick={() => { setEditingStatusRecord(record); setShowAdminStatusModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-xl transition-all"><Pencil size={18} /></button>
+                          <button onClick={() => { setEditingStatusRecord(record); setStatusError(null); setShowAdminStatusModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-xl transition-all"><Pencil size={18} /></button>
                           <button onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
                         </div>
                       </div>
@@ -550,30 +591,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       </main>
 
-      {/* DELETE CONFIRMATION MODAL */}
+      {/* DELETE CONFIRMATION MODAL - Ultra Compact */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md reveal-anim" onClick={() => setShowDeleteModal(false)}>
-          <div className="w-full max-w-[400px] bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center relative" onClick={(e) => e.stopPropagation()}>
-             <button onClick={() => setShowDeleteModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-               <X size={20} className="text-slate-400" />
+          <div className="w-full max-w-[380px] bg-white dark:bg-slate-900 rounded-[2rem] p-6 shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center relative" onClick={(e) => e.stopPropagation()}>
+             <button onClick={() => setShowDeleteModal(false)} className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+               <X size={18} className="text-slate-400" />
              </button>
-             <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-full flex items-center justify-center mb-6 animate-bounce">
-                <AlertTriangle size={40} />
+             <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-full flex items-center justify-center mb-4">
+                <AlertTriangle size={32} />
              </div>
-             <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase mb-2">ยืนยันการลบข้อมูล?</h3>
-             <p className="text-slate-500 dark:text-slate-400 text-sm font-bold uppercase tracking-wider mb-8">
-                คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลนี้? การดำเนินการนี้ไม่สามารถย้อนกลับได้
+             <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase mb-2">ยืนยันการลบ?</h3>
+             <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider mb-6">
+                การดำเนินการนี้ไม่สามารถย้อนกลับได้
              </p>
              <div className="flex gap-3 w-full">
                 <button 
                   onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                  className="flex-1 py-3.5 rounded-xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-[10px]"
                 >
                   ยกเลิก
                 </button>
                 <button 
                   onClick={handleConfirmDelete}
-                  className="flex-1 py-4 rounded-2xl bg-rose-600 text-white font-black uppercase text-xs shadow-lg shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all"
+                  className="flex-1 py-3.5 rounded-xl bg-rose-600 text-white font-black uppercase text-[10px] shadow-lg shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all"
                 >
                   ยืนยันลบ
                 </button>
@@ -582,158 +623,129 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
-      {/* STUDENT STATUS MODAL */}
+      {/* STUDENT STATUS MODAL - Medium Compact with Duplicate Check & RED WARNING AT BOTTOM */}
       {showAdminStatusModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim touch-auto" onClick={() => setShowAdminStatusModal(false)}>
-          <div className="w-full max-w-[540px] bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl overflow-y-auto max-h-[90svh] relative" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setShowAdminStatusModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-              <X size={24} className="text-slate-400" />
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim touch-auto" onClick={() => { setShowAdminStatusModal(false); setStatusError(null); }}>
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] p-6 sm:p-8 shadow-2xl overflow-y-auto max-h-[85svh] relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => { setShowAdminStatusModal(false); setStatusError(null); }} className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <X size={20} className="text-slate-400" />
             </button>
-            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-8 uppercase flex items-center gap-3"><Timer size={28} className="text-amber-500" />{editingStatusRecord ? 'แก้ไขข้อมูลนักศึกษา' : 'เพิ่มข้อมูลติดตาม'}</h3>
-            <form onSubmit={handleSaveStatus} className="space-y-6">
-              <div className="space-y-2"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">รหัสนักศึกษา</label><input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="6XXXXXXXX" className="w-full px-6 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-xl transition-all" /></div>
-              <div className="space-y-2"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ชื่อ-นามสกุล</label><input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="ชื่อจริง - นามสกุล" className="w-full px-6 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-lg transition-all" /></div>
-              <div className="space-y-3"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ตัวเลือกสาขาวิชา</label><div className="grid grid-cols-2 gap-4">
-                  {[{ id: Major.HALAL_FOOD, label: currentT.halalMajor, icon: <Salad size={26} />, color: 'amber' }, { id: Major.DIGITAL_TECH, label: currentT.digitalMajor, icon: <Cpu size={26} />, color: 'indigo' }].map((mj) => (
-                    <label key={mj.id} className="relative cursor-pointer group"><input type="radio" name="major" value={mj.id} defaultChecked={editingStatusRecord?.major === mj.id || (!editingStatusRecord && mj.id === Major.HALAL_FOOD)} className="peer hidden" /><div className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all duration-300 text-center active:scale-95 relative bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 peer-checked:border-${mj.color}-500 peer-checked:bg-${mj.color}-50/60 dark:peer-checked:bg-${mj.color}-950/30 peer-checked:shadow-md`}><div className={`absolute top-2 right-2 p-1 rounded-full bg-${mj.color}-500 text-white scale-0 peer-checked:scale-100 transition-transform`}><Check size={12} /></div><div className={`text-slate-300 group-hover:scale-110 transition-transform peer-checked:text-${mj.color}-600 dark:peer-checked:text-${mj.color}-400 mb-3`}>{mj.icon}</div><span className={`text-base sm:text-lg font-black leading-tight text-slate-500 dark:text-slate-400 peer-checked:text-${mj.color}-700 dark:peer-checked:text-${mj.color}-300`}>{mj.label}</span></div></label>
+            <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3"><Timer size={24} className="text-amber-500" />{editingStatusRecord ? 'แก้ไขข้อมูล' : 'เพิ่มข้อมูล'}</h3>
+            
+            <form onSubmit={handleSaveStatus} className="space-y-4">
+              <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">รหัสนักศึกษา</label><input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="6XXXXXXXX" className="w-full px-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-lg transition-all" /></div>
+              <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ชื่อ-นามสกุล</label><input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="ชื่อจริง - นามสกุล" className="w-full px-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-base transition-all" /></div>
+              <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">สาขาวิชา</label><div className="grid grid-cols-2 gap-3">
+                  {[{ id: Major.HALAL_FOOD, label: 'HALAL', icon: <Salad size={18} />, color: 'amber' }, { id: Major.DIGITAL_TECH, label: 'DIGITAL', icon: <Cpu size={18} />, color: 'indigo' }].map((mj) => (
+                    <label key={mj.id} className="relative cursor-pointer group"><input type="radio" name="major" value={mj.id} defaultChecked={editingStatusRecord?.major === mj.id || (!editingStatusRecord && mj.id === Major.HALAL_FOOD)} className="peer hidden" /><div className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 text-center relative bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 peer-checked:border-${mj.color}-500 peer-checked:bg-${mj.color}-50/50 dark:peer-checked:bg-${mj.color}-950/20`}><div className={`text-slate-300 peer-checked:text-${mj.color}-600 mb-1`}>{mj.icon}</div><span className={`text-[10px] font-black leading-tight text-slate-500 peer-checked:text-${mj.color}-700`}>{mj.label}</span></div></label>
                   ))}
               </div></div>
-              <div className="space-y-3"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ตัวเลือก สถานะปัจจุบัน</label><div className="grid grid-cols-2 gap-4">
-                  {[{ id: ApplicationStatus.PENDING, label: currentT.statusPending, color: 'amber', icon: <Clock size={24} /> }, { id: ApplicationStatus.PREPARING, label: currentT.statusPreparing, color: 'blue', icon: <ClipboardList size={24} /> }, { id: ApplicationStatus.ACCEPTED, label: currentT.statusAccepted, color: 'emerald', icon: <ShieldCheck size={24} /> }, { id: ApplicationStatus.REJECTED, label: currentT.statusRejected, color: 'rose', icon: <ShieldX size={24} /> }].map((st) => (
-                    <label key={st.id} className="relative cursor-pointer group"><input type="radio" name="status" value={st.id} defaultChecked={editingStatusRecord?.status === st.id || (!editingStatusRecord && st.id === ApplicationStatus.PENDING)} className="peer hidden" /><div className={`flex items-center gap-3 p-6 rounded-2xl border-2 transition-all duration-300 active:scale-95 relative bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 peer-checked:border-${st.color}-500 peer-checked:bg-${st.color}-50/60 dark:peer-checked:bg-${st.color}-950/30 peer-checked:shadow-sm`}><div className={`absolute top-2 right-2 p-1 rounded-full bg-${st.color}-500 text-white scale-0 peer-checked:scale-100 transition-transform`}><Check size={10} /></div><div className={`text-slate-200 peer-checked:text-${st.color}-600 dark:peer-checked:text-${st.color}-400 transition-colors`}>{st.icon}</div><span className={`text-base font-black uppercase text-slate-500 dark:text-slate-400 peer-checked:text-${st.color}-700 dark:peer-checked:text-${st.color}-300 leading-tight`}>{st.label}</span></div></label>
+              <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">สถานะการสมัคร</label><div className="grid grid-cols-2 gap-3">
+                  {[{ id: ApplicationStatus.PENDING, label: 'PENDING', color: 'amber' }, { id: ApplicationStatus.PREPARING, label: 'PREPARING', color: 'blue' }, { id: ApplicationStatus.ACCEPTED, label: 'ACCEPTED', color: 'emerald' }, { id: ApplicationStatus.REJECTED, label: 'REJECTED', color: 'rose' }].map((st) => (
+                    <label key={st.id} className="relative cursor-pointer group"><input type="radio" name="status" value={st.id} defaultChecked={editingStatusRecord?.status === st.id || (!editingStatusRecord && st.id === ApplicationStatus.PENDING)} className="peer hidden" /><div className={`flex items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 relative bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 peer-checked:border-${st.color}-500 peer-checked:bg-${st.color}-50/50 dark:peer-checked:bg-${st.color}-950/20`}><span className={`text-[9px] font-black uppercase text-slate-500 peer-checked:text-${st.color}-700`}>{st.label}</span></div></label>
                   ))}
               </div></div>
-              <div className="flex gap-4 pt-6"><button type="button" onClick={() => setShowAdminStatusModal(false)} className="flex-1 py-5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-sm sm:text-base hover:bg-slate-50 transition-colors">ยกเลิก</button><button type="submit" disabled={isSyncing} className="flex-1 py-5 rounded-2xl bg-[#630330] text-white font-black uppercase text-sm sm:text-base shadow-lg shadow-[#630330]/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50">{isSyncing ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</button></div>
+
+              {statusError && (
+                <div className="mt-6 p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-xl flex gap-3 items-start reveal-anim animate-pulse">
+                  <AlertTriangle className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" size={18} />
+                  <p className="text-[11px] sm:text-xs font-black text-rose-700 dark:text-rose-300 leading-tight uppercase">
+                    {statusError}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4"><button type="button" onClick={() => { setShowAdminStatusModal(false); setStatusError(null); }} className="flex-1 py-3.5 rounded-xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 font-black uppercase text-[11px]">ยกเลิก</button><button type="submit" disabled={isSyncing} className="flex-1 py-3.5 rounded-xl bg-[#630330] text-white font-black uppercase text-[11px] shadow-lg shadow-[#630330]/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50">{isSyncing ? 'SAVING...' : 'บันทึกข้อมูล'}</button></div>
             </form>
           </div>
         </div>
       )}
 
-      {/* SCHEDULE MODAL */}
+      {/* SCHEDULE MODAL - Compact */}
       {showScheduleModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowScheduleModal(false)}>
-          <div className="w-full max-w-[480px] bg-white dark:bg-slate-900 rounded-[2rem] p-8 relative" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setShowScheduleModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <div className="w-full max-md bg-white dark:bg-slate-900 rounded-[2rem] p-6 sm:p-8 relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowScheduleModal(false)} className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
               <X size={20} className="text-slate-400" />
             </button>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3"><CalendarDays size={24} className="text-emerald-500" />{editingSchedule ? 'แก้ไขกำหนดการ' : 'เพิ่มกำหนดการใหม่'}</h3>
-            <form onSubmit={handleSaveSchedule} className="space-y-5">
-              <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ชื่อกิจกรรม</label><input name="event_th" defaultValue={editingSchedule?.event.th} required placeholder="หัวข้อกิจกรรม" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-xl transition-all" /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">วันเริ่มต้น</label><input type="date" name="start_th" defaultValue={editingSchedule?.rawStartDate} required className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-lg transition-all" /></div>
-                <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">วันสิ้นสุด</label><input type="date" name="end_th" defaultValue={editingSchedule?.rawEndDate} required className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-lg transition-all" /></div>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-2"><CalendarDays size={22} className="text-emerald-500" />กำหนดการ</h3>
+            <form onSubmit={handleSaveSchedule} className="space-y-4">
+              <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ชื่อกิจกรรม</label><input name="event_th" defaultValue={editingSchedule?.event.th} required placeholder="หัวข้อกิจกรรม" className="w-full px-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-lg transition-all" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">เริ่มต้น</label><input type="date" name="start_th" defaultValue={editingSchedule?.rawStartDate} required className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-sm" /></div>
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">สิ้นสุด</label><input type="date" name="end_th" defaultValue={editingSchedule?.rawEndDate} required className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-sm" /></div>
               </div>
-              <div className="flex gap-4 pt-4"><button type="button" onClick={() => setShowScheduleModal(false)} className="flex-1 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-xs">ยกเลิก</button><button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-3.5 rounded-2xl bg-emerald-600 text-white font-black uppercase text-xs disabled:opacity-50">{isTranslating ? 'กำลังประมวลผล...' : 'บันทึกกำหนดการ'}</button></div>
+              <div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowScheduleModal(false)} className="flex-1 py-3.5 rounded-xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 font-black uppercase text-[11px]">ยกเลิก</button><button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-3.5 rounded-xl bg-emerald-600 text-white font-black uppercase text-[11px] disabled:opacity-50">{isTranslating ? 'SYNCING...' : 'บันทึก'}</button></div>
             </form>
           </div>
         </div>
       )}
 
-      {/* DOCUMENT FORM MODAL */}
+      {/* DOCUMENT FORM MODAL - Compact */}
       {showFormModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowFormModal(false)}>
-          <div className="w-full max-w-[480px] bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setShowFormModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] p-6 sm:p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowFormModal(false)} className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
               <X size={20} className="text-slate-400" />
             </button>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3">
-              <FileText size={24} className="text-indigo-500" />
-              {editingForm ? 'แก้ไขแบบฟอร์ม' : 'เพิ่มแบบฟอร์มใหม่'}
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-2">
+              <FileText size={22} className="text-indigo-500" />
+              จัดการเอกสาร
             </h3>
-            
-            <form onSubmit={handleSaveForm} className="space-y-5">
-              <div className="space-y-1">
-                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ชื่อเอกสาร (ภาษาไทย)</label>
-                <input name="title" defaultValue={editingForm?.title.th} required placeholder="ระบุชื่อเอกสาร" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-lg transition-all shadow-inner" />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">หมวดหมู่</label>
-                <select name="category" defaultValue={editingForm?.category || FormCategory.APPLICATION} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-lg border-2 border-transparent focus:border-indigo-500 outline-none transition-all shadow-inner">
-                  <option value={FormCategory.APPLICATION}>เอกสารสมัครงาน (Application)</option>
-                  <option value={FormCategory.MONITORING}>เอกสารระหว่างฝึกงาน (Monitoring)</option>
-                </select>
-              </div>
-
+            <form onSubmit={handleSaveForm} className="space-y-4">
+              <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ชื่อเอกสาร</label><input name="title" defaultValue={editingForm?.title.th} required placeholder="ระบุชื่อเอกสาร" className="w-full px-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-base transition-all" /></div>
+              <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">หมวดหมู่</label><select name="category" defaultValue={editingForm?.category || FormCategory.APPLICATION} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-sm border-2 border-transparent focus:border-indigo-500 outline-none">
+                  <option value={FormCategory.APPLICATION}>เอกสารสมัครงาน</option>
+                  <option value={FormCategory.MONITORING}>เอกสารระหว่างฝึกงาน</option>
+              </select></div>
               <div className="space-y-3">
-                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">วิธีการแนบไฟล์</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button type="button" onClick={() => setUploadMethod('url')} className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-bold transition-all ${uploadMethod === 'url' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-transparent text-slate-400'}`}>
-                    <LinkIcon size={16} /> ลิงก์ URL
-                  </button>
-                  <button type="button" onClick={() => setUploadMethod('file')} className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-bold transition-all ${uploadMethod === 'file' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-transparent text-slate-400'}`}>
-                    <FileUp size={16} /> อัปโหลด PDF
-                  </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setUploadMethod('url')} className={`py-2 rounded-lg border font-bold text-[10px] transition-all ${uploadMethod === 'url' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-transparent text-slate-400'}`}>LINK URL</button>
+                  <button type="button" onClick={() => setUploadMethod('file')} className={`py-2 rounded-lg border font-bold text-[10px] transition-all ${uploadMethod === 'file' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-transparent text-slate-400'}`}>UPLOAD PDF</button>
                 </div>
-
                 {uploadMethod === 'url' ? (
-                  <div className="animate-in fade-in zoom-in-95 duration-200">
-                    <input name="url" defaultValue={editingForm?.url} placeholder="https://example.com/file.pdf" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-base transition-all shadow-inner" />
-                  </div>
+                  <input name="url" defaultValue={editingForm?.url} placeholder="https://..." className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-xs" />
                 ) : (
-                  <div className="animate-in fade-in zoom-in-95 duration-200">
-                    <div 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="group flex flex-col items-center justify-center py-6 px-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50/50 dark:bg-slate-800/50 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/30 transition-all text-center"
-                    >
-                      <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="application/pdf" className="hidden" />
-                      <div className="w-12 h-12 bg-white dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-400 group-hover:text-indigo-600 shadow-sm mb-3 transition-colors">
-                        <Upload size={24} />
-                      </div>
-                      <p className="text-xs font-black uppercase text-slate-500 dark:text-slate-400 mb-1 group-hover:text-indigo-700">คลิกเพื่อเลือกไฟล์ PDF</p>
-                      <p className="text-[10px] font-bold text-slate-400">ขนาดสูงสุดไม่เกิน 10MB</p>
-                    </div>
-                    {selectedFile && (
-                      <div className="mt-3 flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800 rounded-xl animate-in slide-in-from-top-2">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          <FileText size={18} className="text-emerald-600 shrink-0" />
-                          <span className="text-xs font-black text-emerald-800 dark:text-emerald-400 truncate">{selectedFile.name}</span>
-                        </div>
-                        <button type="button" onClick={() => setSelectedFile(null)} className="p-1 hover:bg-emerald-100 rounded-full transition-colors text-emerald-600"><X size={16} /></button>
-                      </div>
-                    )}
+                  <div onClick={() => fileInputRef.current?.click()} className="group py-5 px-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/50 dark:bg-slate-800/50 cursor-pointer text-center hover:border-indigo-500 transition-all">
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="application/pdf" className="hidden" />
+                    <Upload size={20} className="mx-auto text-slate-300 group-hover:text-indigo-500 mb-2" />
+                    <p className="text-[9px] font-black uppercase text-slate-400 group-hover:text-indigo-600">{selectedFile ? selectedFile.name : 'เลือกไฟล์ PDF'}</p>
                   </div>
                 )}
               </div>
-
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setShowFormModal(false)} className="flex-1 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-xs sm:text-sm hover:bg-slate-50 transition-colors">ยกเลิก</button>
-                <button type="submit" disabled={isTranslating || isSyncing || (uploadMethod === 'file' && !selectedFile)} className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-black uppercase text-xs sm:text-sm shadow-lg shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50">
-                  {isTranslating ? 'กำลังเตรียมไฟล์...' : 'บันทึกเอกสาร'}
-                </button>
-              </div>
+              <div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowFormModal(false)} className="flex-1 py-3.5 rounded-xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 font-black uppercase text-[11px]">ยกเลิก</button><button type="submit" disabled={isTranslating || isSyncing || (uploadMethod === 'file' && !selectedFile)} className="flex-1 py-3.5 rounded-xl bg-indigo-600 text-white font-black uppercase text-[11px] shadow-lg shadow-indigo-600/20 disabled:opacity-50">บันทึก</button></div>
             </form>
           </div>
         </div>
       )}
 
-      {/* INTERNSHIP SITE MODAL */}
+      {/* INTERNSHIP SITE MODAL - Balanced */}
       {showSiteModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowSiteModal(false)}>
-          <div className="w-full max-w-[540px] bg-white dark:bg-slate-900 rounded-[2rem] p-8 overflow-y-auto max-h-[90svh] relative" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setShowSiteModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-              <X size={24} className="text-slate-400" />
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-[2rem] p-6 sm:p-8 overflow-y-auto max-h-[85svh] relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowSiteModal(false)} className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <X size={20} className="text-slate-400" />
             </button>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3"><Building2 size={24} className="text-rose-600" />{editingSite ? 'แก้ไขหน่วยงาน' : 'เพิ่มหน่วยงานใหม่'}</h3>
-            <form onSubmit={handleSaveSite} className="space-y-5">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-2"><Building2 size={22} className="text-rose-600" />หน่วยงาน</h3>
+            <form onSubmit={handleSaveSite} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ชื่อหน่วยงาน</label><input name="name_th" defaultValue={editingSite?.name.th} required placeholder="Company Name" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xl transition-all" /></div>
-                <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">จังหวัด</label><input name="loc_th" defaultValue={editingSite?.location.th} required placeholder="City/Prov" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xl transition-all" /></div>
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ชื่อหน่วยงาน</label><input name="name_th" defaultValue={editingSite?.name.th} required placeholder="..." className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-base transition-all" /></div>
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">จังหวัด</label><input name="loc_th" defaultValue={editingSite?.location.th} required placeholder="..." className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-base transition-all" /></div>
               </div>
-              <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">รายละเอียดงาน</label><textarea name="desc_th" defaultValue={editingSite?.description.th} required placeholder="Job details..." className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xl transition-all min-h-[80px]"></textarea></div>
+              <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">รายละเอียดงาน</label><textarea name="desc_th" defaultValue={editingSite?.description.th} required placeholder="..." className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-sm min-h-[70px]"></textarea></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ตำแหน่ง</label><input name="pos_th" defaultValue={editingSite?.position.th} required placeholder="Ex: QA, Dev" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xl transition-all" /></div>
-                <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">สาขาวิชา</label><select name="major" defaultValue={editingSite?.major || Major.HALAL_FOOD} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-lg border-2 border-transparent focus:border-rose-500"><option value={Major.HALAL_FOOD}>{currentT.halalMajor}</option><option value={Major.DIGITAL_TECH}>{currentT.digitalMajor}</option></select></div>
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ตำแหน่ง</label><input name="pos_th" defaultValue={editingSite?.position.th} required placeholder="..." className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-sm transition-all" /></div>
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">สาขาวิชา</label><select name="major" defaultValue={editingSite?.major || Major.HALAL_FOOD} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-sm border-2 border-transparent focus:border-rose-500"><option value={Major.HALAL_FOOD}>HALAL FOOD</option><option value={Major.DIGITAL_TECH}>DIGITAL TECH</option></select></div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">สถานะ</label>
-                <div className="grid grid-cols-3 gap-3">
-                  <label className="flex items-center justify-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-emerald-50 transition-all border-2 border-transparent has-[:checked]:border-emerald-500"><input type="radio" name="status" value="active" defaultChecked={!editingSite || editingSite.status === 'active'} className="hidden" /><span className="text-[10px] font-black uppercase">เปิดรับ</span></label>
-                  <label className="flex items-center justify-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-amber-50 transition-all border-2 border-transparent has-[:checked]:border-amber-500"><input type="radio" name="status" value="senior_visited" defaultChecked={editingSite?.status === 'senior_visited'} className="hidden" /><span className="text-[10px] font-black uppercase">รุ่นพี่เคยไป</span></label>
-                  <label className="flex items-center justify-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-slate-200 transition-all border-2 border-transparent has-[:checked]:border-slate-500"><input type="radio" name="status" value="archived" defaultChecked={editingSite?.status === 'archived'} className="hidden" /><span className="text-[10px] font-black uppercase">คลังข้อมูล</span></label>
+                <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">สถานะ</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="flex items-center justify-center p-2.5 bg-slate-50 dark:bg-slate-800 rounded-lg cursor-pointer border-2 border-transparent has-[:checked]:border-emerald-500 transition-all"><input type="radio" name="status" value="active" defaultChecked={!editingSite || editingSite.status === 'active'} className="hidden" /><span className="text-[9px] font-black uppercase">เปิดรับ</span></label>
+                  <label className="flex items-center justify-center p-2.5 bg-slate-50 dark:bg-slate-800 rounded-lg cursor-pointer border-2 border-transparent has-[:checked]:border-amber-500 transition-all"><input type="radio" name="status" value="senior_visited" defaultChecked={editingSite?.status === 'senior_visited'} className="hidden" /><span className="text-[9px] font-black uppercase">รุ่นพี่เคยไป</span></label>
+                  <label className="flex items-center justify-center p-2.5 bg-slate-50 dark:bg-slate-800 rounded-lg cursor-pointer border-2 border-transparent has-[:checked]:border-slate-500 transition-all"><input type="radio" name="status" value="archived" defaultChecked={editingSite?.status === 'archived'} className="hidden" /><span className="text-[9px] font-black uppercase">คลัง</span></label>
                 </div>
               </div>
-              <div className="flex gap-4 pt-4"><button type="button" onClick={() => setShowSiteModal(false)} className="flex-1 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-xs">ยกเลิก</button><button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-3.5 rounded-2xl bg-rose-600 text-white font-black uppercase text-xs disabled:opacity-50">{isTranslating ? 'กำลังบันทึก...' : 'บันทึกหน่วยงาน'}</button></div>
+              <div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowSiteModal(false)} className="flex-1 py-3.5 rounded-xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 font-black uppercase text-[11px]">ยกเลิก</button><button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-3.5 rounded-xl bg-rose-600 text-white font-black uppercase text-[11px] shadow-lg shadow-rose-600/20 disabled:opacity-50">บันทึก</button></div>
             </form>
           </div>
         </div>
