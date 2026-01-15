@@ -219,8 +219,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setIsTranslating(true); // Re-use loading state for upload
       try {
         fileData = await fileToBase64(selectedFile);
-        // In a real app, the backend (Apps Script) would handle this. 
-        // We'll set a placeholder and send the base64 in the sync call.
         url = `PENDING_UPLOAD:${selectedFile.name}`;
       } catch (err) {
         console.error("File read error:", err);
@@ -239,8 +237,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       url: url.startsWith('http') || url.startsWith('PENDING') ? url : `https://${url}`
     };
 
-    // If there is file data, we attach it to a temporary wrapper object 
-    // that the syncToSheets function can recognize
     const syncPayload = fileData 
       ? { ...newForm, _fileData: fileData, _fileName: selectedFile?.name }
       : newForm;
@@ -248,7 +244,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     let updated = editingForm ? forms.map(f => f.id === editingForm.id ? newForm : f) : [newForm, ...forms];
     setForms(updated);
     
-    // We send the individual form if it has a file to handle it specifically on backend
     if (fileData) {
       syncToSheets('uploadForm', [syncPayload]);
     } else {
@@ -557,8 +552,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* DELETE CONFIRMATION MODAL */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md reveal-anim">
-          <div className="w-full max-w-[400px] bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md reveal-anim" onClick={() => setShowDeleteModal(false)}>
+          <div className="w-full max-w-[400px] bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center relative" onClick={(e) => e.stopPropagation()}>
+             <button onClick={() => setShowDeleteModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+               <X size={20} className="text-slate-400" />
+             </button>
              <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-full flex items-center justify-center mb-6 animate-bounce">
                 <AlertTriangle size={40} />
              </div>
@@ -584,10 +582,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
-      {/* MODALS */}
+      {/* STUDENT STATUS MODAL */}
       {showAdminStatusModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim touch-auto">
-          <div className="w-full max-w-[540px] bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl overflow-y-auto max-h-[90svh]">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim touch-auto" onClick={() => setShowAdminStatusModal(false)}>
+          <div className="w-full max-w-[540px] bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl overflow-y-auto max-h-[90svh] relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowAdminStatusModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <X size={24} className="text-slate-400" />
+            </button>
             <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-8 uppercase flex items-center gap-3"><Timer size={28} className="text-amber-500" />{editingStatusRecord ? 'แก้ไขข้อมูลนักศึกษา' : 'เพิ่มข้อมูลติดตาม'}</h3>
             <form onSubmit={handleSaveStatus} className="space-y-6">
               <div className="space-y-2"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">รหัสนักศึกษา</label><input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="6XXXXXXXX" className="w-full px-6 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-xl transition-all" /></div>
@@ -608,13 +609,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
+      {/* SCHEDULE MODAL */}
       {showScheduleModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim"><div className="w-full max-w-[480px] bg-white dark:bg-slate-900 rounded-[2rem] p-8"><h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3"><CalendarDays size={24} className="text-emerald-500" />{editingSchedule ? 'แก้ไขกำหนดการ' : 'เพิ่มกำหนดการใหม่'}</h3><form onSubmit={handleSaveSchedule} className="space-y-5"><div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ชื่อกิจกรรม</label><input name="event_th" defaultValue={editingSchedule?.event.th} required placeholder="หัวข้อกิจกรรม" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-xl transition-all" /></div><div className="grid grid-cols-2 gap-4"><div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">วันเริ่มต้น</label><input type="date" name="start_th" defaultValue={editingSchedule?.rawStartDate} required className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-lg transition-all" /></div><div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">วันสิ้นสุด</label><input type="date" name="end_th" defaultValue={editingSchedule?.rawEndDate} required className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-lg transition-all" /></div></div><div className="flex gap-4 pt-4"><button type="button" onClick={() => setShowScheduleModal(false)} className="flex-1 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-xs">ยกเลิก</button><button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-3.5 rounded-2xl bg-emerald-600 text-white font-black uppercase text-xs disabled:opacity-50">{isTranslating ? 'กำลังประมวลผล...' : 'บันทึกกำหนดการ'}</button></div></form></div></div>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowScheduleModal(false)}>
+          <div className="w-full max-w-[480px] bg-white dark:bg-slate-900 rounded-[2rem] p-8 relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowScheduleModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <X size={20} className="text-slate-400" />
+            </button>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3"><CalendarDays size={24} className="text-emerald-500" />{editingSchedule ? 'แก้ไขกำหนดการ' : 'เพิ่มกำหนดการใหม่'}</h3>
+            <form onSubmit={handleSaveSchedule} className="space-y-5">
+              <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ชื่อกิจกรรม</label><input name="event_th" defaultValue={editingSchedule?.event.th} required placeholder="หัวข้อกิจกรรม" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-xl transition-all" /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">วันเริ่มต้น</label><input type="date" name="start_th" defaultValue={editingSchedule?.rawStartDate} required className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-lg transition-all" /></div>
+                <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">วันสิ้นสุด</label><input type="date" name="end_th" defaultValue={editingSchedule?.rawEndDate} required className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-lg transition-all" /></div>
+              </div>
+              <div className="flex gap-4 pt-4"><button type="button" onClick={() => setShowScheduleModal(false)} className="flex-1 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-xs">ยกเลิก</button><button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-3.5 rounded-2xl bg-emerald-600 text-white font-black uppercase text-xs disabled:opacity-50">{isTranslating ? 'กำลังประมวลผล...' : 'บันทึกกำหนดการ'}</button></div>
+            </form>
+          </div>
+        </div>
       )}
 
+      {/* DOCUMENT FORM MODAL */}
       {showFormModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim">
-          <div className="w-full max-w-[480px] bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-2xl">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowFormModal(false)}>
+          <div className="w-full max-w-[480px] bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowFormModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <X size={20} className="text-slate-400" />
+            </button>
             <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3">
               <FileText size={24} className="text-indigo-500" />
               {editingForm ? 'แก้ไขแบบฟอร์ม' : 'เพิ่มแบบฟอร์มใหม่'}
@@ -686,8 +707,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
+      {/* INTERNSHIP SITE MODAL */}
       {showSiteModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim"><div className="w-full max-w-[540px] bg-white dark:bg-slate-900 rounded-[2rem] p-8 overflow-y-auto max-h-[90svh]"><h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3"><Building2 size={24} className="text-rose-600" />{editingSite ? 'แก้ไขหน่วยงาน' : 'เพิ่มหน่วยงานใหม่'}</h3><form onSubmit={handleSaveSite} className="space-y-5"><div className="grid grid-cols-2 gap-4"><div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ชื่อหน่วยงาน</label><input name="name_th" defaultValue={editingSite?.name.th} required placeholder="Company Name" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xl transition-all" /></div><div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">จังหวัด</label><input name="loc_th" defaultValue={editingSite?.location.th} required placeholder="City/Prov" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xl transition-all" /></div></div><div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">รายละเอียดงาน</label><textarea name="desc_th" defaultValue={editingSite?.description.th} required placeholder="Job details..." className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xl transition-all min-h-[80px]"></textarea></div><div className="grid grid-cols-2 gap-4"><div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ตำแหน่ง</label><input name="pos_th" defaultValue={editingSite?.position.th} required placeholder="Ex: QA, Dev" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xl transition-all" /></div><div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">สาขาวิชา</label><select name="major" defaultValue={editingSite?.major || Major.HALAL_FOOD} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-lg border-2 border-transparent focus:border-rose-500"><option value={Major.HALAL_FOOD}>{currentT.halalMajor}</option><option value={Major.DIGITAL_TECH}>{currentT.digitalMajor}</option></select></div></div><div className="space-y-2"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">สถานะ</label><div className="grid grid-cols-3 gap-3"><label className="flex items-center justify-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-emerald-50 transition-all border-2 border-transparent has-[:checked]:border-emerald-500"><input type="radio" name="status" value="active" defaultChecked={!editingSite || editingSite.status === 'active'} className="hidden" /><span className="text-[10px] font-black uppercase">เปิดรับ</span></label><label className="flex items-center justify-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-amber-50 transition-all border-2 border-transparent has-[:checked]:border-amber-500"><input type="radio" name="status" value="senior_visited" defaultChecked={editingSite?.status === 'senior_visited'} className="hidden" /><span className="text-[10px] font-black uppercase">รุ่นพี่เคยไป</span></label><label className="flex items-center justify-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-slate-200 transition-all border-2 border-transparent has-[:checked]:border-slate-500"><input type="radio" name="status" value="archived" defaultChecked={editingSite?.status === 'archived'} className="hidden" /><span className="text-[10px] font-black uppercase">คลังข้อมูล</span></label></div></div><div className="flex gap-4 pt-4"><button type="button" onClick={() => setShowSiteModal(false)} className="flex-1 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-xs">ยกเลิก</button><button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-3.5 rounded-2xl bg-rose-600 text-white font-black uppercase text-xs disabled:opacity-50">{isTranslating ? 'กำลังบันทึก...' : 'บันทึกหน่วยงาน'}</button></div></form></div></div>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowSiteModal(false)}>
+          <div className="w-full max-w-[540px] bg-white dark:bg-slate-900 rounded-[2rem] p-8 overflow-y-auto max-h-[90svh] relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowSiteModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <X size={24} className="text-slate-400" />
+            </button>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3"><Building2 size={24} className="text-rose-600" />{editingSite ? 'แก้ไขหน่วยงาน' : 'เพิ่มหน่วยงานใหม่'}</h3>
+            <form onSubmit={handleSaveSite} className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ชื่อหน่วยงาน</label><input name="name_th" defaultValue={editingSite?.name.th} required placeholder="Company Name" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xl transition-all" /></div>
+                <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">จังหวัด</label><input name="loc_th" defaultValue={editingSite?.location.th} required placeholder="City/Prov" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xl transition-all" /></div>
+              </div>
+              <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">รายละเอียดงาน</label><textarea name="desc_th" defaultValue={editingSite?.description.th} required placeholder="Job details..." className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xl transition-all min-h-[80px]"></textarea></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ตำแหน่ง</label><input name="pos_th" defaultValue={editingSite?.position.th} required placeholder="Ex: QA, Dev" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xl transition-all" /></div>
+                <div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">สาขาวิชา</label><select name="major" defaultValue={editingSite?.major || Major.HALAL_FOOD} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-lg border-2 border-transparent focus:border-rose-500"><option value={Major.HALAL_FOOD}>{currentT.halalMajor}</option><option value={Major.DIGITAL_TECH}>{currentT.digitalMajor}</option></select></div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">สถานะ</label>
+                <div className="grid grid-cols-3 gap-3">
+                  <label className="flex items-center justify-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-emerald-50 transition-all border-2 border-transparent has-[:checked]:border-emerald-500"><input type="radio" name="status" value="active" defaultChecked={!editingSite || editingSite.status === 'active'} className="hidden" /><span className="text-[10px] font-black uppercase">เปิดรับ</span></label>
+                  <label className="flex items-center justify-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-amber-50 transition-all border-2 border-transparent has-[:checked]:border-amber-500"><input type="radio" name="status" value="senior_visited" defaultChecked={editingSite?.status === 'senior_visited'} className="hidden" /><span className="text-[10px] font-black uppercase">รุ่นพี่เคยไป</span></label>
+                  <label className="flex items-center justify-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-slate-200 transition-all border-2 border-transparent has-[:checked]:border-slate-500"><input type="radio" name="status" value="archived" defaultChecked={editingSite?.status === 'archived'} className="hidden" /><span className="text-[10px] font-black uppercase">คลังข้อมูล</span></label>
+                </div>
+              </div>
+              <div className="flex gap-4 pt-4"><button type="button" onClick={() => setShowSiteModal(false)} className="flex-1 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-xs">ยกเลิก</button><button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-3.5 rounded-2xl bg-rose-600 text-white font-black uppercase text-xs disabled:opacity-50">{isTranslating ? 'กำลังบันทึก...' : 'บันทึกหน่วยงาน'}</button></div>
+            </form>
+          </div>
+        </div>
       )}
     </>
   );
