@@ -34,7 +34,8 @@ import {
   ShieldX,
   Check,
   Users,
-  Timer
+  Timer,
+  AlertTriangle
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -89,6 +90,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEvent | null>(null);
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
+  
+  // Custom Delete Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'student' | 'site' | 'schedule' | 'form' } | null>(null);
 
   const getLocalized = (localized: LocalizedString) => {
     return localized.th || localized.en || '';
@@ -258,6 +263,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setEditingStatusRecord(null);
   };
 
+  const handleConfirmDelete = () => {
+    if (!itemToDelete) return;
+
+    const { id, type } = itemToDelete;
+    let updated: any[] = [];
+
+    switch (type) {
+      case 'student':
+        updated = studentStatuses.filter(s => s.id !== id);
+        setStudentStatuses(updated);
+        syncToSheets('studentStatuses', updated);
+        break;
+      case 'site':
+        updated = sites.filter(s => s.id !== id);
+        setSites(updated);
+        syncToSheets('sites', updated);
+        break;
+      case 'schedule':
+        updated = schedules.filter(s => s.id !== id);
+        setSchedules(updated);
+        syncToSheets('schedules', updated);
+        break;
+      case 'form':
+        updated = forms.filter(f => f.id !== id);
+        setForms(updated);
+        syncToSheets('forms', updated);
+        break;
+    }
+
+    setShowDeleteModal(false);
+    setItemToDelete(null);
+  };
+
   const getStatusColor = (status: ApplicationStatus) => {
     switch (status) {
       case ApplicationStatus.PENDING: return 'bg-amber-100 text-amber-700 border-amber-200';
@@ -380,7 +418,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                         <div className="flex gap-1.5 shrink-0">
                           <button onClick={() => { setEditingStatusRecord(record); setShowAdminStatusModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-xl transition-all"><Pencil size={18} /></button>
-                          <button onClick={() => { if(confirm('ลบข้อมูลนี้?')) { const updated = studentStatuses.filter(s => s.id !== record.id); setStudentStatuses(updated); syncToSheets('studentStatuses', updated); } }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
+                          <button onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
                         </div>
                       </div>
                     ))}
@@ -403,7 +441,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                         <div className="flex gap-1.5 shrink-0">
                           <button onClick={() => { setEditingSite(site); setShowSiteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Pencil size={18} /></button>
-                          <button onClick={() => { if(confirm('ลบหน่วยงานนี้?')) { const updated = sites.filter(s => s.id !== site.id); setSites(updated); syncToSheets('sites', updated); } }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
+                          <button onClick={() => { setItemToDelete({ id: site.id, type: 'site' }); setShowDeleteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
                         </div>
                       </div>
                     ))}
@@ -416,7 +454,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div key={item.id} className="p-5 rounded-[1.75rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex flex-col gap-4 relative group hover:border-emerald-200 hover:shadow-xl transition-all shadow-sm">
                       <div className="absolute top-4 right-4 flex gap-1">
                         <button onClick={() => { setEditingSchedule(item); setShowScheduleModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-emerald-500 rounded-xl transition-all"><Pencil size={18} /></button>
-                        <button onClick={() => { if(confirm('ลบกำหนดการ?')) { const updated = schedules.filter(s => s.id !== item.id); setSchedules(updated); syncToSheets('schedules', updated); } }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
+                        <button onClick={() => { setItemToDelete({ id: item.id, type: 'schedule' }); setShowDeleteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
                       </div>
                       <h4 className="font-black text-slate-900 dark:text-white text-base sm:text-lg pr-12 leading-tight">{getLocalized(item.event)}</h4>
                       <div className="flex flex-col text-[11px] font-black uppercase text-slate-400 gap-1.5 mt-auto">
@@ -440,7 +478,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                       <div className="flex gap-1.5 shrink-0">
                         <button onClick={() => { setEditingForm(form); setShowFormModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-indigo-500 rounded-xl transition-all"><Pencil size={18} /></button>
-                        <button onClick={() => { if(confirm('ลบเอกสาร?')) { const updated = forms.filter(f => f.id !== form.id); setForms(updated); syncToSheets('forms', updated); } }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
+                        <button onClick={() => { setItemToDelete({ id: form.id, type: 'form' }); setShowDeleteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
                       </div>
                     </div>
                   ))}
@@ -451,11 +489,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       </main>
 
+      {/* DELETE CONFIRMATION MODAL */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md reveal-anim">
+          <div className="w-full max-w-[400px] bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center">
+             <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-full flex items-center justify-center mb-6 animate-bounce">
+                <AlertTriangle size={40} />
+             </div>
+             <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase mb-2">ยืนยันการลบข้อมูล?</h3>
+             <p className="text-slate-500 dark:text-slate-400 text-sm font-bold uppercase tracking-wider mb-8">
+                คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลนี้? การดำเนินการนี้ไม่สามารถย้อนกลับได้
+             </p>
+             <div className="flex gap-3 w-full">
+                <button 
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                >
+                  ยกเลิก
+                </button>
+                <button 
+                  onClick={handleConfirmDelete}
+                  className="flex-1 py-4 rounded-2xl bg-rose-600 text-white font-black uppercase text-xs shadow-lg shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all"
+                >
+                  ยืนยันลบ
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
       {/* MODALS */}
       {showAdminStatusModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim touch-auto">
           <div className="w-full max-w-[540px] bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl overflow-y-auto max-h-[90svh]">
-            {/* Fix: Added missing Timer icon import reference */}
             <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-8 uppercase flex items-center gap-3"><Timer size={28} className="text-amber-500" />{editingStatusRecord ? 'แก้ไขข้อมูลนักศึกษา' : 'เพิ่มข้อมูลติดตาม'}</h3>
             <form onSubmit={handleSaveStatus} className="space-y-6">
               <div className="space-y-2"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">รหัสนักศึกษา</label><input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="6XXXXXXXX" className="w-full px-6 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-xl transition-all" /></div>
