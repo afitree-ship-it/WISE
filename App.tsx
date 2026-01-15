@@ -88,6 +88,23 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showDocHub, setShowDocHub] = useState(false);
 
+  // History Management for Back Button support
+  useEffect(() => {
+    // Replace initial state
+    window.history.replaceState({ view: 'landing' }, '');
+
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.view) {
+        setViewState(event.state.view);
+      } else {
+        setViewState('landing');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const fetchFromSheets = useCallback(async () => {
     if (!SHEET_API_URL) return;
     setIsLoading(true);
@@ -150,14 +167,24 @@ const App: React.FC = () => {
     if (validPasswords.includes(password)) {
       setRole(UserRole.ADMIN);
       setViewState('dashboard');
+      window.history.pushState({ view: 'dashboard' }, '');
       return true;
     }
     return false;
   };
 
+  const handleEnterDashboard = () => {
+    setViewState('dashboard');
+    window.history.pushState({ view: 'dashboard' }, '');
+  };
+
   const handleLogout = () => {
     setRole(UserRole.STUDENT);
     setViewState('landing');
+    // If we were on a pushed state, go back or replace
+    if (window.history.state && window.history.state.view === 'dashboard') {
+      window.history.back();
+    }
   };
 
   const getLocalized = (localized: LocalizedString) => {
@@ -181,7 +208,7 @@ const App: React.FC = () => {
     return (
       <LandingPage 
         lang={lang} setLang={setLang} currentT={currentT} isRtl={isRtl}
-        onEnterDashboard={() => setViewState('dashboard')}
+        onEnterDashboard={handleEnterDashboard}
         onAdminLogin={handleAdminLogin}
         studentStatuses={studentStatuses}
       />
@@ -189,12 +216,12 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-[#FFF8E7] dark:bg-slate-950 overflow-hidden' : 'bg-[#FFF8E7] dark:bg-slate-900'}`}>
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-[#e4d4bc] dark:bg-slate-950 overflow-hidden' : 'bg-[#e4d4bc] dark:bg-slate-900'}`}>
       {/* NAVBAR */}
       <div className="sticky top-0 z-[100] w-full px-2 sm:px-4 pt-2">
         <nav className="container mx-auto h-auto min-h-[64px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-[1.25rem] px-4 sm:px-8 flex items-center justify-between border border-slate-100 dark:border-slate-800 py-1.5 shadow-xl shadow-slate-200/20 dark:shadow-none">
           <div className="flex items-center gap-4 sm:gap-6">
-            <div className="flex flex-col cursor-pointer" onClick={() => setViewState('landing')}>
+            <div className="flex flex-col cursor-pointer" onClick={() => { setViewState('landing'); window.history.back(); }}>
               <span className="block text-xl sm:text-2xl font-black leading-none uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#630330] via-[#8B1A4F] to-[#D4AF37]">
                 WISE
               </span>
