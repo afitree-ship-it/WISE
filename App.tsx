@@ -85,7 +85,6 @@ const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<number | null>(null);
   const [activeMajor, setActiveMajor] = useState<Major | 'all'>('all');
-  // Fix: Removed incorrect self-assignment in searchTerm state declaration
   const [searchTerm, setSearchTerm] = useState('');
   const [showDocHub, setShowDocHub] = useState(false);
 
@@ -190,7 +189,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-[#e4d4bc] dark:bg-slate-950 overflow-hidden' : 'bg-[#F8FAFC] dark:bg-slate-900'}`}>
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-[#FFF8E7] dark:bg-slate-950 overflow-hidden' : 'bg-[#FFF8E7] dark:bg-slate-900'}`}>
       {/* NAVBAR */}
       <div className="sticky top-0 z-[100] w-full px-2 sm:px-4 pt-2">
         <nav className="container mx-auto h-auto min-h-[64px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-[1.25rem] px-4 sm:px-8 flex items-center justify-between border border-slate-100 dark:border-slate-800 py-1.5 shadow-xl shadow-slate-200/20 dark:shadow-none">
@@ -252,7 +251,7 @@ const App: React.FC = () => {
               <div className="flex flex-col gap-3">
                 {sortedSchedules.length > 0 ? (
                   sortedSchedules.map((item) => (
-                    <div key={item.id} className="group relative flex flex-row items-center justify-between p-2 sm:p-5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-slate-100 dark:border-slate-800 rounded-2xl transition-all duration-300 border-l-[6px] border-l-emerald-500 overflow-hidden shadow-[0_0_15px_rgba(16,185,129,0.15)] hover:shadow-[0_0_25px_rgba(16,185,129,0.3)] dark:hover:shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+                    <div key={item.id} className="group relative flex flex-row items-center justify-between p-2 sm:p-5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-slate-100 dark:border-slate-800 rounded-2xl transition-all duration-300 border-l-[6px] border-l-emerald-500 overflow-hidden shadow-lg hover:shadow-xl dark:shadow-none">
                       <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1 pr-1 sm:pr-4">
                          <div className="relative shrink-0 flex items-center justify-center w-3.5 h-3.5 sm:w-4 sm:h-4">
                            <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,1)]"></div>
@@ -334,7 +333,7 @@ const App: React.FC = () => {
                   {filteredSites.map(site => <InternshipCard key={site.id} site={site} lang={lang} />)}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+                <div className="flex flex-col items-center justify-center py-20 bg-white/50 dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
                   <Info size={40} className="text-slate-200 mb-4" />
                   <p className="text-slate-400 font-bold uppercase text-[12px]">ไม่พบข้อมูลที่ค้นหา</p>
                 </div>
