@@ -13,6 +13,7 @@ import {
 } from './types';
 import { TRANSLATIONS, INITIAL_SITES, INITIAL_FORMS, INITIAL_SCHEDULE, INITIAL_STUDENT_STATUSES } from './constants';
 import InternshipCard from './components/InternshipCard';
+import LanguageSwitcher from './components/LanguageSwitcher';
 import LandingPage from './LandingPage';
 import AdminPanel from './AdminPanel';
 import { 
@@ -104,6 +105,11 @@ const App: React.FC = () => {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Persist language choice
+  useEffect(() => {
+    localStorage.setItem('wise_portal_lang', lang);
+  }, [lang]);
 
   const fetchFromSheets = useCallback(async () => {
     if (!SHEET_API_URL) return;
@@ -216,34 +222,87 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-[#FFF8E7] dark:bg-slate-950 overflow-hidden' : 'bg-[#FFF8E7] dark:bg-slate-900'}`}>
-      {/* NAVBAR */}
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-[#e4d4bc] dark:bg-slate-950 overflow-hidden' : 'bg-[#FFF8E7] dark:bg-slate-900'}`}>
+      {/* ULTRA-MODERN CYBER MANGOSTEEN NAVBAR */}
       <div className="sticky top-0 z-[100] w-full px-2 sm:px-4 pt-2">
-        <nav className="container mx-auto h-auto min-h-[64px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-[1.25rem] px-4 sm:px-8 flex items-center justify-between border border-slate-100 dark:border-slate-800 py-1.5 shadow-xl shadow-slate-200/20 dark:shadow-none">
-          <div className="flex items-center gap-4 sm:gap-6">
-            <div className="flex flex-col cursor-pointer" onClick={() => { setViewState('landing'); window.history.back(); }}>
-              <span className="block text-xl sm:text-2xl font-black leading-none uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#630330] via-[#8B1A4F] to-[#D4AF37]">
-                WISE
-              </span>
-              {role === UserRole.ADMIN && <span className="text-[10px] font-black text-[#630330] uppercase tracking-widest leading-none mt-1">Admin Panel</span>}
+        <nav className="container mx-auto h-auto min-h-[72px] navbar-luxe-container rounded-[1.5rem] px-4 sm:px-8 flex items-center justify-between border border-white/20 py-2 shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden group">
+          
+          {/* Decorative Tech Layers */}
+          <div className="absolute inset-0 z-0 pointer-events-none">
+             <div className="navbar-tech-circuit"></div>
+             
+             {/* Dynamic Scan Beam */}
+             <div className="navbar-scan-beam animate-scan-line"></div>
+
+             {/* Glowing Orbs */}
+             <div className="navbar-glow-orb -top-20 -left-20 opacity-60"></div>
+             <div className="navbar-glow-orb -bottom-20 -right-20 opacity-40"></div>
+             
+             {/* Tech Grid Intersection Nodes */}
+             <div className="absolute top-2 left-1/4 w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse-soft"></div>
+             <div className="absolute bottom-2 left-2/3 w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse-soft delay-700"></div>
+
+             {/* Data-Waves at the bottom edge */}
+             <div className="absolute -bottom-6 left-0 w-[200%] h-14 opacity-[0.25] animate-navbar-wave">
+                <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="w-full h-full filter drop-shadow-[0_0_10px_rgba(212,175,55,0.3)]">
+                  <path fill="#D4AF37" d="M0,160 C320,300 420,10 720,160 C1020,310 1120,20 1440,160 C1760,300 1860,10 2160,160 C2460,310 2560,20 2880,160 V320 H0 Z"></path>
+                </svg>
+             </div>
+             <div className="absolute -bottom-5 left-0 w-[200%] h-10 opacity-15 animate-navbar-wave-slow">
+                <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="w-full h-full">
+                  <path fill="#FFFFFF" d="M0,192 C240,120 480,240 720,192 C960,144 1200,240 1440,192 C1680,120 1920,240 2160,192 C2400,144 2640,240 2880,192 V320 H0 Z"></path>
+                </svg>
+             </div>
+
+             {/* Top Line Shine */}
+             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
+          </div>
+
+          <div className="relative z-10 flex items-center gap-4 sm:gap-6">
+            <div className="flex flex-col cursor-pointer group/logo" onClick={() => { setViewState('landing'); window.history.back(); }}>
+              <div className="flex items-center gap-3">
+                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-[#D4AF37] to-[#B8952C] rounded-lg rotate-45 flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] group-hover/logo:rotate-90 transition-transform duration-500">
+                    <span className="-rotate-45 font-black text-mangosteen-deep text-lg sm:text-xl group-hover/logo:scale-110 transition-transform">W</span>
+                 </div>
+                 <div className="flex flex-col">
+                   <span className="block text-xl sm:text-2xl font-black leading-none uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-white to-[#D4AF37] drop-shadow-sm">
+                     WISE
+                   </span>
+                   <div className="h-0.5 w-0 group-hover/logo:w-full bg-gradient-to-r from-[#D4AF37] to-transparent transition-all duration-500 rounded-full mt-0.5"></div>
+                 </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-4">
+          <div className="relative z-10 flex items-center gap-1.5 sm:gap-4">
             {role === UserRole.ADMIN && (
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/50 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
-                {isSyncing ? <RefreshCw size={12} className="text-[#D4AF37] animate-spin" /> : <Cloud size={12} className="text-emerald-500" />}
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
-                  {isSyncing ? "Saving..." : lastSync ? `Synced: ${new Date(lastSync).toLocaleTimeString()}` : "Cloud Ready"}
+              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-xl rounded-full border border-white/10 shadow-inner">
+                {isSyncing ? <RefreshCw size={12} className="text-[#D4AF37] animate-spin" /> : <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>}
+                <span className="text-[10px] font-black text-white/90 uppercase tracking-widest">
+                  {isSyncing ? "Syncing..." : "LIVE SECURE"}
                 </span>
               </div>
             )}
-            <div className="flex items-center gap-1 sm:gap-2">
-              <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-white/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-white transition-all">
-                {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+            
+            <div className="flex items-center gap-1.5 sm:gap-3">
+              {role === UserRole.STUDENT && (
+                <div className="mr-1 filter drop-shadow-lg">
+                  <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" />
+                </div>
+              )}
+
+              <button 
+                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
+                className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-white/10 backdrop-blur-xl text-white/80 rounded-2xl border border-white/20 hover:bg-white/25 hover:scale-105 active:scale-95 transition-all shadow-lg"
+              >
+                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
               </button>
-              <button onClick={handleLogout} className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-rose-50 dark:bg-rose-950/30 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all shadow-md">
-                <LogOut size={16} />
+              
+              <button 
+                onClick={handleLogout} 
+                className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-rose-500/30 backdrop-blur-xl text-rose-300 border border-rose-400/30 rounded-2xl hover:bg-rose-600 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-xl group/logout"
+              >
+                <LogOut size={18} className="group-hover/logout:-translate-x-1 transition-transform" />
               </button>
             </div>
           </div>
@@ -293,14 +352,14 @@ const App: React.FC = () => {
                             <Play size={7} className="text-emerald-500 fill-emerald-500 shrink-0" />
                             <div className="flex flex-col leading-none">
                               <span className="hidden sm:block text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter mb-1">{currentT.startDateLabel}</span>
-                              <span className="text-[8px] min-[400px]:text-[9px] sm:text-[12px] font-black text-emerald-900 dark:text-emerald-200 whitespace-nowrap">{getLocalized(item.startDate)}</span>
+                              <span className="text-[8px] min(400px):text-[9px] sm:text-[12px] font-black text-emerald-900 dark:text-emerald-200 whitespace-nowrap">{getLocalized(item.startDate)}</span>
                             </div>
                          </div>
                          <div className="flex items-center gap-1 px-1 sm:px-3 py-1 sm:py-1.5 bg-rose-50/80 dark:bg-rose-950/40 rounded-lg sm:rounded-xl border border-rose-100 dark:border-rose-800/40 transition-transform group-hover:scale-105">
                             <Flag size={7} className="text-rose-500 fill-rose-500 shrink-0" />
                             <div className="flex flex-col leading-none">
                               <span className="hidden sm:block text-[8px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-tighter mb-1">{currentT.endDateLabel}</span>
-                              <span className="text-[8px] min-[400px]:text-[9px] sm:text-[12px] font-black text-rose-900 dark:text-rose-200 whitespace-nowrap">{getLocalized(item.endDate)}</span>
+                              <span className="text-[8px] min(400px):text-[9px] sm:text-[12px] font-black text-rose-900 dark:text-rose-200 whitespace-nowrap">{getLocalized(item.endDate)}</span>
                             </div>
                          </div>
                       </div>
