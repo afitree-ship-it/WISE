@@ -137,7 +137,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className={`fixed inset-0 w-full h-[100svh] flex flex-col items-center luxe-mangosteen-bg overflow-hidden desktop-zoom-70 touch-none ${isRtl ? 'rtl' : ''}`}>
+    <div className={`fixed inset-0 w-full h-[100svh] flex flex-col items-center luxe-mangosteen-bg overflow-hidden desktop-zoom-70 touch-auto ${isRtl ? 'rtl' : ''}`}>
       <MouseGlow />
       <div className="bg-video-wrap">
         <video autoPlay loop muted playsInline>
@@ -149,8 +149,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
       <TechMeteorShower />
       <ModernWaves />
       
-      <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-6 reveal-anim h-full">
-        <div className="flex flex-col items-center space-y-4 sm:space-y-6">
+      <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-6 reveal-anim h-full pointer-events-none">
+        <div className="flex flex-col items-center space-y-4 sm:space-y-6 pointer-events-auto">
            <div className="px-4 sm:px-8 py-2 sm:py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
              <div className="flex flex-row items-center gap-2 sm:gap-6 whitespace-nowrap overflow-hidden">
                <span className="text-[8px] sm:text-xs font-bold uppercase text-white tracking-normal opacity-90">
@@ -181,7 +181,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
            </div>
         </div>
 
-        <div className="mt-6 sm:mt-10 space-y-6 sm:space-y-10 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 flex flex-col items-center">
+        <div className="mt-6 sm:mt-10 space-y-6 sm:space-y-10 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 flex flex-col items-center pointer-events-auto">
           <h1 className="text-center text-[11px] min-[360px]:text-[13px] min-[400px]:text-[15px] min-[480px]:text-base sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight whitespace-nowrap mx-auto">
             {currentT.landingHeading}
           </h1>
