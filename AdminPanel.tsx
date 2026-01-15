@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   Language, 
   Major, 
@@ -35,7 +35,10 @@ import {
   Check,
   Users,
   Timer,
-  AlertTriangle
+  AlertTriangle,
+  Upload,
+  FileUp,
+  Link as LinkIcon
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -91,12 +94,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
   
+  // File Upload States
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadMethod, setUploadMethod] = useState<'url' | 'file'>('url');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   // Custom Delete Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'student' | 'site' | 'schedule' | 'form' } | null>(null);
 
   const getLocalized = (localized: LocalizedString) => {
     return localized.th || localized.en || '';
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
   };
 
   const performBatchTranslation = async (items: { key: string, value: string, isDate?: boolean }[]) => {
@@ -195,21 +212,53 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const formData = new FormData(e.currentTarget);
     const thTitle = formData.get('title') as string;
     const category = formData.get('category') as FormCategory;
-    const url = formData.get('url') as string;
+    let url = formData.get('url') as string || "#";
+    
+    let fileData = null;
+    if (uploadMethod === 'file' && selectedFile) {
+      setIsTranslating(true); // Re-use loading state for upload
+      try {
+        fileData = await fileToBase64(selectedFile);
+        // In a real app, the backend (Apps Script) would handle this. 
+        // We'll set a placeholder and send the base64 in the sync call.
+        url = `PENDING_UPLOAD:${selectedFile.name}`;
+      } catch (err) {
+        console.error("File read error:", err);
+      }
+      setIsTranslating(false);
+    }
+
     setIsTranslating(true);
     const results = await performBatchTranslation([{ key: 'title', value: thTitle }]);
     setIsTranslating(false);
+
     const newForm: DocumentForm = {
       id: editingForm?.id || Date.now().toString(),
       title: results['title'] || { th: thTitle, en: thTitle, ar: thTitle, ms: thTitle },
       category,
-      url: url.startsWith('http') ? url : `https://${url}`
+      url: url.startsWith('http') || url.startsWith('PENDING') ? url : `https://${url}`
     };
+
+    // If there is file data, we attach it to a temporary wrapper object 
+    // that the syncToSheets function can recognize
+    const syncPayload = fileData 
+      ? { ...newForm, _fileData: fileData, _fileName: selectedFile?.name }
+      : newForm;
+
     let updated = editingForm ? forms.map(f => f.id === editingForm.id ? newForm : f) : [newForm, ...forms];
     setForms(updated);
-    syncToSheets('forms', updated);
+    
+    // We send the individual form if it has a file to handle it specifically on backend
+    if (fileData) {
+      syncToSheets('uploadForm', [syncPayload]);
+    } else {
+      syncToSheets('forms', updated);
+    }
+
     setShowFormModal(false);
     setEditingForm(null);
+    setSelectedFile(null);
+    setUploadMethod('url');
   };
 
   const handleSaveSite = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -294,6 +343,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
     setShowDeleteModal(false);
     setItemToDelete(null);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        alert('กรุณาเลือกไฟล์ PDF เท่านั้น');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+      setSelectedFile(file);
+    }
   };
 
   const getStatusColor = (status: ApplicationStatus) => {
@@ -383,7 +444,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     if(adminActiveTab === 'students') { setEditingStatusRecord(null); setShowAdminStatusModal(true); }
                     else if(adminActiveTab === 'sites') { setEditingSite(null); setShowSiteModal(true); }
                     else if(adminActiveTab === 'schedule') { setEditingSchedule(null); setShowScheduleModal(true); }
-                    else { setEditingForm(null); setShowFormModal(true); }
+                    else { 
+                      setEditingForm(null); 
+                      setSelectedFile(null);
+                      setUploadMethod('url');
+                      setShowFormModal(true); 
+                    }
                   }}
                   className={`w-full sm:w-auto px-8 py-3 rounded-xl bg-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600 text-white font-black uppercase text-sm sm:text-base flex items-center justify-center gap-3 shadow-lg shadow-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600/20 transition-all hover:scale-105 active:scale-95`}
                 >
@@ -547,7 +613,77 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {showFormModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim"><div className="w-full max-w-[480px] bg-white dark:bg-slate-900 rounded-[2rem] p-8"><h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3"><FileText size={24} className="text-indigo-500" />{editingForm ? 'แก้ไขแบบฟอร์ม' : 'เพิ่มแบบฟอร์มใหม่'}</h3><form onSubmit={handleSaveForm} className="space-y-5"><div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ชื่อเอกสาร</label><input name="title" defaultValue={editingForm?.title.th} required placeholder="Document Name" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-xl transition-all" /></div><div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">หมวดหมู่</label><select name="category" defaultValue={editingForm?.category || FormCategory.APPLICATION} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-lg border-2 border-transparent focus:border-indigo-500"><option value={FormCategory.APPLICATION}>เอกสารสมัครงาน (Application)</option><option value={FormCategory.MONITORING}>เอกสารระหว่างฝึกงาน (Monitoring)</option></select></div><div className="space-y-1"><label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ลิงก์ URL</label><input name="url" defaultValue={editingForm?.url} required placeholder="Download Link" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-xl transition-all" /></div><div className="flex gap-4 pt-4"><button type="button" onClick={() => setShowFormModal(false)} className="flex-1 py-3.5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-xs">ยกเลิก</button><button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-3.5 rounded-2xl bg-indigo-600 text-white font-black uppercase text-xs disabled:opacity-50">{isTranslating ? 'กำลังประมวลผล...' : 'บันทึกเอกสาร'}</button></div></form></div></div>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim">
+          <div className="w-full max-w-[480px] bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-2xl">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3">
+              <FileText size={24} className="text-indigo-500" />
+              {editingForm ? 'แก้ไขแบบฟอร์ม' : 'เพิ่มแบบฟอร์มใหม่'}
+            </h3>
+            
+            <form onSubmit={handleSaveForm} className="space-y-5">
+              <div className="space-y-1">
+                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ชื่อเอกสาร (ภาษาไทย)</label>
+                <input name="title" defaultValue={editingForm?.title.th} required placeholder="ระบุชื่อเอกสาร" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-lg transition-all shadow-inner" />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">หมวดหมู่</label>
+                <select name="category" defaultValue={editingForm?.category || FormCategory.APPLICATION} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-lg border-2 border-transparent focus:border-indigo-500 outline-none transition-all shadow-inner">
+                  <option value={FormCategory.APPLICATION}>เอกสารสมัครงาน (Application)</option>
+                  <option value={FormCategory.MONITORING}>เอกสารระหว่างฝึกงาน (Monitoring)</option>
+                </select>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-sm font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">วิธีการแนบไฟล์</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button type="button" onClick={() => setUploadMethod('url')} className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-bold transition-all ${uploadMethod === 'url' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-transparent text-slate-400'}`}>
+                    <LinkIcon size={16} /> ลิงก์ URL
+                  </button>
+                  <button type="button" onClick={() => setUploadMethod('file')} className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-bold transition-all ${uploadMethod === 'file' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-transparent text-slate-400'}`}>
+                    <FileUp size={16} /> อัปโหลด PDF
+                  </button>
+                </div>
+
+                {uploadMethod === 'url' ? (
+                  <div className="animate-in fade-in zoom-in-95 duration-200">
+                    <input name="url" defaultValue={editingForm?.url} placeholder="https://example.com/file.pdf" className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-indigo-500 outline-none font-bold text-base transition-all shadow-inner" />
+                  </div>
+                ) : (
+                  <div className="animate-in fade-in zoom-in-95 duration-200">
+                    <div 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="group flex flex-col items-center justify-center py-6 px-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50/50 dark:bg-slate-800/50 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/30 transition-all text-center"
+                    >
+                      <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="application/pdf" className="hidden" />
+                      <div className="w-12 h-12 bg-white dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-400 group-hover:text-indigo-600 shadow-sm mb-3 transition-colors">
+                        <Upload size={24} />
+                      </div>
+                      <p className="text-xs font-black uppercase text-slate-500 dark:text-slate-400 mb-1 group-hover:text-indigo-700">คลิกเพื่อเลือกไฟล์ PDF</p>
+                      <p className="text-[10px] font-bold text-slate-400">ขนาดสูงสุดไม่เกิน 10MB</p>
+                    </div>
+                    {selectedFile && (
+                      <div className="mt-3 flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800 rounded-xl animate-in slide-in-from-top-2">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <FileText size={18} className="text-emerald-600 shrink-0" />
+                          <span className="text-xs font-black text-emerald-800 dark:text-emerald-400 truncate">{selectedFile.name}</span>
+                        </div>
+                        <button type="button" onClick={() => setSelectedFile(null)} className="p-1 hover:bg-emerald-100 rounded-full transition-colors text-emerald-600"><X size={16} /></button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => setShowFormModal(false)} className="flex-1 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-xs sm:text-sm hover:bg-slate-50 transition-colors">ยกเลิก</button>
+                <button type="submit" disabled={isTranslating || isSyncing || (uploadMethod === 'file' && !selectedFile)} className="flex-1 py-4 rounded-2xl bg-indigo-600 text-white font-black uppercase text-xs sm:text-sm shadow-lg shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50">
+                  {isTranslating ? 'กำลังเตรียมไฟล์...' : 'บันทึกเอกสาร'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {showSiteModal && (
