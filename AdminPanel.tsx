@@ -43,7 +43,9 @@ import {
   GraduationCap,
   Calendar,
   Fingerprint,
-  MapPin
+  MapPin,
+  FileSpreadsheet,
+  Info
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -98,6 +100,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEvent | null>(null);
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
+  
+  // Report Modal States
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportRange, setReportRange] = useState({ start: '', end: '' });
   
   // Validation State
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -312,6 +318,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const rawStudentId = (formData.get('student_id') as string) || "";
     const rawName = (formData.get('student_name') as string) || "";
     const rawLocation = (formData.get('location') as string) || "";
+    const rawPosition = (formData.get('position') as string) || "";
+    const rawTerm = (formData.get('term') as string) || "";
+    const rawYear = (formData.get('academic_year') as string) || "";
     
     const normStudentId = rawStudentId.trim().replace(/\s+/g, '');
     const normName = rawName.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -347,6 +356,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       studentId: rawStudentId.trim(),
       name: rawName.trim(),
       location: rawLocation.trim() || undefined,
+      position: rawPosition.trim() || undefined,
+      term: rawTerm.trim() || undefined,
+      academicYear: rawYear.trim() || undefined,
       status: formData.get('status') as ApplicationStatus,
       major: formData.get('major') as Major,
       internshipType: formData.get('internship_type') as InternshipType,
@@ -395,6 +407,47 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
     setShowDeleteModal(false);
     setItemToDelete(null);
+  };
+
+  const handleDownloadReport = () => {
+    let filtered = [...studentStatuses];
+    if (reportRange.start) {
+      filtered = filtered.filter(s => s.startDate && s.startDate >= reportRange.start);
+    }
+    if (reportRange.end) {
+      filtered = filtered.filter(s => s.endDate && s.endDate <= reportRange.end);
+    }
+
+    if (filtered.length === 0) {
+      alert("ไม่พบข้อมูลในช่วงเวลาที่ระบุ");
+      return;
+    }
+
+    const headers = ["ID", "Student Name", "Major", "Type", "Location", "Position", "Term", "Year", "Start Date", "End Date", "Status"];
+    const rows = filtered.map(s => [
+      `"${s.studentId}"`,
+      `"${s.name}"`,
+      `"${s.major === Major.HALAL_FOOD ? 'สาขาวิชาวิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาล' : 'สาขาวิชาเทคโนโลยีและวิทยาการดิจิทัล'}"`,
+      `"${s.internshipType === InternshipType.INTERNSHIP ? 'Internship' : 'Co-op'}"`,
+      `"${s.location || '-'}"`,
+      `"${s.position || '-'}"`,
+      `"${s.term || '-'}"`,
+      `"${s.academicYear || '-'}"`,
+      `"${s.startDate || '-'}"`,
+      `"${s.endDate || '-'}"`,
+      `"${getStatusLabel(s.status)}"`
+    ]);
+
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Internship_Summary_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setShowReportModal(false);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -479,6 +532,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
              </div>
              <div className="flex flex-col sm:flex-row items-center gap-3">
+                {adminActiveTab === 'students' && (
+                  <button 
+                    onClick={() => setShowReportModal(true)}
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-black uppercase text-xs flex items-center justify-center gap-2 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 transition-all shadow-sm"
+                  >
+                    <FileSpreadsheet size={18} /> ส่งออกรายงาน
+                  </button>
+                )}
                 <div className="relative w-full sm:w-64 group">
                    <Search size={22} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors" />
                    <input 
@@ -556,6 +617,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                              </div>
                            </div>
                            <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-black text-slate-400 uppercase w-16">ตำแหน่ง:</span>
+                             <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[150px] flex items-center gap-1">
+                               <Briefcase size={10} className="text-emerald-400" />
+                               {record.position || '-'}
+                             </div>
+                           </div>
+                           <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-black text-slate-400 uppercase w-16">เทอม/ปี:</span>
+                             <div className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-tighter">
+                               {record.term ? `เทอม ${record.term}` : '-'} / {record.academicYear || '-'}
+                             </div>
+                           </div>
+                           <div className="flex items-center gap-2">
                              <span className="text-[10px] font-black text-slate-400 uppercase w-16">รูปแบบ:</span>
                              <div className="px-3 py-1 rounded-lg text-[10px] font-black uppercase border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 flex items-center gap-1.5">
                                {record.internshipType === InternshipType.INTERNSHIP ? <Briefcase size={12} className="text-emerald-500" /> : <GraduationCap size={12} className="text-indigo-500" />}
@@ -563,10 +637,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                              </div>
                            </div>
                            <div className="flex items-center gap-2">
-                             <span className="text-[10px] font-black text-slate-400 uppercase w-16">สาขา:</span>
+                             <span className="text-[10px] font-black text-slate-400 uppercase w-16 shrink-0">สาขา:</span>
                              <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${record.major === Major.HALAL_FOOD ? 'bg-amber-50 border-amber-100 text-amber-600' : 'bg-blue-50 border-blue-100 text-blue-600'} flex items-center gap-1.5`}>
                                {record.major === Major.HALAL_FOOD ? <Salad size={12} /> : <Cpu size={12} />}
-                               {record.major === Major.HALAL_FOOD ? 'วิจัยอาหารฮาลาล' : 'เทคโนโลยีดิจิทัล'}
+                               {record.major === Major.HALAL_FOOD ? 'สาขาวิชาวิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาล' : 'สาขาวิชาเทคโนโลยีและวิทยาการดิจิทัล'}
                              </div>
                            </div>
                         </div>
@@ -600,7 +674,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     {filteredAdminSites.map(site => (
                       <div key={site.id} className="p-5 rounded-[1.75rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex items-center justify-between group hover:border-rose-200 hover:shadow-xl transition-all shadow-sm">
                         <div className="flex items-center gap-4 overflow-hidden">
-                          <div className={`w-14 h-14 rounded-2xl-flex-shrink-0 flex items-center justify-center text-white ${site.major === Major.HALAL_FOOD ? 'bg-amber-500' : 'bg-blue-600'} shadow-lg`}>{site.major === Major.HALAL_FOOD ? <Salad size={24} /> : <Cpu size={24} />}</div>
+                          <div className={`w-14 h-14 rounded-2xl flex-shrink-0 flex items-center justify-center text-white ${site.major === Major.HALAL_FOOD ? 'bg-amber-500' : 'bg-blue-600'} shadow-lg`}>{site.major === Major.HALAL_FOOD ? <Salad size={24} /> : <Cpu size={24} />}</div>
                           <div className="overflow-hidden space-y-0.5"><h4 className="font-black text-slate-900 dark:text-white text-sm sm:text-base truncate">{getLocalized(site.name)}</h4><p className="text-[10px] font-bold text-slate-400 truncate uppercase tracking-widest">{getLocalized(site.location)}</p></div>
                         </div>
                         <div className="flex gap-1.5 shrink-0">
@@ -653,6 +727,65 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       </main>
 
+      {/* REPORT MODAL - Range selector */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md reveal-anim" onClick={() => setShowReportModal(false)}>
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-3xl border border-slate-100 dark:border-slate-800" onClick={(e) => e.stopPropagation()}>
+             <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                   <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 rounded-2xl shadow-inner">
+                      <FileSpreadsheet size={28} />
+                   </div>
+                   <div>
+                      <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase leading-none">Export Summary</h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Select Month Range</p>
+                   </div>
+                </div>
+                <button onClick={() => setShowReportModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                  <X size={20} className="text-slate-400" />
+                </button>
+             </div>
+
+             <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">เริ่มจากเดือน</label>
+                      <input 
+                        type="month" 
+                        value={reportRange.start}
+                        onChange={(e) => setReportRange(prev => ({ ...prev, start: e.target.value }))}
+                        className="w-full px-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-sm transition-all shadow-inner"
+                      />
+                   </div>
+                   <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">ถึงเดือน</label>
+                      <input 
+                        type="month" 
+                        value={reportRange.end}
+                        onChange={(e) => setReportRange(prev => ({ ...prev, end: e.target.value }))}
+                        className="w-full px-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-sm transition-all shadow-inner"
+                      />
+                   </div>
+                </div>
+                
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex gap-3 items-center">
+                   <Info size={18} className="text-slate-400 shrink-0" />
+                   <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase leading-relaxed">
+                     ระบบจะส่งออกข้อมูลนักศึกษาที่ระบุ "วันที่เริ่มต้น/สิ้นสุด" อยู่ในช่วงที่เลือกเป็นไฟล์ CSV
+                   </p>
+                </div>
+
+                <button 
+                  onClick={handleDownloadReport}
+                  className="w-full py-4 rounded-xl bg-emerald-600 text-white font-black uppercase text-sm shadow-xl shadow-emerald-600/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                >
+                  <Download size={20} /> ดาวน์โหลดรายงาน (.CSV)
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
       {/* DELETE CONFIRMATION MODAL - Ultra Compact */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md reveal-anim" onClick={() => setShowDeleteModal(false)}>
@@ -698,11 +831,44 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">รหัสนักศึกษา</label><input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="6XXXXXXXX" className="w-full px-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-lg transition-all" /></div>
               <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ชื่อ-นามสกุล</label><input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="ชื่อจริง - นามสกุล" className="w-full px-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-base transition-all" /></div>
               
+              <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">สาขาวิชา</label><div className="grid grid-cols-1 gap-2.5">
+                  {[
+                    { id: Major.HALAL_FOOD, label: 'สาขาวิชาวิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาล', icon: <Salad size={18} />, color: 'amber' }, 
+                    { id: Major.DIGITAL_TECH, label: 'สาขาวิชาเทคโนโลยีและวิทยาการดิจิทัล', icon: <Cpu size={18} />, color: 'blue' }
+                  ].map((mj) => (
+                    <label key={mj.id} className="relative cursor-pointer group"><input type="radio" name="major" value={mj.id} defaultChecked={editingStatusRecord?.major === mj.id || (!editingStatusRecord && mj.id === Major.HALAL_FOOD)} className="peer hidden" /><div className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-300 relative bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 peer-checked:border-${mj.color}-500 peer-checked:bg-${mj.color}-50/50 dark:peer-checked:bg-${mj.color}-950/20`}><div className={`text-slate-300 peer-checked:text-${mj.color}-600`}>{mj.icon}</div><span className={`text-[11px] font-black leading-tight text-slate-500 peer-checked:text-${mj.color}-700`}>{mj.label}</span></div></label>
+                  ))}
+              </div></div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">เทอม (Semester)</label>
+                  <select name="term" defaultValue={editingStatusRecord?.term} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white font-bold text-sm border-2 border-transparent focus:border-amber-500 outline-none">
+                    <option value="">- เลือกเทอม -</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ปีการศึกษา</label>
+                  <input name="academic_year" defaultValue={editingStatusRecord?.academicYear} placeholder="25XX" className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-sm" />
+                </div>
+              </div>
+
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">สถานที่ฝึกงาน / สหกิจศึกษา</label>
                 <div className="relative">
                   <Building2 size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
                   <input name="location" defaultValue={editingStatusRecord?.location} placeholder="ชื่อบริษัท หรือ หน่วยงาน" className="w-full pl-12 pr-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-base transition-all" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ตำแหน่งงาน</label>
+                <div className="relative">
+                  <Briefcase size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <input name="position" defaultValue={editingStatusRecord?.position} placeholder="ระบุตำแหน่งที่ได้รับมอบหมาย" className="w-full pl-12 pr-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-base transition-all" />
                 </div>
               </div>
 
@@ -717,15 +883,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     { id: InternshipType.COOP, label: 'สหกิจศึกษา', icon: <GraduationCap size={18} />, color: 'indigo' }
                   ].map((it) => (
                     <label key={it.id} className="relative cursor-pointer group"><input type="radio" name="internship_type" value={it.id} defaultChecked={editingStatusRecord?.internshipType === it.id || (!editingStatusRecord && it.id === InternshipType.INTERNSHIP)} className="peer hidden" /><div className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 text-center relative bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 peer-checked:border-${it.color}-500 peer-checked:bg-${it.color}-50/50 dark:peer-checked:bg-${it.color}-950/20`}><div className={`text-slate-300 peer-checked:text-${it.color}-600 mb-1`}>{it.icon}</div><span className={`text-[10px] font-black leading-tight text-slate-500 peer-checked:text-${it.color}-700`}>{it.label}</span></div></label>
-                  ))}
-              </div></div>
-
-              <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">สาขาวิชา</label><div className="grid grid-cols-2 gap-3">
-                  {[
-                    { id: Major.HALAL_FOOD, label: 'วิจัยอาหารฮาลาล', icon: <Salad size={18} />, color: 'amber' }, 
-                    { id: Major.DIGITAL_TECH, label: 'เทคโนโลยีดิจิทัล', icon: <Cpu size={18} />, color: 'blue' }
-                  ].map((mj) => (
-                    <label key={mj.id} className="relative cursor-pointer group"><input type="radio" name="major" value={mj.id} defaultChecked={editingStatusRecord?.major === mj.id || (!editingStatusRecord && mj.id === Major.HALAL_FOOD)} className="peer hidden" /><div className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 text-center relative bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 peer-checked:border-${mj.color}-500 peer-checked:bg-${mj.color}-50/50 dark:peer-checked:bg-${mj.color}-950/20`}><div className={`text-slate-300 peer-checked:text-${mj.color}-600 mb-1`}>{mj.icon}</div><span className={`text-[10px] font-black leading-tight text-slate-500 peer-checked:text-${mj.color}-700`}>{mj.label}</span></div></label>
                   ))}
               </div></div>
 
@@ -774,7 +931,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* SCHEDULE MODAL - Compact */}
       {showScheduleModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowScheduleModal(false)}>
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] p-6 sm:p-8 relative" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-md bg-white dark:bg-slate-900 rounded-[2rem] p-6 sm:p-8 relative" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setShowScheduleModal(false)} className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
               <X size={20} className="text-slate-400" />
             </button>

@@ -41,7 +41,10 @@ export interface StudentStatusRecord {
   status: ApplicationStatus;
   major: Major;
   internshipType: InternshipType;
-  location?: string; // สถานที่ฝึกงาน
+  location?: string; 
+  position?: string; // ตำแหน่งงาน
+  term?: string; // ภาคเรียนที่
+  academicYear?: string; // ปีการศึกษา
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
   lastUpdated: number;
