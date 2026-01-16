@@ -239,7 +239,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setIsTranslating(true);
       try {
         fileData = await fileToBase64(selectedFile);
-        url = `PENDING_UPLOAD:${selectedFile.name}`;
+        // Set local url to data URI so it doesn't 404 immediately
+        url = fileData;
       } catch (err) {
         console.error("File read error:", err);
       }
@@ -254,11 +255,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       id: editingForm?.id || Date.now().toString(),
       title: results['title'] || { th: thTitle, en: thTitle, ar: thTitle, ms: thTitle },
       category,
-      url: url.startsWith('http') || url.startsWith('PENDING') ? url : `https://${url}`
+      url: url.startsWith('http') || url.startsWith('data:') ? url : (url === "#" ? "#" : `https://${url}`)
     };
 
+    // We send a PENDING_UPLOAD flag to server while keeping the data URI locally
     const syncPayload = fileData 
-      ? { ...newForm, _fileData: fileData, _fileName: selectedFile?.name }
+      ? { ...newForm, url: `PENDING_UPLOAD:${selectedFile?.name}`, _fileData: fileData, _fileName: selectedFile?.name }
       : newForm;
 
     let updated = editingForm ? forms.map(f => f.id === editingForm.id ? newForm : f) : [newForm, ...forms];
@@ -631,7 +633,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                            </div>
                            <div className="flex items-center gap-2">
                              <span className="text-[10px] font-black text-slate-400 uppercase w-16">รูปแบบ:</span>
-                             <div className="px-3 py-1 rounded-lg text-[10px] font-black uppercase border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 flex items-center gap-1.5">
+                             <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 flex items-center gap-1.5`}>
                                {record.internshipType === InternshipType.INTERNSHIP ? <Briefcase size={12} className="text-emerald-500" /> : <GraduationCap size={12} className="text-indigo-500" />}
                                {record.internshipType === InternshipType.INTERNSHIP ? 'ฝึกงาน' : 'สหกิจศึกษา'}
                              </div>
