@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Language, 
@@ -25,7 +24,9 @@ import {
   ClipboardList,
   ShieldCheck,
   ShieldX,
-  Search
+  Search,
+  Briefcase,
+  Calendar
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -140,12 +141,36 @@ const LandingPage: React.FC<LandingPageProps> = ({
     }
   };
 
+  const getInternshipTypeLabel = (type: InternshipType) => {
+    const isIntern = type === InternshipType.INTERNSHIP;
+    switch (lang) {
+      case Language.TH: return isIntern ? 'ฝึกงาน' : 'สหกิจศึกษา';
+      case Language.AR: return isIntern ? 'تدريب ميداني' : 'التعليم التعاوني';
+      case Language.MS: return isIntern ? 'Latihan Industri' : 'Pendidikan Ko-operatif';
+      default: return isIntern ? 'Internship' : 'Co-op';
+    }
+  };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-US', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   return (
     <div className={`fixed inset-0 w-full h-[100svh] flex flex-col items-center luxe-mangosteen-bg overflow-hidden desktop-zoom-70 touch-auto ${isRtl ? 'rtl' : ''}`}>
       <MouseGlow />
       <div className="bg-video-wrap">
         <video autoPlay loop muted playsInline>
-          <source src="https://assets.mixkit.co/videos/preview/mixkit-business-people-working-in-a-busy-office-33824-large.mp4" type="video/mp4" />
+          <source src="https://assets.mixkit.co/videos/preview/kit-business-people-working-in-a-busy-office-33824-large.mp4" type="video/mp4" />
         </video>
       </div>
       <div className="video-overlay"></div>
@@ -303,19 +328,14 @@ const LandingPage: React.FC<LandingPageProps> = ({
                              <div className="flex flex-col gap-2">
                                <div className="flex flex-wrap gap-2">
                                  <span className="inline-flex w-fit text-[9px] sm:text-sm font-black text-[#D4AF37] uppercase bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-sm border border-[#D4AF37]/20 whitespace-nowrap">ID: {record.studentId}</span>
-                                 <div className="px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-sm font-black uppercase border border-slate-100 dark:border-slate-700 bg-white text-slate-500 whitespace-nowrap">
-                                   {record.internshipType === InternshipType.INTERNSHIP ? (lang === Language.TH ? 'ฝึกงาน' : 'Internship') : (lang === Language.TH ? 'สหกิจศึกษา' : 'Co-op')}
+                                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-sm font-black uppercase border border-slate-100 dark:border-slate-700 bg-white text-slate-500 whitespace-nowrap shadow-sm">
+                                   <Briefcase size={10} className="sm:w-3 sm:h-3 text-slate-400" />
+                                   {getInternshipTypeLabel(record.internshipType)}
                                  </div>
                                </div>
                                <div className={`text-[8px] sm:text-[11px] font-black uppercase px-3 py-1.5 rounded-xl border ${info.border} ${info.bg} ${info.text} leading-tight`}>
                                  {record.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor}
                                </div>
-                               {record.startDate && record.endDate && (
-                                  <div className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-1.5 mt-1">
-                                    <Clock size={12} className="text-slate-300" />
-                                    {record.startDate} - {record.endDate}
-                                  </div>
-                               )}
                              </div>
                            </div>
                          </div>
@@ -332,7 +352,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
                              </div>
                           </div>
 
-                          {/* Progress Tracker */}
                           <div className="flex items-center justify-between relative px-2 pt-2">
                              <div className="absolute top-1/2 left-4 right-4 h-1 sm:h-1.5 bg-slate-200 -translate-y-1/2 rounded-full overflow-hidden">
                                 <div 
@@ -352,12 +371,26 @@ const LandingPage: React.FC<LandingPageProps> = ({
                           </div>
                        </div>
 
-                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 text-[8px] sm:text-xs text-slate-400 font-black uppercase justify-between pt-4 sm:pt-6 border-t border-slate-200/50">
-                         <div className="flex items-center gap-2">
-                           <Activity size={12} className={info.text} />
-                           {currentT.lastUpdated}: {new Date(record.lastUpdated).toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 text-[8px] sm:text-xs text-slate-400 font-black uppercase justify-between pt-4 sm:pt-6 border-t border-slate-200/50">
+                         <div className="flex flex-col gap-2 w-full sm:w-auto">
+                            <div className="flex items-center gap-2">
+                              <Activity size={12} className={info.text} />
+                              {currentT.lastUpdated}: {new Date(record.lastUpdated).toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            </div>
+                            
+                            {record.startDate && record.endDate && (
+                              <div className="flex items-center gap-3 px-4 py-2.5 bg-white/60 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm mt-1">
+                                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-[7px] sm:text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">ระยะเวลาฝึก / Period</span>
+                                  <span className="text-[9px] sm:text-sm font-black text-slate-700 dark:text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis">
+                                    {formatDate(record.startDate)} — {formatDate(record.endDate)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                          </div>
-                         {record.remarks && <span className="text-rose-400 break-words line-clamp-1">NOTE: {record.remarks}</span>}
+                         {record.remarks && <span className="text-rose-400 break-words line-clamp-1 mt-2 sm:mt-0 font-bold">NOTE: {record.remarks}</span>}
                        </div>
                      </div>
                    );
