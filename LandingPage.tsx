@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Language, 
   Major, 
@@ -26,7 +26,8 @@ import {
   ShieldX,
   Search,
   Briefcase,
-  Calendar
+  Calendar,
+  MapPin
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -55,6 +56,16 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState('');
   const [loginError, setLoginError] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleAdminSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -324,7 +335,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                            </div>
                            <div className="min-w-0">
                              <p className="text-[8px] sm:text-xs font-black text-slate-400 uppercase leading-none mb-1 sm:mb-2 tracking-widest">{currentT.studentLabel}</p>
-                             <h4 className="font-black text-slate-900 leading-tight text-base sm:text-2xl line-clamp-2 mb-1 sm:mb-2">{record.name}</h4>
+                             <h4 className="font-black text-slate-900 dark:text-white text-base sm:text-2xl line-clamp-2 mb-1 sm:mb-2">{record.name}</h4>
                              <div className="flex flex-col gap-2">
                                <div className="flex flex-wrap gap-2">
                                  <span className="inline-flex w-fit text-[9px] sm:text-sm font-black text-[#D4AF37] uppercase bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-sm border border-[#D4AF37]/20 whitespace-nowrap">ID: {record.studentId}</span>
@@ -332,6 +343,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
                                    <Briefcase size={10} className="sm:w-3 sm:h-3 text-slate-400" />
                                    {getInternshipTypeLabel(record.internshipType)}
                                  </div>
+                                 {record.location && (
+                                   <div className="flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-sm font-black uppercase border border-slate-100 dark:border-slate-700 bg-white text-slate-500 whitespace-nowrap shadow-sm">
+                                     <MapPin size={10} className="sm:w-3 sm:h-3 text-rose-400" />
+                                     {record.location}
+                                   </div>
+                                 )}
                                </div>
                                <div className={`text-[8px] sm:text-[11px] font-black uppercase px-3 py-1.5 rounded-xl border ${info.border} ${info.bg} ${info.text} leading-tight`}>
                                  {record.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor}
@@ -407,15 +424,18 @@ const LandingPage: React.FC<LandingPageProps> = ({
             <button onClick={() => setShowAdminLogin(false)} className="absolute top-4 right-4 sm:top-8 sm:right-8 p-2 sm:p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all">
               <X size={20} className="sm:w-6 sm:h-6" />
             </button>
-            <div className="inline-flex p-4 sm:p-7 rounded-2xl sm:rounded-[2rem] bg-[#D4AF37]/10 text-[#D4AF37] mb-4 sm:mb-8 shadow-[0_0_50px_rgba(212,175,55,0.2)]">
+            
+            <div className="inline-flex p-4 sm:p-7 rounded-2xl sm:rounded-[2rem] bg-[#D4AF37]/10 text-[#D4AF37] mb-4 sm:mb-8 shadow-[0_0_50px_rgba(212,175,55,0.2)] relative">
               <Fingerprint size={40} className="animate-pulse sm:w-[48px] sm:h-[48px]" />
             </div>
+            
             <h3 className="text-lg sm:text-2xl font-bold text-white uppercase mb-4 text-center">Staff Access</h3>
-            <form onSubmit={handleAdminSubmit} className="w-full space-y-4 sm:space-y-8">
+            
+            <form onSubmit={handleAdminSubmit} className="w-full space-y-4 sm:space-y-6">
               <div className="relative">
                 <input 
                   type="password" 
-                  autoFocus 
+                  autoFocus={!isMobile}
                   placeholder="••••••" 
                   value={adminPassInput} 
                   onChange={e => {
@@ -426,9 +446,15 @@ const LandingPage: React.FC<LandingPageProps> = ({
                     ${loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
                 />
               </div>
-              <button type="submit" className="w-full bg-[#630330] hover:bg-[#7a0b3d] text-white py-4 sm:py-7 rounded-xl sm:rounded-2xl font-black uppercase text-xs sm:text-base shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all">
-                {lang === Language.TH ? 'ยืนยัน' : 'Verify'}
-              </button>
+
+              <div className="flex flex-col gap-4">
+                <button 
+                  type="submit" 
+                  className="w-full bg-[#630330] hover:bg-[#7a0b3d] text-white py-4 sm:py-7 rounded-xl sm:rounded-2xl font-black uppercase text-xs sm:text-base shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all active:scale-95"
+                >
+                  {lang === Language.TH ? 'ยืนยัน' : 'Verify'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

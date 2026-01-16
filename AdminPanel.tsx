@@ -42,7 +42,8 @@ import {
   Briefcase,
   GraduationCap,
   Calendar,
-  Fingerprint
+  Fingerprint,
+  MapPin
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -310,6 +311,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const formData = new FormData(studentStatusFormRef.current);
     const rawStudentId = (formData.get('student_id') as string) || "";
     const rawName = (formData.get('student_name') as string) || "";
+    const rawLocation = (formData.get('location') as string) || "";
     
     const normStudentId = rawStudentId.trim().replace(/\s+/g, '');
     const normName = rawName.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -344,6 +346,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       id: editingStatusRecord?.id || Date.now().toString(),
       studentId: rawStudentId.trim(),
       name: rawName.trim(),
+      location: rawLocation.trim() || undefined,
       status: formData.get('status') as ApplicationStatus,
       major: formData.get('major') as Major,
       internshipType: formData.get('internship_type') as InternshipType,
@@ -546,6 +549,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                              <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${getStatusColor(record.status)}`}>{getStatusLabel(record.status)}</div>
                            </div>
                            <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-black text-slate-400 uppercase w-16">สถานที่:</span>
+                             <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[150px] flex items-center gap-1">
+                               <MapPin size={10} className="text-rose-400" />
+                               {record.location || '-'}
+                             </div>
+                           </div>
+                           <div className="flex items-center gap-2">
                              <span className="text-[10px] font-black text-slate-400 uppercase w-16">รูปแบบ:</span>
                              <div className="px-3 py-1 rounded-lg text-[10px] font-black uppercase border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 flex items-center gap-1.5">
                                {record.internshipType === InternshipType.INTERNSHIP ? <Briefcase size={12} className="text-emerald-500" /> : <GraduationCap size={12} className="text-indigo-500" />}
@@ -688,6 +698,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">รหัสนักศึกษา</label><input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="6XXXXXXXX" className="w-full px-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-lg transition-all" /></div>
               <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ชื่อ-นามสกุล</label><input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="ชื่อจริง - นามสกุล" className="w-full px-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-base transition-all" /></div>
               
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">สถานที่ฝึกงาน / สหกิจศึกษา</label>
+                <div className="relative">
+                  <Building2 size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <input name="location" defaultValue={editingStatusRecord?.location} placeholder="ชื่อบริษัท หรือ หน่วยงาน" className="w-full pl-12 pr-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-base transition-all" />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">วันที่เริ่มฝึก (ไม่บังคับ)</label><input type="date" name="start_date" defaultValue={editingStatusRecord?.startDate} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-xs" /></div>
                 <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">วันที่สิ้นสุด (ไม่บังคับ)</label><input type="date" name="end_date" defaultValue={editingStatusRecord?.endDate} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xs" /></div>
@@ -814,7 +832,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* INTERNSHIP SITE MODAL - Balanced */}
       {showSiteModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowSiteModal(false)}>
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-[2rem] p-6 sm:p-8 overflow-y-auto max-h-[85svh] relative" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-lg bg-white dark:bg-slate-900 rounded-[2rem] p-6 sm:p-8 overflow-y-auto max-h-[85svh] relative" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setShowSiteModal(false)} className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
               <X size={20} className="text-slate-400" />
             </button>
