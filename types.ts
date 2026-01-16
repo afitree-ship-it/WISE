@@ -17,6 +17,11 @@ export enum Major {
   DIGITAL_TECH = 'digital_tech'
 }
 
+export enum InternshipType {
+  INTERNSHIP = 'internship',
+  COOP = 'coop'
+}
+
 export enum FormCategory {
   APPLICATION = 'application',
   MONITORING = 'monitoring'
@@ -35,6 +40,9 @@ export interface StudentStatusRecord {
   name: string;
   status: ApplicationStatus;
   major: Major;
+  internshipType: InternshipType;
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
   lastUpdated: number;
   remarks?: string;
 }

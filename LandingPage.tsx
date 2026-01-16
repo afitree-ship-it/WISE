@@ -5,7 +5,8 @@ import {
   Major, 
   StudentStatusRecord, 
   ApplicationStatus,
-  Translation
+  Translation,
+  InternshipType
 } from './types';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { MouseGlow, TechMeteorShower, ModernWaves } from './components/LandingBackground';
@@ -48,7 +49,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
 }) => {
   const [showStatusCheckModal, setShowStatusCheckModal] = useState(false);
   const [searchStudentId, setSearchStudentId] = useState('');
-  const [foundStatus, setFoundStatus] = useState<StudentStatusRecord | null | undefined>(undefined);
+  const [foundStatuses, setFoundStatuses] = useState<StudentStatusRecord[] | null | undefined>(undefined);
   
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState('');
@@ -68,12 +69,15 @@ const LandingPage: React.FC<LandingPageProps> = ({
     const query = searchStudentId.trim();
     if (!query) return;
 
-    const found = studentStatuses.find(s => 
-      String(s.studentId).trim() === query || 
-      String(s.studentId).replace(/-/g, '').trim() === query.replace(/-/g, '').trim()
-    );
+    // Filter all records matching ID and sort by latest updated first
+    const matches = studentStatuses
+      .filter(s => 
+        String(s.studentId).trim() === query || 
+        String(s.studentId).replace(/-/g, '').trim() === query.replace(/-/g, '').trim()
+      )
+      .sort((a, b) => b.lastUpdated - a.lastUpdated);
     
-    setFoundStatus(found || null);
+    setFoundStatuses(matches.length > 0 ? matches : null);
   };
 
   const getStatusInfo = (status: ApplicationStatus) => {
@@ -209,7 +213,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                 <button 
                   onClick={() => {
                     setSearchStudentId('');
-                    setFoundStatus(undefined);
+                    setFoundStatuses(undefined);
                     setShowStatusCheckModal(true);
                   }}
                   className="group relative px-4 sm:px-8 py-4 sm:py-5 bg-[#D4AF37] hover:bg-[#b8952c] text-[#2A0114] rounded-full font-bold uppercase text-[10px] sm:text-sm transition-all hover:scale-105 active:scale-95 shadow-[0_10px_20px_rgba(212,175,55,0.2)]"
@@ -272,80 +276,93 @@ const LandingPage: React.FC<LandingPageProps> = ({
                </button>
              </form>
 
-             <div className="mt-6 sm:mt-10 min-h-[200px]">
-               {foundStatus === undefined ? (
+             <div className="mt-6 sm:mt-10 min-h-[200px] space-y-4">
+               {foundStatuses === undefined ? (
                  <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-slate-300 animate-pulse">
                     <Activity size={32} className="sm:w-[48px] sm:h-[48px] opacity-20 mb-4" />
                     <p className="text-[10px] sm:text-sm font-black uppercase tracking-widest">Waiting for ID...</p>
                  </div>
-               ) : foundStatus === null ? (
+               ) : foundStatuses === null ? (
                  <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-rose-500 gap-3 border-2 border-dashed border-rose-100 rounded-2xl sm:rounded-[2.5rem] bg-rose-50/30">
                    <AlertCircle size={32} className="sm:w-[40px] sm:h-[40px]" />
                    <p className="text-sm sm:text-lg font-black uppercase text-center px-4 leading-tight">{currentT.noStatusFound}</p>
                  </div>
-               ) : (() => {
-                 const info = getStatusInfo(foundStatus.status);
-                 return (
-                   <div className={`rounded-2xl sm:rounded-[2.5rem] p-5 sm:p-8 border-2 ${info.border} ${info.bg} reveal-anim space-y-6 sm:space-y-8 shadow-inner overflow-hidden`}>
-                     <div className="flex items-start justify-between gap-2">
-                       <div className="flex items-center gap-3 sm:gap-5 min-w-0">
-                         <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-xl sm:rounded-[2rem] bg-white flex items-center justify-center text-[#2A0114] shadow-md border border-slate-100 flex-shrink-0">
-                           <GraduationCap size={24} className="sm:w-[40px] sm:h-[40px]" />
-                         </div>
-                         <div className="min-w-0">
-                           <p className="text-[8px] sm:text-xs font-black text-slate-400 uppercase leading-none mb-1 sm:mb-2 tracking-widest">{currentT.studentLabel}</p>
-                           <h4 className="font-black text-slate-900 leading-tight text-base sm:text-2xl line-clamp-2 mb-1 sm:mb-2">{foundStatus.name}</h4>
-                           <div className="flex flex-col gap-2">
-                             <span className="inline-flex w-fit text-[9px] sm:text-sm font-black text-[#D4AF37] uppercase bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-sm border border-[#D4AF37]/20 whitespace-nowrap">ID: {foundStatus.studentId}</span>
-                             <div className={`text-[8px] sm:text-[11px] font-black uppercase px-3 py-1.5 rounded-xl border ${info.border} ${info.bg} ${info.text} leading-tight`}>
-                               {foundStatus.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor}
+               ) : (
+                 foundStatuses.map((record) => {
+                   const info = getStatusInfo(record.status);
+                   return (
+                     <div key={record.id} className={`rounded-2xl sm:rounded-[2.5rem] p-5 sm:p-8 border-2 ${info.border} ${info.bg} reveal-anim space-y-6 sm:space-y-8 shadow-inner overflow-hidden`}>
+                       <div className="flex items-start justify-between gap-2">
+                         <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+                           <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-xl sm:rounded-[2rem] bg-white flex items-center justify-center text-[#2A0114] shadow-md border border-slate-100 flex-shrink-0">
+                             <GraduationCap size={24} className="sm:w-[40px] sm:h-[40px]" />
+                           </div>
+                           <div className="min-w-0">
+                             <p className="text-[8px] sm:text-xs font-black text-slate-400 uppercase leading-none mb-1 sm:mb-2 tracking-widest">{currentT.studentLabel}</p>
+                             <h4 className="font-black text-slate-900 leading-tight text-base sm:text-2xl line-clamp-2 mb-1 sm:mb-2">{record.name}</h4>
+                             <div className="flex flex-col gap-2">
+                               <div className="flex flex-wrap gap-2">
+                                 <span className="inline-flex w-fit text-[9px] sm:text-sm font-black text-[#D4AF37] uppercase bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-sm border border-[#D4AF37]/20 whitespace-nowrap">ID: {record.studentId}</span>
+                                 <div className="px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-sm font-black uppercase border border-slate-100 dark:border-slate-700 bg-white text-slate-500 whitespace-nowrap">
+                                   {record.internshipType === InternshipType.INTERNSHIP ? (lang === Language.TH ? 'ฝึกงาน' : 'Internship') : (lang === Language.TH ? 'สหกิจศึกษา' : 'Co-op')}
+                                 </div>
+                               </div>
+                               <div className={`text-[8px] sm:text-[11px] font-black uppercase px-3 py-1.5 rounded-xl border ${info.border} ${info.bg} ${info.text} leading-tight`}>
+                                 {record.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor}
+                               </div>
+                               {record.startDate && record.endDate && (
+                                  <div className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-1.5 mt-1">
+                                    <Clock size={12} className="text-slate-300" />
+                                    {record.startDate} - {record.endDate}
+                                  </div>
+                               )}
                              </div>
                            </div>
                          </div>
+                         <div className={`p-2.5 sm:p-4 rounded-full ${info.color} text-white shadow-lg flex-shrink-0`}>
+                           {info.icon}
+                         </div>
                        </div>
-                       <div className={`p-2.5 sm:p-4 rounded-full ${info.color} text-white shadow-lg animate-bounce flex-shrink-0`}>
-                         {info.icon}
-                       </div>
-                     </div>
-                     
-                     <div className="space-y-4 sm:space-y-6">
-                        <div className="flex items-end justify-between px-1">
-                           <div className="flex flex-col">
-                             <span className="text-[7px] sm:text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-0.5 sm:mb-1">Current Process</span>
-                             <span className={`text-sm sm:text-2xl font-black uppercase ${info.text} leading-tight`}>{getStatusLabel(foundStatus.status)}</span>
-                           </div>
-                        </div>
-
-                        {/* Progress Tracker */}
-                        <div className="flex items-center justify-between relative px-2 pt-2">
-                           <div className="absolute top-1/2 left-4 right-4 h-1 sm:h-1.5 bg-slate-200 -translate-y-1/2 rounded-full overflow-hidden">
-                              <div 
-                                className={`absolute top-0 left-0 h-full transition-all duration-[2s] ease-out ${foundStatus.status === ApplicationStatus.REJECTED ? 'bg-rose-500' : info.color}`}
-                                style={{ 
-                                  width: info.step === 1 ? '15%' : info.step === 2 ? '50%' : '100%' 
-                                }}
-                              ></div>
-                           </div>
-                           
-                           {[1, 2, 3].map((step) => (
-                             <div key={step} className={`relative z-10 w-5 h-5 sm:w-8 sm:h-8 rounded-full border-2 sm:border-4 flex items-center justify-center transition-all duration-1000 delay-${step * 300}
-                               ${info.step >= step ? `${info.color} border-white shadow-md scale-110 sm:scale-125` : 'bg-white border-slate-200 scale-100'}`}>
-                               {info.step > step ? <CheckCircle2 size={10} className="text-white sm:w-[12px] sm:h-[12px]" /> : <div className={`w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full ${info.step >= step ? 'bg-white' : 'bg-slate-300'}`} />}
+                       
+                       <div className="space-y-4 sm:space-y-6">
+                          <div className="flex items-end justify-between px-1">
+                             <div className="flex flex-col">
+                               <span className="text-[7px] sm:text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-0.5 sm:mb-1">Current Process</span>
+                               <span className={`text-sm sm:text-2xl font-black uppercase ${info.text} leading-tight`}>{getStatusLabel(record.status)}</span>
                              </div>
-                           ))}
-                        </div>
-                     </div>
+                          </div>
 
-                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 text-[8px] sm:text-xs text-slate-400 font-black uppercase justify-between pt-4 sm:pt-6 border-t border-slate-200/50">
-                       <div className="flex items-center gap-2">
-                         <Activity size={12} className={info.text} />
-                         {currentT.lastUpdated}: {new Date(foundStatus.lastUpdated).toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                          {/* Progress Tracker */}
+                          <div className="flex items-center justify-between relative px-2 pt-2">
+                             <div className="absolute top-1/2 left-4 right-4 h-1 sm:h-1.5 bg-slate-200 -translate-y-1/2 rounded-full overflow-hidden">
+                                <div 
+                                  className={`absolute top-0 left-0 h-full transition-all duration-[2s] ease-out ${record.status === ApplicationStatus.REJECTED ? 'bg-rose-500' : info.color}`}
+                                  style={{ 
+                                    width: info.step === 1 ? '15%' : info.step === 2 ? '50%' : '100%' 
+                                  }}
+                                ></div>
+                             </div>
+                             
+                             {[1, 2, 3].map((step) => (
+                               <div key={step} className={`relative z-10 w-5 h-5 sm:w-8 sm:h-8 rounded-full border-2 sm:border-4 flex items-center justify-center transition-all duration-1000
+                                 ${info.step >= step ? `${info.color} border-white shadow-md scale-110 sm:scale-125` : 'bg-white border-slate-200 scale-100'}`}>
+                                 {info.step > step ? <CheckCircle2 size={10} className="text-white sm:w-[12px] sm:h-[12px]" /> : <div className={`w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full ${info.step >= step ? 'bg-white' : 'bg-slate-300'}`} />}
+                               </div>
+                             ))}
+                          </div>
                        </div>
-                       {foundStatus.remarks && <span className="text-rose-400 break-words line-clamp-1">NOTE: {foundStatus.remarks}</span>}
+
+                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 text-[8px] sm:text-xs text-slate-400 font-black uppercase justify-between pt-4 sm:pt-6 border-t border-slate-200/50">
+                         <div className="flex items-center gap-2">
+                           <Activity size={12} className={info.text} />
+                           {currentT.lastUpdated}: {new Date(record.lastUpdated).toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                         </div>
+                         {record.remarks && <span className="text-rose-400 break-words line-clamp-1">NOTE: {record.remarks}</span>}
+                       </div>
                      </div>
-                   </div>
-                 );
-               })()}
+                   );
+                 })
+               )}
              </div>
           </div>
         </div>

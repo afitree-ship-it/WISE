@@ -1,5 +1,5 @@
 
-import { Language, Major, InternshipSite, DocumentForm, FormCategory, ScheduleEvent, Translation, ApplicationStatus, StudentStatusRecord } from './types';
+import { Language, Major, InternshipSite, DocumentForm, FormCategory, ScheduleEvent, Translation, ApplicationStatus, StudentStatusRecord, InternshipType } from './types';
 
 export const TRANSLATIONS: Record<Language, Translation> = {
   [Language.TH]: {
@@ -181,7 +181,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     adminStudentSearchPlaceholder: "البحث عن الاسم หรือ الرقم الجامعي...",
     startDateLabel: "يبدأ:",
     endDateLabel: "ينتهي:",
-    docHubTitle: "تحميل النماذج والوثائق الهامة",
+    docHubTitle: "تحميل النมาذج والوثائق الهامة",
     docHubButton: "افتح مركز الوثائق",
     docHubContact: "إذا واجهت مشاكل في التحميل ، يرجى الاتصال بموظفي WISE."
   },
@@ -227,7 +227,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     email: "Emel",
     phone: "Telefon",
     visitWebsite: "Layari Laman Web",
-    searchPlaceholder: "Cari nama, jawatan, atau tempat...",
+    searchPlaceholder: "Cari nama, jawatan,หรือ tempat...",
     statusPending: "Dokumen sedang disemak",
     statusPreparing: "Dokumen sedang disediakan",
     statusAccepted: "Diterima oleh organisasi",
@@ -333,8 +333,8 @@ export const INITIAL_SCHEDULE: ScheduleEvent[] = [
 ];
 
 export const INITIAL_STUDENT_STATUSES: StudentStatusRecord[] = [
-  { id: "st1", studentId: "406123456", name: "สมชาย รักเรียน", status: ApplicationStatus.PENDING, major: Major.HALAL_FOOD, lastUpdated: Date.now() },
-  { id: "st2", studentId: "406123457", name: "สมหญิง ขยันหมั่นเพียร", status: ApplicationStatus.ACCEPTED, major: Major.DIGITAL_TECH, lastUpdated: Date.now() },
-  { id: "st3", studentId: "406123458", name: "อับดุลลอฮ์ มานะ", status: ApplicationStatus.PREPARING, major: Major.HALAL_FOOD, lastUpdated: Date.now() },
-  { id: "st4", studentId: "406123459", name: "มารีอัม สาและ", status: ApplicationStatus.REJECTED, major: Major.DIGITAL_TECH, lastUpdated: Date.now() }
+  { id: "st1", studentId: "406123456", name: "สมชาย รักเรียน", status: ApplicationStatus.PENDING, major: Major.HALAL_FOOD, internshipType: InternshipType.INTERNSHIP, startDate: "2025-06-01", endDate: "2025-08-31", lastUpdated: Date.now() },
+  { id: "st2", studentId: "406123457", name: "สมหญิง ขยันหมั่นเพียร", status: ApplicationStatus.ACCEPTED, major: Major.DIGITAL_TECH, internshipType: InternshipType.COOP, startDate: "2025-01-01", endDate: "2025-04-30", lastUpdated: Date.now() },
+  { id: "st3", studentId: "406123458", name: "อับดุลลอฮ์ มานะ", status: ApplicationStatus.PREPARING, major: Major.HALAL_FOOD, internshipType: InternshipType.INTERNSHIP, startDate: "2025-06-01", endDate: "2025-08-31", lastUpdated: Date.now() },
+  { id: "st4", studentId: "406123459", name: "มารีอัม สาและ", status: ApplicationStatus.REJECTED, major: Major.DIGITAL_TECH, internshipType: InternshipType.COOP, startDate: "2025-01-01", endDate: "2025-04-30", lastUpdated: Date.now() }
 ];

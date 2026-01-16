@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef } from 'react';
 import { 
   Language, 
@@ -10,7 +9,8 @@ import {
   LocalizedString,
   ApplicationStatus,
   StudentStatusRecord,
-  Translation
+  Translation,
+  InternshipType
 } from './types';
 import { TRANSLATIONS } from './constants';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -38,7 +38,11 @@ import {
   AlertTriangle,
   Upload,
   FileUp,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Briefcase,
+  GraduationCap,
+  Calendar,
+  Fingerprint
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -96,11 +100,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   
   // Validation State
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [isForceSaveVisible, setIsForceSaveVisible] = useState(false);
   
   // File Upload States
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadMethod, setUploadMethod] = useState<'url' | 'file'>('url');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const studentStatusFormRef = useRef<HTMLFormElement>(null);
   
   // Custom Delete Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -150,7 +156,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const filteredAdminStudents = useMemo(() => {
-    let result = studentStatuses;
+    let result = [...studentStatuses];
+    
+    // Sort by latest update first
+    result.sort((a, b) => b.lastUpdated - a.lastUpdated);
+
     if (adminStudentSearch) {
       const search = adminStudentSearch.toLowerCase();
       result = result.filter(s => 
@@ -292,42 +302,42 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setEditingSite(null);
   };
 
-  const handleSaveStatus = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setStatusError(null); // Clear previous error
-    const formData = new FormData(e.currentTarget);
+  const handleSaveStatus = (e?: React.FormEvent<HTMLFormElement>, isForced: boolean = false) => {
+    if (e) e.preventDefault();
     
+    if (!studentStatusFormRef.current) return;
+    
+    const formData = new FormData(studentStatusFormRef.current);
     const rawStudentId = (formData.get('student_id') as string) || "";
     const rawName = (formData.get('student_name') as string) || "";
     
-    // Normalize data for strict comparison
     const normStudentId = rawStudentId.trim().replace(/\s+/g, '');
     const normName = rawName.trim().replace(/\s+/g, ' ').toLowerCase();
 
-    // Check for duplicates
-    let duplicateType: string | null = null;
-    const isDuplicate = studentStatuses.some(record => {
-      // Skip the current record if we are editing
-      if (editingStatusRecord && record.id === editingStatusRecord.id) return false;
-      
-      const existingId = String(record.studentId || "").trim().replace(/\s+/g, '');
-      const existingName = String(record.name || "").trim().replace(/\s+/g, ' ').toLowerCase();
-      
-      if (existingId === normStudentId) {
-        duplicateType = "รหัสประจำตัวนักศึกษา";
-        return true;
-      }
-      if (existingName === normName) {
-        duplicateType = "ชื่อ-นามสกุล";
-        return true;
-      }
-      return false;
-    });
+    if (!isForced) {
+      let duplicateType: string | null = null;
+      const isDuplicate = studentStatuses.some(record => {
+        if (editingStatusRecord && record.id === editingStatusRecord.id) return false;
+        
+        const existingId = String(record.studentId || "").trim().replace(/\s+/g, '');
+        const existingName = String(record.name || "").trim().replace(/\s+/g, ' ').toLowerCase();
+        
+        if (existingId === normStudentId) {
+          duplicateType = "รหัสประจำตัวนักศึกษา";
+          return true;
+        }
+        if (existingName === normName) {
+          duplicateType = "ชื่อ-นามสกุล";
+          return true;
+        }
+        return false;
+      });
 
-    if (isDuplicate) {
-      const errorMsg = `🚨 พบข้อมูลซ้ำในระบบ: ${duplicateType} "${duplicateType === 'รหัสประจำตัวนักศึกษา' ? rawStudentId : rawName}" มีข้อมูลอยู่แล้ว กรุณาตรวจสอบอีกครั้ง`;
-      setStatusError(errorMsg);
-      return; // Stop the save process and keep modal open
+      if (isDuplicate) {
+        setStatusError(`🚨 ตรวจพบข้อมูลซ้ำ: ${duplicateType} "${duplicateType === 'รหัสประจำตัวนักศึกษา' ? rawStudentId : rawName}" มีอยู่แล้วในระบบ คุณแน่ใจหรือไม่ที่จะบันทึกซ้ำ?`);
+        setIsForceSaveVisible(true);
+        return;
+      }
     }
 
     const newRecord: StudentStatusRecord = {
@@ -336,6 +346,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       name: rawName.trim(),
       status: formData.get('status') as ApplicationStatus,
       major: formData.get('major') as Major,
+      internshipType: formData.get('internship_type') as InternshipType,
+      startDate: formData.get('start_date') as string || undefined,
+      endDate: formData.get('end_date') as string || undefined,
       lastUpdated: Date.now()
     };
 
@@ -344,6 +357,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     syncToSheets('studentStatuses', updated);
     setShowAdminStatusModal(false);
     setEditingStatusRecord(null);
+    setStatusError(null);
+    setIsForceSaveVisible(false);
   };
 
   const handleConfirmDelete = () => {
@@ -403,10 +418,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const getStatusLabel = (status: ApplicationStatus) => {
     switch (status) {
-      case ApplicationStatus.PENDING: return currentT.statusPending;
-      case ApplicationStatus.PREPARING: return currentT.statusPreparing;
-      case ApplicationStatus.ACCEPTED: return currentT.statusAccepted;
-      case ApplicationStatus.REJECTED: return currentT.statusRejected;
+      case ApplicationStatus.PENDING: return 'รอการตรวจสอบ';
+      case ApplicationStatus.PREPARING: return 'กำลังจัดเตรียม';
+      case ApplicationStatus.ACCEPTED: return 'ตอบรับแล้ว';
+      case ApplicationStatus.REJECTED: return 'ปฏิเสธ';
       default: return '';
     }
   };
@@ -476,6 +491,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     if(adminActiveTab === 'students') { 
                       setEditingStatusRecord(null); 
                       setStatusError(null);
+                      setIsForceSaveVisible(false);
                       setShowAdminStatusModal(true); 
                     }
                     else if(adminActiveTab === 'sites') { setEditingSite(null); setShowSiteModal(true); }
@@ -502,25 +518,61 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div className="flex flex-wrap items-center gap-2 mb-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
                     <button onClick={() => setAdminStudentStatusFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === 'all' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>ทั้งหมด ({studentStatuses.length})</button>
                     {[
-                      { id: ApplicationStatus.PENDING, label: currentT.statusPending, color: 'amber' },
-                      { id: ApplicationStatus.PREPARING, label: currentT.statusPreparing, color: 'blue' },
-                      { id: ApplicationStatus.ACCEPTED, label: currentT.statusAccepted, color: 'emerald' },
-                      { id: ApplicationStatus.REJECTED, label: currentT.statusRejected, color: 'rose' }
+                      { id: ApplicationStatus.PENDING, label: 'รอการตรวจสอบ', color: 'amber' },
+                      { id: ApplicationStatus.PREPARING, label: 'กำลังจัดเตรียม', color: 'blue' },
+                      { id: ApplicationStatus.ACCEPTED, label: 'ตอบรับแล้ว', color: 'emerald' },
+                      { id: ApplicationStatus.REJECTED, label: 'ปฏิเสธ', color: 'rose' }
                     ].map(st => (
                       <button key={st.id} onClick={() => setAdminStudentStatusFilter(st.id)} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === st.id ? `bg-${st.color}-500 text-white shadow-md` : `text-slate-500 hover:bg-${st.color}-50 dark:hover:bg-${st.color}-950/20`}`}><div className={`w-2 h-2 rounded-full ${adminStudentStatusFilter === st.id ? 'bg-white' : `bg-${st.color}-400`}`} />{st.label} ({studentStatuses.filter(s => s.status === st.id).length})</button>
                     ))}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     {filteredAdminStudents.map(record => (
-                      <div key={record.id} className="p-5 rounded-[1.75rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex items-center justify-between group hover:border-amber-200 hover:shadow-xl transition-all shadow-sm">
-                        <div className="space-y-1 overflow-hidden pr-2">
-                          <h4 className="font-black text-slate-900 dark:text-white text-base truncate">{record.name}</h4>
-                          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">ID: {record.studentId}</p>
-                          <div className={`mt-2 px-3 py-1 rounded-full text-[9px] font-black uppercase border inline-block ${getStatusColor(record.status)}`}>{getStatusLabel(record.status)}</div>
+                      <div key={record.id} className="p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex flex-col gap-4 group hover:border-amber-200 hover:shadow-xl transition-all shadow-sm">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1 overflow-hidden pr-2">
+                            <h4 className="font-black text-slate-900 dark:text-white text-lg truncate leading-tight">{record.name}</h4>
+                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5"><Fingerprint size={12} /> ID: {record.studentId}</p>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button onClick={() => { setEditingStatusRecord(record); setStatusError(null); setIsForceSaveVisible(false); setShowAdminStatusModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-xl transition-all"><Pencil size={18} /></button>
+                            <button onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
+                          </div>
                         </div>
-                        <div className="flex gap-1.5 shrink-0">
-                          <button onClick={() => { setEditingStatusRecord(record); setStatusError(null); setShowAdminStatusModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-xl transition-all"><Pencil size={18} /></button>
-                          <button onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
+
+                        <div className="grid grid-cols-1 gap-2.5">
+                           <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-black text-slate-400 uppercase w-16">กระบวนการ:</span>
+                             <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${getStatusColor(record.status)}`}>{getStatusLabel(record.status)}</div>
+                           </div>
+                           <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-black text-slate-400 uppercase w-16">รูปแบบ:</span>
+                             <div className="px-3 py-1 rounded-lg text-[10px] font-black uppercase border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 flex items-center gap-1.5">
+                               {record.internshipType === InternshipType.INTERNSHIP ? <Briefcase size={12} className="text-emerald-500" /> : <GraduationCap size={12} className="text-indigo-500" />}
+                               {record.internshipType === InternshipType.INTERNSHIP ? 'ฝึกงาน' : 'สหกิจศึกษา'}
+                             </div>
+                           </div>
+                           <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-black text-slate-400 uppercase w-16">สาขา:</span>
+                             <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${record.major === Major.HALAL_FOOD ? 'bg-amber-50 border-amber-100 text-amber-600' : 'bg-blue-50 border-blue-100 text-blue-600'} flex items-center gap-1.5`}>
+                               {record.major === Major.HALAL_FOOD ? <Salad size={12} /> : <Cpu size={12} />}
+                               {record.major === Major.HALAL_FOOD ? 'วิจัยอาหารฮาลาล' : 'เทคโนโลยีดิจิทัล'}
+                             </div>
+                           </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-50 dark:border-slate-700/50 flex flex-col gap-2">
+                           <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
+                             <Calendar size={14} className="text-slate-400" />
+                             {record.startDate && record.endDate ? (
+                               <span>ระยะเวลา: {record.startDate} ถึง {record.endDate}</span>
+                             ) : (
+                               <span className="italic text-slate-300">ยังไม่ได้ระบุระยะเวลาฝึก</span>
+                             )}
+                           </div>
+                           <div className="flex items-center gap-2 text-[9px] font-black text-slate-300 uppercase tracking-tighter">
+                             <RefreshCw size={10} /> อัปเดตล่าสุด: {new Date(record.lastUpdated).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
+                           </div>
                         </div>
                       </div>
                     ))}
@@ -538,7 +590,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     {filteredAdminSites.map(site => (
                       <div key={site.id} className="p-5 rounded-[1.75rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex items-center justify-between group hover:border-rose-200 hover:shadow-xl transition-all shadow-sm">
                         <div className="flex items-center gap-4 overflow-hidden">
-                          <div className={`w-14 h-14 rounded-2xl flex-shrink-0 flex items-center justify-center text-white ${site.major === Major.HALAL_FOOD ? 'bg-amber-500' : 'bg-blue-600'} shadow-lg`}>{site.major === Major.HALAL_FOOD ? <Salad size={24} /> : <Cpu size={24} />}</div>
+                          <div className={`w-14 h-14 rounded-2xl-flex-shrink-0 flex items-center justify-center text-white ${site.major === Major.HALAL_FOOD ? 'bg-amber-500' : 'bg-blue-600'} shadow-lg`}>{site.major === Major.HALAL_FOOD ? <Salad size={24} /> : <Cpu size={24} />}</div>
                           <div className="overflow-hidden space-y-0.5"><h4 className="font-black text-slate-900 dark:text-white text-sm sm:text-base truncate">{getLocalized(site.name)}</h4><p className="text-[10px] font-bold text-slate-400 truncate uppercase tracking-widest">{getLocalized(site.location)}</p></div>
                         </div>
                         <div className="flex gap-1.5 shrink-0">
@@ -623,39 +675,79 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
-      {/* STUDENT STATUS MODAL - Medium Compact with Duplicate Check & RED WARNING AT BOTTOM */}
+      {/* STUDENT STATUS MODAL - Compact, Dates & Force Save */}
       {showAdminStatusModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim touch-auto" onClick={() => { setShowAdminStatusModal(false); setStatusError(null); }}>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim touch-auto" onClick={() => { setShowAdminStatusModal(false); setStatusError(null); setIsForceSaveVisible(false); }}>
           <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] p-6 sm:p-8 shadow-2xl overflow-y-auto max-h-[85svh] relative" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => { setShowAdminStatusModal(false); setStatusError(null); }} className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <button onClick={() => { setShowAdminStatusModal(false); setStatusError(null); setIsForceSaveVisible(false); }} className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
               <X size={20} className="text-slate-400" />
             </button>
-            <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3"><Timer size={24} className="text-amber-500" />{editingStatusRecord ? 'แก้ไขข้อมูล' : 'เพิ่มข้อมูล'}</h3>
+            <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-6 uppercase flex items-center gap-3"><Timer size={24} className="text-amber-500" />{editingStatusRecord ? 'แก้ไขข้อมูลนักศึกษา' : 'เพิ่มข้อมูลนักศึกษา'}</h3>
             
-            <form onSubmit={handleSaveStatus} className="space-y-4">
+            <form ref={studentStatusFormRef} onSubmit={(e) => handleSaveStatus(e)} className="space-y-4">
               <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">รหัสนักศึกษา</label><input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="6XXXXXXXX" className="w-full px-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-lg transition-all" /></div>
               <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ชื่อ-นามสกุล</label><input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="ชื่อจริง - นามสกุล" className="w-full px-5 py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-amber-500 outline-none font-bold text-base transition-all" /></div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">วันที่เริ่มฝึก (ไม่บังคับ)</label><input type="date" name="start_date" defaultValue={editingStatusRecord?.startDate} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-emerald-500 outline-none font-bold text-xs" /></div>
+                <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">วันที่สิ้นสุด (ไม่บังคับ)</label><input type="date" name="end_date" defaultValue={editingStatusRecord?.endDate} className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent focus:border-rose-500 outline-none font-bold text-xs" /></div>
+              </div>
+
+              <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">ประเภทการเข้าถึง</label><div className="grid grid-cols-2 gap-3">
+                  {[
+                    { id: InternshipType.INTERNSHIP, label: 'ฝึกงาน', icon: <Briefcase size={18} />, color: 'emerald' }, 
+                    { id: InternshipType.COOP, label: 'สหกิจศึกษา', icon: <GraduationCap size={18} />, color: 'indigo' }
+                  ].map((it) => (
+                    <label key={it.id} className="relative cursor-pointer group"><input type="radio" name="internship_type" value={it.id} defaultChecked={editingStatusRecord?.internshipType === it.id || (!editingStatusRecord && it.id === InternshipType.INTERNSHIP)} className="peer hidden" /><div className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 text-center relative bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 peer-checked:border-${it.color}-500 peer-checked:bg-${it.color}-50/50 dark:peer-checked:bg-${it.color}-950/20`}><div className={`text-slate-300 peer-checked:text-${it.color}-600 mb-1`}>{it.icon}</div><span className={`text-[10px] font-black leading-tight text-slate-500 peer-checked:text-${it.color}-700`}>{it.label}</span></div></label>
+                  ))}
+              </div></div>
+
               <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">สาขาวิชา</label><div className="grid grid-cols-2 gap-3">
-                  {[{ id: Major.HALAL_FOOD, label: 'HALAL', icon: <Salad size={18} />, color: 'amber' }, { id: Major.DIGITAL_TECH, label: 'DIGITAL', icon: <Cpu size={18} />, color: 'indigo' }].map((mj) => (
+                  {[
+                    { id: Major.HALAL_FOOD, label: 'วิจัยอาหารฮาลาล', icon: <Salad size={18} />, color: 'amber' }, 
+                    { id: Major.DIGITAL_TECH, label: 'เทคโนโลยีดิจิทัล', icon: <Cpu size={18} />, color: 'blue' }
+                  ].map((mj) => (
                     <label key={mj.id} className="relative cursor-pointer group"><input type="radio" name="major" value={mj.id} defaultChecked={editingStatusRecord?.major === mj.id || (!editingStatusRecord && mj.id === Major.HALAL_FOOD)} className="peer hidden" /><div className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 text-center relative bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 peer-checked:border-${mj.color}-500 peer-checked:bg-${mj.color}-50/50 dark:peer-checked:bg-${mj.color}-950/20`}><div className={`text-slate-300 peer-checked:text-${mj.color}-600 mb-1`}>{mj.icon}</div><span className={`text-[10px] font-black leading-tight text-slate-500 peer-checked:text-${mj.color}-700`}>{mj.label}</span></div></label>
                   ))}
               </div></div>
+
               <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1 tracking-wider">สถานะการสมัคร</label><div className="grid grid-cols-2 gap-3">
-                  {[{ id: ApplicationStatus.PENDING, label: 'PENDING', color: 'amber' }, { id: ApplicationStatus.PREPARING, label: 'PREPARING', color: 'blue' }, { id: ApplicationStatus.ACCEPTED, label: 'ACCEPTED', color: 'emerald' }, { id: ApplicationStatus.REJECTED, label: 'REJECTED', color: 'rose' }].map((st) => (
+                  {[
+                    { id: ApplicationStatus.PENDING, label: 'รอการตรวจสอบ', color: 'amber' }, 
+                    { id: ApplicationStatus.PREPARING, label: 'กำลังจัดเตรียม', color: 'blue' }, 
+                    { id: ApplicationStatus.ACCEPTED, label: 'ตอบรับแล้ว', color: 'emerald' }, 
+                    { id: ApplicationStatus.REJECTED, label: 'ปฏิเสธ', color: 'rose' }
+                  ].map((st) => (
                     <label key={st.id} className="relative cursor-pointer group"><input type="radio" name="status" value={st.id} defaultChecked={editingStatusRecord?.status === st.id || (!editingStatusRecord && st.id === ApplicationStatus.PENDING)} className="peer hidden" /><div className={`flex items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 relative bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 peer-checked:border-${st.color}-500 peer-checked:bg-${st.color}-50/50 dark:peer-checked:bg-${st.color}-950/20`}><span className={`text-[9px] font-black uppercase text-slate-500 peer-checked:text-${st.color}-700`}>{st.label}</span></div></label>
                   ))}
               </div></div>
 
               {statusError && (
-                <div className="mt-6 p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-xl flex gap-3 items-start reveal-anim animate-pulse">
-                  <AlertTriangle className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" size={18} />
-                  <p className="text-[11px] sm:text-xs font-black text-rose-700 dark:text-rose-300 leading-tight uppercase">
-                    {statusError}
-                  </p>
+                <div className="mt-6 p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-xl flex flex-col gap-3 reveal-anim">
+                  <div className="flex gap-3 items-start">
+                    <AlertTriangle className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" size={18} />
+                    <p className="text-[11px] sm:text-xs font-black text-rose-700 dark:text-rose-300 leading-tight uppercase">
+                      {statusError}
+                    </p>
+                  </div>
+                  {isForceSaveVisible && (
+                    <button 
+                      type="button" 
+                      onClick={() => handleSaveStatus(undefined, true)}
+                      className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white font-black uppercase text-[10px] rounded-lg shadow-md transition-all animate-pulse"
+                    >
+                      ฉันแน่ใจ ต้องการบันทึกข้อมูลซ้ำ
+                    </button>
+                  )}
                 </div>
               )}
 
-              <div className="flex gap-3 pt-4"><button type="button" onClick={() => { setShowAdminStatusModal(false); setStatusError(null); }} className="flex-1 py-3.5 rounded-xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 font-black uppercase text-[11px]">ยกเลิก</button><button type="submit" disabled={isSyncing} className="flex-1 py-3.5 rounded-xl bg-[#630330] text-white font-black uppercase text-[11px] shadow-lg shadow-[#630330]/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50">{isSyncing ? 'SAVING...' : 'บันทึกข้อมูล'}</button></div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => { setShowAdminStatusModal(false); setStatusError(null); setIsForceSaveVisible(false); }} className="flex-1 py-3.5 rounded-xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 font-black uppercase text-[11px]">ยกเลิก</button>
+                <button type="submit" disabled={isSyncing} className="flex-1 py-3.5 rounded-xl bg-[#630330] text-white font-black uppercase text-[11px] shadow-lg shadow-[#630330]/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50">
+                  {isSyncing ? 'SAVING...' : 'บันทึกข้อมูล'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -664,7 +756,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* SCHEDULE MODAL - Compact */}
       {showScheduleModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowScheduleModal(false)}>
-          <div className="w-full max-md bg-white dark:bg-slate-900 rounded-[2rem] p-6 sm:p-8 relative" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] p-6 sm:p-8 relative" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setShowScheduleModal(false)} className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
               <X size={20} className="text-slate-400" />
             </button>
