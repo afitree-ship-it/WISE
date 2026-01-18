@@ -1,4 +1,3 @@
-
 import { Language, Major, InternshipSite, DocumentForm, FormCategory, ScheduleEvent, Translation, ApplicationStatus, StudentStatusRecord, InternshipType } from './types';
 
 export const TRANSLATIONS: Record<Language, Translation> = {
@@ -16,6 +15,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     forms: "ศูนย์บริการเอกสารอิเล็กทรอนิกส์",
     halalMajor: "สาขาวิชาวิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาล",
     digitalMajor: "สาขาวิชาเทคโนโลยีและวิทยาการดิจิทัล",
+    infoTechMajor: "สาขาวิชาเทคโนโลยีสารสนเทศ",
+    dataScienceMajor: "สาขาวิชาวิทยาการข้อมูลและการวิเคราะห์",
     allMajors: "ทุกสาขาวิชา",
     activeSites: "เปิดรับสมัคร",
     pastSites: "ประวัติการฝึก",
@@ -77,6 +78,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     forms: "Electronic Document Center",
     halalMajor: "Halal Food Research and Development",
     digitalMajor: "Digital Technology and Science",
+    infoTechMajor: "Information Technology",
+    dataScienceMajor: "Data Science and Analytics",
     allMajors: "All Majors",
     activeSites: "Now Hiring",
     pastSites: "History",
@@ -138,6 +141,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     forms: "مركز الوثائق الإلكترونية",
     halalMajor: "تخصص بحوث وتطوير الأغذية الحلال",
     digitalMajor: "تخصص علوم وتكنولوجيا التكنولوجيا الرقمية",
+    infoTechMajor: "تخصص تكنولوجيا المعلومات",
+    dataScienceMajor: "تخصص علم البيانات والتحليلات",
     allMajors: "جميع التخصصات",
     activeSites: "มتاح الآن",
     pastSites: "السجل السابق",
@@ -199,6 +204,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     forms: "Pusat Dokumen Elektronik",
     halalMajor: "Penyelidikan Produk Halal",
     digitalMajor: "Teknologi Digital",
+    infoTechMajor: "Teknologi Maklumat",
+    dataScienceMajor: "Sains Data dan Analitis",
     allMajors: "Semua Bidang",
     activeSites: "Sedang Dibuka",
     pastSites: "Rekod Lepas",

@@ -162,6 +162,16 @@ const LandingPage: React.FC<LandingPageProps> = ({
     }
   };
 
+  const getMajorLabel = (m: Major) => {
+    switch(m) {
+      case Major.HALAL_FOOD: return currentT.halalMajor;
+      case Major.DIGITAL_TECH: return currentT.digitalMajor;
+      case Major.INFO_TECH: return currentT.infoTechMajor;
+      case Major.DATA_SCIENCE: return currentT.dataScienceMajor;
+      default: return '';
+    }
+  };
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '';
     try {
@@ -351,7 +361,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                                  )}
                                </div>
                                <div className={`text-[8px] sm:text-[11px] font-black uppercase px-3 py-1.5 rounded-xl border ${info.border} ${info.bg} ${info.text} leading-tight`}>
-                                 {record.major === Major.HALAL_FOOD ? currentT.halalMajor : currentT.digitalMajor}
+                                 {getMajorLabel(record.major)}
                                </div>
                              </div>
                            </div>

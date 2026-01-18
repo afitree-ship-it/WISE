@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { InternshipSite, Language, Major, LocalizedString } from '../types';
 import { TRANSLATIONS } from '../constants';
@@ -11,7 +10,6 @@ interface InternshipCardProps {
 
 const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
   const t = TRANSLATIONS[lang];
-  const isHalal = site.major === Major.HALAL_FOOD;
   const isActive = site.status === 'active';
   const isSeniorVisited = site.status === 'senior_visited';
   
@@ -31,6 +29,26 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
   };
 
   const safeContactLink = getSafeUrl(site.contactLink);
+
+  const getMajorLabel = (m: Major) => {
+    switch(m) {
+      case Major.HALAL_FOOD: return t.halalMajor;
+      case Major.DIGITAL_TECH: return t.digitalMajor;
+      case Major.INFO_TECH: return t.infoTechMajor;
+      case Major.DATA_SCIENCE: return t.dataScienceMajor;
+      default: return '';
+    }
+  };
+
+  const getMajorColorClass = (m: Major) => {
+    switch(m) {
+      case Major.HALAL_FOOD: return 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800/50';
+      case Major.DIGITAL_TECH: return 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800/50';
+      case Major.INFO_TECH: return 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800/50';
+      case Major.DATA_SCIENCE: return 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800/50';
+      default: return '';
+    }
+  };
   
   return (
     <div className={`group relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border-2 transition-all duration-300 flex flex-col h-full shadow-sm hover:shadow-xl
@@ -67,12 +85,8 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
           </div>
         )}
 
-        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-tight border
-          ${isHalal 
-            ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800/50' 
-            : 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800/50'
-          }`}>
-          <GraduationCap size={12} /> {isHalal ? t.halalMajor : t.digitalMajor}
+        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-tight border ${getMajorColorClass(site.major)}`}>
+          <GraduationCap size={12} /> {getMajorLabel(site.major)}
         </div>
       </div>
       

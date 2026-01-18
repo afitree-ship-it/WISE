@@ -1,4 +1,3 @@
-
 export enum Language {
   TH = 'th',
   EN = 'en',
@@ -14,7 +13,9 @@ export enum UserRole {
 
 export enum Major {
   HALAL_FOOD = 'halal_food',
-  DIGITAL_TECH = 'digital_tech'
+  DIGITAL_TECH = 'digital_tech',
+  INFO_TECH = 'info_tech',
+  DATA_SCIENCE = 'data_science'
 }
 
 export enum InternshipType {
@@ -104,6 +105,8 @@ export interface Translation {
   forms: string;
   halalMajor: string;
   digitalMajor: string;
+  infoTechMajor: string;
+  dataScienceMajor: string;
   allMajors: string;
   activeSites: string;
   pastSites: string;
