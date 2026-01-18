@@ -268,8 +268,9 @@ const App: React.FC = () => {
             )}
             
             <div className="flex items-center gap-1.5 sm:gap-3">
+              {/* Language Switcher Dropdown - Only for Students */}
               {role === UserRole.STUDENT && (
-                <div className="mr-1 filter drop-shadow-lg">
+                <div className="mr-1">
                   <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" />
                 </div>
               )}
@@ -335,14 +336,14 @@ const App: React.FC = () => {
                             <Play size={7} className="text-emerald-500 fill-emerald-500 shrink-0" />
                             <div className="flex flex-col leading-none">
                               <span className="hidden sm:block text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter mb-1">{currentT.startDateLabel}</span>
-                              <span className="text-[8px] min(400px):text-[9px] sm:text-[12px] font-black text-emerald-900 dark:text-emerald-200 whitespace-nowrap">{getLocalized(item.startDate)}</span>
+                              <span className="text-[8px] min-[400px]:text-[9px] sm:text-[12px] font-black text-emerald-900 dark:text-emerald-200 whitespace-nowrap">{getLocalized(item.startDate)}</span>
                             </div>
                          </div>
                          <div className="flex items-center gap-1 px-1 sm:px-3 py-1 sm:py-1.5 bg-rose-50/80 dark:bg-rose-950/40 rounded-lg sm:rounded-xl border border-rose-100 dark:border-rose-800/40 transition-transform group-hover:scale-105">
                             <Flag size={7} className="text-rose-500 fill-rose-500 shrink-0" />
                             <div className="flex flex-col leading-none">
                               <span className="hidden sm:block text-[8px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-tighter mb-1">{currentT.endDateLabel}</span>
-                              <span className="text-[8px] min(400px):text-[9px] sm:text-[12px] font-black text-rose-900 dark:text-rose-200 whitespace-nowrap">{getLocalized(item.endDate)}</span>
+                              <span className="text-[8px] min-[400px]:text-[9px] sm:text-[12px] font-black text-rose-900 dark:text-rose-200 whitespace-nowrap">{getLocalized(item.endDate)}</span>
                             </div>
                          </div>
                       </div>
