@@ -50,7 +50,8 @@ import {
   Network,
   ChevronDown,
   CalendarRange,
-  GraduationCap as GraduationIcon
+  GraduationCap as GraduationIcon,
+  Layers
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -93,6 +94,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [adminStudentSearch, setAdminStudentSearch] = useState('');
   const [adminStudentStatusFilter, setAdminStudentStatusFilter] = useState<ApplicationStatus | 'all'>('all');
   const [adminStudentMajorFilter, setAdminStudentMajorFilter] = useState<Major | 'all'>('all');
+  const [adminStudentYearFilter, setAdminStudentYearFilter] = useState<string | 'all'>('all');
+  
   const [adminSiteSearch, setAdminSiteSearch] = useState('');
   const [adminSiteMajorFilter, setAdminSiteMajorFilter] = useState<Major | 'all'>('all');
   const [isTranslating, setIsTranslating] = useState(false);
@@ -110,6 +113,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   // Report Modal States
   const [showReportModal, setShowReportModal] = useState(false);
   const [exportMode, setExportMode] = useState<'date' | 'period'>('date');
+  const [reportMajor, setReportMajor] = useState<Major | 'all'>('all');
   const [reportRange, setReportRange] = useState({ start: '', end: '' });
   const [reportPeriod, setReportPeriod] = useState({ term: '', year: '' });
   
@@ -126,6 +130,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   // Custom Delete Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'student' | 'site' | 'schedule' | 'form' } | null>(null);
+
+  // Year range generation for filtering (2560 to current + 5)
+  const academicYears = useMemo(() => {
+    const currentBE = new Date().getFullYear() + 543;
+    const years = [];
+    for (let y = 2560; y <= currentBE + 5; y++) {
+      years.push(y.toString());
+    }
+    return years.reverse(); // Newest first
+  }, []);
 
   const getLocalized = (localized: LocalizedString) => {
     return localized.th || localized.en || '';
@@ -177,7 +191,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const search = adminStudentSearch.toLowerCase();
       result = result.filter(s => 
         (s.name || "").toLowerCase().includes(search) || 
-        String(s.studentId || "").toLowerCase().includes(search)
+        (s.studentId || "").toString().toLowerCase().includes(search)
       );
     }
     if (adminStudentStatusFilter !== 'all') {
@@ -186,8 +200,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (adminStudentMajorFilter !== 'all') {
       result = result.filter(s => s.major === adminStudentMajorFilter);
     }
+    if (adminStudentYearFilter !== 'all') {
+      result = result.filter(s => String(s.academicYear || '').trim() === adminStudentYearFilter);
+    }
     return result;
-  }, [studentStatuses, adminStudentSearch, adminStudentStatusFilter, adminStudentMajorFilter]);
+  }, [studentStatuses, adminStudentSearch, adminStudentStatusFilter, adminStudentMajorFilter, adminStudentYearFilter]);
 
   const filteredAdminSites = useMemo(() => {
     let result = sites;
@@ -320,7 +337,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       let duplicateType: string | null = null;
       const isDuplicate = studentStatuses.some(record => {
         if (editingStatusRecord && record.id === editingStatusRecord.id) return false;
-        const existingId = String(record.studentId || "").trim().replace(/\s+/g, '');
+        const existingId = (record.studentId || "").toString().trim().replace(/\s+/g, '');
         const existingName = String(record.name || "").trim().replace(/\s+/g, ' ').toLowerCase();
         if (existingId === normStudentId) { duplicateType = "รหัสประจำตัวนักศึกษา"; return true; }
         if (existingName === normName) { duplicateType = "ชื่อ-นามสกุล"; return true; }
@@ -373,15 +390,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleDownloadReport = () => {
     let filtered = [...studentStatuses];
     
+    // 1. Filter by Major First
+    if (reportMajor !== 'all') {
+      filtered = filtered.filter(s => s.major === reportMajor);
+    }
+
+    // 2. Filter by Mode
     if (exportMode === 'date') {
       if (reportRange.start) filtered = filtered.filter(s => s.startDate && s.startDate >= reportRange.start);
       if (reportRange.end) filtered = filtered.filter(s => s.endDate && s.endDate <= reportRange.end);
     } else {
-      if (reportPeriod.term) filtered = filtered.filter(s => s.term === reportPeriod.term);
-      if (reportPeriod.year) filtered = filtered.filter(s => s.academicYear === reportPeriod.year);
+      const targetTerm = reportPeriod.term.trim();
+      const targetYear = reportPeriod.year.trim();
+      
+      if (targetTerm) {
+        filtered = filtered.filter(s => String(s.term || '').trim() === targetTerm);
+      }
+      if (targetYear) {
+        filtered = filtered.filter(s => String(s.academicYear || '').trim() === targetYear);
+      }
     }
 
-    if (filtered.length === 0) { alert("ไม่พบข้อมูลตามเงื่อนไขที่ระบุ"); return; }
+    if (filtered.length === 0) { 
+      alert("ไม่พบข้อมูลตามเงื่อนไขที่ระบุ กรุณาตรวจสอบข้อมูลหรือตัวเลือกการกรองอีกครั้ง"); 
+      return; 
+    }
     
     const headers = ["ID", "Student Name", "Major", "Type", "Location", "Position", "Term", "Year", "Start Date", "End Date", "Status"];
     const rows = filtered.map(s => [
@@ -443,7 +476,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     { id: 'forms', label: 'จัดการเอกสาร', icon: <FileText size={20} />, color: 'indigo' },
   ];
 
-  // Helper class for consistent input styling as requested
+  // Helper class for consistent input styling
   const inputClass = "w-full px-6 py-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 dark:text-white border-2 border-slate-200 dark:border-slate-700 focus:border-amber-500 focus:bg-white outline-none font-bold text-lg transition-all shadow-sm";
   const labelClass = "text-base font-black uppercase text-black dark:text-white ml-1 tracking-widest block mb-2";
 
@@ -528,6 +561,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               {adminActiveTab === 'students' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <div className="flex flex-col gap-4">
+                    {/* Status Filter */}
                     <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
                       <button onClick={() => setAdminStudentStatusFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === 'all' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>สถานะทั้งหมด</button>
                       {[
@@ -539,12 +573,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <button key={st.id} onClick={() => setAdminStudentStatusFilter(st.id)} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === st.id ? `bg-${st.color}-500 text-white shadow-md` : `text-slate-500 hover:bg-${st.color}-50 dark:hover:bg-${st.color}-950/20`}`}><div className={`w-2 h-2 rounded-full ${adminStudentStatusFilter === st.id ? 'bg-white' : `bg-${st.color}-400`}`} />{st.label}</button>
                       ))}
                     </div>
+                    {/* Major Filter */}
                     <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
                       <button onClick={() => setAdminStudentMajorFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${adminStudentMajorFilter === 'all' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-800'}`}>ทุกสาขาวิชา ({studentStatuses.length})</button>
                       <button onClick={() => setAdminStudentMajorFilter(Major.HALAL_FOOD)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.HALAL_FOOD ? 'bg-amber-500 text-white' : 'text-slate-500 hover:bg-amber-50'}`}><Salad size={14} /> ฮาลาล</button>
                       <button onClick={() => setAdminStudentMajorFilter(Major.DIGITAL_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50'}`}><Cpu size={14} /> ดิจิทัล</button>
                       <button onClick={() => setAdminStudentMajorFilter(Major.INFO_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.INFO_TECH ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-indigo-50'}`}><Network size={14} /> ไอที</button>
                       <button onClick={() => setAdminStudentMajorFilter(Major.DATA_SCIENCE)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.DATA_SCIENCE ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-emerald-50'}`}><Database size={14} /> วิทยาการข้อมูล</button>
+                    </div>
+                    {/* Year Filter (New) */}
+                    <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
+                      <button onClick={() => setAdminStudentYearFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${adminStudentYearFilter === 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>ทุกปีการศึกษา</button>
+                      <div className="relative">
+                        <select 
+                          value={adminStudentYearFilter === 'all' ? '' : adminStudentYearFilter} 
+                          onChange={(e) => setAdminStudentYearFilter(e.target.value || 'all')}
+                          className={`pl-4 pr-10 py-2.5 rounded-xl text-xs font-black uppercase transition-all outline-none appearance-none cursor-pointer ${adminStudentYearFilter !== 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500'}`}
+                        >
+                          <option value="">-- เลือกปีการศึกษา --</option>
+                          {academicYears.map(year => (
+                            <option key={year} value={year}>{year}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${adminStudentYearFilter !== 'all' ? 'text-white' : 'text-slate-400'}`} />
+                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -693,7 +745,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       </main>
 
-      {/* MODALS START HERE */}
+      {/* MODALS */}
 
       {/* REPORT MODAL */}
       {showReportModal && (
@@ -706,7 +758,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                    </div>
                    <div>
                       <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase leading-none">Export Summary</h3>
-                      <p className="text-xs font-bold text-slate-400 uppercase mt-1.5 tracking-widest">Select Export Filter</p>
+                      <p className="text-xs font-bold text-slate-400 uppercase mt-1.5 tracking-widest">Select Export Filters</p>
                    </div>
                 </div>
                 <button onClick={() => setShowReportModal(false)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
@@ -714,45 +766,72 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </button>
              </div>
 
-             <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-8">
-               <button onClick={() => setExportMode('date')} className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-black uppercase text-xs transition-all ${exportMode === 'date' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-sm' : 'text-slate-400'}`}><CalendarRange size={16} /> กรองตามวันที่</button>
-               <button onClick={() => setExportMode('period')} className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-black uppercase text-xs transition-all ${exportMode === 'period' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-sm' : 'text-slate-400'}`}><GraduationIcon size={16} /> กรองตามปีการศึกษา</button>
-             </div>
+             <div className="space-y-6">
+               {/* Major Selection */}
+               <div className="space-y-2">
+                 <label className={labelClass}>กรองตามสาขาวิชา</label>
+                 <div className="relative">
+                   <select 
+                     value={reportMajor} 
+                     onChange={(e) => setReportMajor(e.target.value as any)} 
+                     className={`${inputClass} appearance-none cursor-pointer`}
+                   >
+                     <option value="all">ทุกสาขาวิชา (All Majors)</option>
+                     <option value={Major.HALAL_FOOD}>สาขาวิชาวิจัยและพัฒนาผลิตภัณฑ์อาหารฮาลาล (Halal Food)</option>
+                     <option value={Major.DIGITAL_TECH}>สาขาวิชาเทคโนโลยีและวิทยาการดิจิทัล (Digital Tech)</option>
+                     <option value={Major.INFO_TECH}>สาขาวิชาเทคโนโลยีสารสนเทศ (Information Technology)</option>
+                     <option value={Major.DATA_SCIENCE}>สาขาวิชาวิทยาการข้อมูลและการวิเคราะห์ (Data Science)</option>
+                   </select>
+                   <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={24} />
+                 </div>
+               </div>
 
-             <div className="space-y-8 min-h-[160px]">
-                {exportMode === 'date' ? (
-                  <div className="grid grid-cols-2 gap-6 reveal-anim">
-                     <div className="space-y-2">
-                        <label className={labelClass}>วันที่เริ่มต้น</label>
-                        <input type="date" value={reportRange.start} onChange={(e) => setReportRange(prev => ({ ...prev, start: e.target.value }))} className={inputClass} />
-                     </div>
-                     <div className="space-y-2">
-                        <label className={labelClass}>วันที่สิ้นสุด</label>
-                        <input type="date" value={reportRange.end} onChange={(e) => setReportRange(prev => ({ ...prev, end: e.target.value }))} className={inputClass} />
-                     </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-6 reveal-anim">
-                     <div className="space-y-2">
-                        <label className={labelClass}>เทอม (Semester)</label>
-                        <select value={reportPeriod.term} onChange={(e) => setReportPeriod(prev => ({ ...prev, term: e.target.value }))} className={inputClass}>
-                          <option value="">ทั้งหมด</option>
-                          <option value="1">1</option>
-                          <option value="2">2</option>
-                          <option value="3">3</option>
-                        </select>
-                     </div>
-                     <div className="space-y-2">
-                        <label className={labelClass}>ปีการศึกษา (BE)</label>
-                        <input type="text" placeholder="เช่น 2568" value={reportPeriod.year} onChange={(e) => setReportPeriod(prev => ({ ...prev, year: e.target.value }))} className={inputClass} />
-                     </div>
-                  </div>
-                )}
+               {/* Filter Mode Toggle */}
+               <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+                 <button onClick={() => setExportMode('date')} className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-black uppercase text-xs transition-all ${exportMode === 'date' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-sm' : 'text-slate-400'}`}><CalendarRange size={16} /> กรองตามวันที่</button>
+                 <button onClick={() => setExportMode('period')} className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-black uppercase text-xs transition-all ${exportMode === 'period' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-sm' : 'text-slate-400'}`}><GraduationIcon size={16} /> กรองตามเทอม/ปี</button>
+               </div>
+
+               <div className="min-h-[120px]">
+                  {exportMode === 'date' ? (
+                    <div className="grid grid-cols-2 gap-6 reveal-anim">
+                       <div className="space-y-2">
+                          <label className={labelClass}>วันที่เริ่มต้น</label>
+                          <input type="date" value={reportRange.start} onChange={(e) => setReportRange(prev => ({ ...prev, start: e.target.value }))} className={inputClass} />
+                       </div>
+                       <div className="space-y-2">
+                          <label className={labelClass}>วันที่สิ้นสุด</label>
+                          <input type="date" value={reportRange.end} onChange={(e) => setReportRange(prev => ({ ...prev, end: e.target.value }))} className={inputClass} />
+                       </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-6 reveal-anim">
+                       <div className="space-y-2">
+                          <label className={labelClass}>เทอม (Semester)</label>
+                          <select value={reportPeriod.term} onChange={(e) => setReportPeriod(prev => ({ ...prev, term: e.target.value }))} className={inputClass}>
+                            <option value="">ทั้งหมด</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                          </select>
+                       </div>
+                       <div className="space-y-2">
+                          <label className={labelClass}>ปีการศึกษา (BE)</label>
+                          <select value={reportPeriod.year} onChange={(e) => setReportPeriod(prev => ({ ...prev, year: e.target.value }))} className={inputClass}>
+                            <option value="">ทั้งหมด</option>
+                            {academicYears.map(year => (
+                              <option key={year} value={year}>{year}</option>
+                            ))}
+                          </select>
+                       </div>
+                    </div>
+                  )}
+               </div>
 
                 <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex gap-4 items-center">
                    <Info size={22} className="text-slate-400 shrink-0" />
-                   <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase leading-relaxed tracking-tight">
-                     {exportMode === 'date' ? 'ระบบจะส่งออกข้อมูลนักศึกษาที่มี "วันที่เริ่ม/สิ้นสุด" อยู่ในช่วงที่เลือก' : 'ระบบจะส่งออกข้อมูลนักศึกษาที่ระบุ "เทอม" และ "ปีการศึกษา" ตรงกับที่เลือก'}
+                   <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase leading-relaxed tracking-tight">
+                     ระบบจะส่งออกข้อมูลตามสาขาและเงื่อนไขช่วงเวลาที่เลือก <br /> ข้อมูลจะถูกจัดเก็บในรูปแบบไฟล์ .CSV (รองรับ Excel)
                    </p>
                 </div>
                 
@@ -833,7 +912,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
                 <div className="space-y-2">
                   <label className={labelClass}>ปีการศึกษา</label>
-                  <input name="academic_year" defaultValue={editingStatusRecord?.academicYear} placeholder="25XX" className={inputClass} />
+                  <select name="academic_year" defaultValue={editingStatusRecord?.academicYear} className={`${inputClass} shadow-inner cursor-pointer`}>
+                    <option value="">- เลือกปีการศึกษา -</option>
+                    {academicYears.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
