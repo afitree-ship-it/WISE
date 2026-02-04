@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Language, 
@@ -38,6 +37,7 @@ interface LandingPageProps {
   setLang: (lang: Language) => void;
   currentT: Translation;
   isRtl: boolean;
+  // Fix: Corrected type from void to () => void to allow usage as a callback and event handler
   onEnterDashboard: () => void;
   onAdminLogin: (password: string) => boolean;
   studentStatuses: StudentStatusRecord[];
@@ -270,7 +270,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
         </div>
 
         <div className="mt-6 sm:mt-10 space-y-6 sm:space-y-10 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 flex flex-col items-center pointer-events-auto">
-          <h1 className="text-center text-[11px] min-[360px]:text-[13px] min-[400px]:text-[15px] min-[480px]:text-base sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight whitespace-nowrap mx-auto">
+          <h1 className={`text-center text-[11px] min-[360px]:text-[13px] min-[400px]:text-[15px] min-[480px]:text-base sm:text-4xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight lg:whitespace-nowrap mx-auto w-full ${
+            lang === Language.MS ? 'lg:text-4xl' : 
+            lang === Language.EN ? 'lg:text-5xl' : 
+            lang === Language.AR ? 'lg:text-5xl' : 
+            'lg:text-6xl'
+          }`}>
             {currentT.landingHeading}
           </h1>
 
