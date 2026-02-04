@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   Language, 
   UserRole, 
@@ -32,7 +32,9 @@ import {
   Flag,
   Files,
   Info,
-  X
+  X,
+  Copy,
+  ClipboardList
 } from 'lucide-react';
 
 const SHEET_API_URL = "https://script.google.com/macros/s/AKfycby-TUywvMFjsfpq629r1Fou59reZ4bBTghCxOHHpx8Cz9nxRPlha4Pxf2nS8QgHv13c/exec"; 
@@ -63,6 +65,10 @@ const App: React.FC = () => {
   const [viewState, setViewState] = useState<'landing' | 'dashboard'>('landing');
   const [role, setRole] = useState<UserRole>(UserRole.STUDENT);
   
+  // Custom Context Menu State
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, visible: boolean }>({ x: 0, y: 0, visible: false });
+  const [activeElement, setActiveElement] = useState<HTMLElement | null>(null);
+
   // Data States
   const [sites, setSites] = useState<InternshipSite[]>(() => {
     const saved = localStorage.getItem('wise_sites');
@@ -89,11 +95,17 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showDocHub, setShowDocHub] = useState(false);
 
-  // Security: Disable Right-click and DevTools
+  // Security: Disable DevTools and Custom Context Menu
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      return false;
+      // Show custom menu at mouse coordinates
+      setContextMenu({ x: e.clientX, y: e.clientY, visible: true });
+      setActiveElement(e.target as HTMLElement);
+    };
+
+    const handleClick = () => {
+      setContextMenu(prev => ({ ...prev, visible: false }));
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -115,13 +127,38 @@ const App: React.FC = () => {
     };
 
     document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('click', handleClick);
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
       document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('click', handleClick);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
+  const handleCopy = () => {
+    const selectedText = window.getSelection()?.toString();
+    if (selectedText) {
+      navigator.clipboard.writeText(selectedText);
+    }
+  };
+
+  const handlePaste = async () => {
+    if (activeElement && (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement)) {
+      try {
+        const text = await navigator.clipboard.readText();
+        const start = activeElement.selectionStart || 0;
+        const end = activeElement.selectionEnd || 0;
+        const val = activeElement.value;
+        activeElement.value = val.substring(0, start) + text + val.substring(end);
+        // Dispatch input event to update React state if bound
+        activeElement.dispatchEvent(new Event('input', { bubbles: true }));
+      } catch (err) {
+        console.warn("Paste failed:", err);
+      }
+    }
+  };
 
   // History Management for Back Button support
   useEffect(() => {
@@ -242,12 +279,30 @@ const App: React.FC = () => {
 
   if (viewState === 'landing') {
     return (
-      <LandingPage 
-        lang={lang} setLang={setLang} currentT={currentT} isRtl={isRtl}
-        onEnterDashboard={handleEnterDashboard}
-        onAdminLogin={handleAdminLogin}
-        studentStatuses={studentStatuses}
-      />
+      <>
+        <LandingPage 
+          lang={lang} setLang={setLang} currentT={currentT} isRtl={isRtl}
+          onEnterDashboard={handleEnterDashboard}
+          onAdminLogin={handleAdminLogin}
+          studentStatuses={studentStatuses}
+        />
+        {/* Custom Context Menu */}
+        {contextMenu.visible && (
+          <div 
+            className="fixed z-[9999] w-48 bg-white/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl py-1.5 reveal-anim overflow-hidden"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <button onClick={handleCopy} className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+              <Copy size={16} className="text-[#630330] dark:text-[#D4AF37]" />
+              <span className="text-xs font-black uppercase tracking-widest">{lang === Language.TH ? 'คัดลอก' : 'Copy'}</span>
+            </button>
+            <button onClick={handlePaste} className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+              <ClipboardList size={16} className="text-[#630330] dark:text-[#D4AF37]" />
+              <span className="text-xs font-black uppercase tracking-widest">{lang === Language.TH ? 'วาง' : 'Paste'}</span>
+            </button>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -513,6 +568,23 @@ const App: React.FC = () => {
                </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Custom Context Menu */}
+      {contextMenu.visible && (
+        <div 
+          className="fixed z-[9999] w-48 bg-white/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl py-1.5 reveal-anim overflow-hidden"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          <button onClick={handleCopy} className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+            <Copy size={16} className="text-[#630330] dark:text-[#D4AF37]" />
+            <span className="text-xs font-black uppercase tracking-widest">{lang === Language.TH ? 'คัดลอก' : 'Copy'}</span>
+          </button>
+          <button onClick={handlePaste} className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+            <ClipboardList size={16} className="text-[#630330] dark:text-[#D4AF37]" />
+            <span className="text-xs font-black uppercase tracking-widest">{lang === Language.TH ? 'วาง' : 'Paste'}</span>
+          </button>
         </div>
       )}
     </div>
