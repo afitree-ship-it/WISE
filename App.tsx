@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Language, 
@@ -88,11 +89,43 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showDocHub, setShowDocHub] = useState(false);
 
+  // Security: Disable Right-click and DevTools
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      return false;
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Disable F12
+      if (e.key === 'F12') {
+        e.preventDefault();
+        return false;
+      }
+      // Disable Ctrl+Shift+I, J, C
+      if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) {
+        e.preventDefault();
+        return false;
+      }
+      // Disable Ctrl+U (View Source)
+      if (e.ctrlKey && e.key === 'u') {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   // History Management for Back Button support
   useEffect(() => {
-    // Replace initial state
     window.history.replaceState({ view: 'landing' }, '');
-
     const handlePopState = (event: PopStateEvent) => {
       if (event.state && event.state.view) {
         setViewState(event.state.view);
@@ -100,7 +133,6 @@ const App: React.FC = () => {
         setViewState('landing');
       }
     };
-
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -186,7 +218,6 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setRole(UserRole.STUDENT);
     setViewState('landing');
-    // If we were on a pushed state, go back or replace
     if (window.history.state && window.history.state.view === 'dashboard') {
       window.history.back();
     }
@@ -222,11 +253,8 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-[#e4d4bc] dark:bg-slate-950 overflow-hidden' : 'bg-[#FFF8E7] dark:bg-slate-900'}`}>
-      {/* Navbar Container: overflow visible to allow dropdowns */}
       <div className="sticky top-0 z-[100] w-full px-2 sm:px-4 pt-2">
         <nav className="container mx-auto h-auto min-h-[72px] navbar-luxe-container rounded-[1.5rem] px-4 sm:px-8 flex items-center justify-between border border-white/20 py-2 shadow-[0_20px_50px_rgba(0,0,0,0.3)] group">
-          
-          {/* Decorative Tech Layers */}
           <div className="absolute inset-0 z-0 pointer-events-none rounded-[1.5rem] overflow-hidden">
              <div className="navbar-tech-circuit"></div>
              <div className="navbar-scan-beam animate-scan-line"></div>
@@ -268,7 +296,6 @@ const App: React.FC = () => {
             )}
             
             <div className="flex items-center gap-1.5 sm:gap-3">
-              {/* Language Switcher Dropdown - Only for Students */}
               {role === UserRole.STUDENT && (
                 <div className="mr-1">
                   <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" />
@@ -308,7 +335,6 @@ const App: React.FC = () => {
             lastSync={lastSync}
           />
         ) : (
-          /* STUDENT VIEW */
           <main className="container mx-auto px-4 py-6 space-y-10 flex-grow">
             <section className="reveal-anim">
               <div className="flex items-center gap-3 mb-6">
@@ -417,7 +443,6 @@ const App: React.FC = () => {
         )}
       </div>
 
-      {/* DOCUMENT HUB MODAL */}
       {showDocHub && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8 bg-slate-950/80 backdrop-blur-2xl reveal-anim">
           <div className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-[3rem] overflow-hidden shadow-3xl border border-white/10 flex flex-col max-h-[90svh]">

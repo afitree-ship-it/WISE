@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Language, 
   Major, 
@@ -27,7 +28,9 @@ import {
   Search,
   Briefcase,
   Calendar,
-  MapPin
+  MapPin,
+  AlertTriangle,
+  Lock
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -58,6 +61,13 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const [loginError, setLoginError] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Brute Force Protection State
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutTimeLeft, setLockoutTimeLeft] = useState(0);
+  const maxAttempts = 5;
+  const lockoutDuration = 30; // seconds
+  const shakeRef = useRef<boolean>(false);
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
@@ -67,12 +77,41 @@ const LandingPage: React.FC<LandingPageProps> = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Cooldown timer effect
+  useEffect(() => {
+    let timer: any;
+    if (lockoutTimeLeft > 0) {
+      timer = setInterval(() => {
+        setLockoutTimeLeft(prev => prev - 1);
+      }, 1000);
+    } else if (lockoutTimeLeft === 0 && failedAttempts >= maxAttempts) {
+      setFailedAttempts(0); // Reset after lockout
+    }
+    return () => clearInterval(timer);
+  }, [lockoutTimeLeft, failedAttempts]);
+
   const handleAdminSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (lockoutTimeLeft > 0) return;
+
     const success = onAdminLogin(adminPassInput);
     if (!success) {
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
       setLoginError(true);
       setAdminPassInput('');
+      
+      // Trigger shake animation
+      shakeRef.current = true;
+      setTimeout(() => { shakeRef.current = false; }, 500);
+
+      if (newAttempts >= maxAttempts) {
+        setLockoutTimeLeft(lockoutDuration);
+      }
+    } else {
+      setFailedAttempts(0);
+      setLockoutTimeLeft(0);
     }
   };
 
@@ -81,7 +120,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
     const query = searchStudentId.trim();
     if (!query) return;
 
-    // Filter all records matching ID and sort by latest updated first
     const matches = studentStatuses
       .filter(s => 
         String(s.studentId).trim() === query || 
@@ -287,7 +325,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </div>
 
-      {/* Student Status Check Modal */}
       {showStatusCheckModal && (
         <div className="fixed inset-0 z-[101] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xl reveal-anim touch-auto">
           <div className="w-full max-w-[560px] bg-white rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-12 shadow-3xl relative overflow-y-auto max-h-[92svh]">
@@ -430,22 +467,39 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
       {showAdminLogin && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-3xl reveal-anim overflow-y-auto touch-auto">
-          <div className="w-full max-w-[420px] my-auto flex flex-col items-center relative p-6 sm:p-14 rounded-[2rem] sm:rounded-[3rem] border border-white/10 bg-white/5 shadow-3xl">
+          <div className={`w-full max-w-[420px] my-auto flex flex-col items-center relative p-6 sm:p-14 rounded-[2rem] sm:rounded-[3rem] border transition-all duration-300 ${lockoutTimeLeft > 0 ? 'border-rose-900 bg-rose-950/20' : 'border-white/10 bg-white/5'} shadow-3xl ${shakeRef.current ? 'animate-shake' : ''}`}>
             <button onClick={() => setShowAdminLogin(false)} className="absolute top-4 right-4 sm:top-8 sm:right-8 p-2 sm:p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all">
               <X size={20} className="sm:w-6 sm:h-6" />
             </button>
             
-            <div className="inline-flex p-4 sm:p-7 rounded-2xl sm:rounded-[2rem] bg-[#D4AF37]/10 text-[#D4AF37] mb-4 sm:mb-8 shadow-[0_0_50px_rgba(212,175,55,0.2)] relative">
-              <Fingerprint size={40} className="animate-pulse sm:w-[48px] sm:h-[48px]" />
+            <div className={`inline-flex p-4 sm:p-7 rounded-2xl sm:rounded-[2rem] ${lockoutTimeLeft > 0 ? 'bg-rose-500/20 text-rose-500' : 'bg-[#D4AF37]/10 text-[#D4AF37]'} mb-4 sm:mb-8 shadow-[0_0_50px_rgba(212,175,55,0.2)] relative`}>
+              {lockoutTimeLeft > 0 ? <Lock size={40} className="sm:w-[48px] sm:h-[48px]" /> : <Fingerprint size={40} className="animate-pulse sm:w-[48px] sm:h-[48px]" />}
             </div>
             
-            <h3 className="text-lg sm:text-2xl font-bold text-white uppercase mb-4 text-center">Staff Access</h3>
+            <h3 className="text-lg sm:text-2xl font-bold text-white uppercase mb-2 text-center">Staff Access</h3>
+            
+            {failedAttempts > 0 && lockoutTimeLeft === 0 && (
+              <p className="text-rose-400 text-[10px] font-black uppercase mb-4 tracking-wider text-center">
+                Attempts remaining: {maxAttempts - failedAttempts}
+              </p>
+            )}
+
+            {lockoutTimeLeft > 0 && (
+              <div className="w-full text-center mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 animate-pulse">
+                <p className="text-rose-500 text-xs font-black uppercase mb-2 tracking-widest flex items-center justify-center gap-2">
+                  <AlertTriangle size={14} /> System Locked
+                </p>
+                <p className="text-white text-3xl font-black">00:{lockoutTimeLeft < 10 ? `0${lockoutTimeLeft}` : lockoutTimeLeft}</p>
+                <p className="text-rose-400 text-[9px] font-bold uppercase mt-2">Too many failed attempts. Please wait.</p>
+              </div>
+            )}
             
             <form onSubmit={handleAdminSubmit} className="w-full space-y-4 sm:space-y-6">
               <div className="relative">
                 <input 
                   type="password" 
                   autoFocus={!isMobile}
+                  disabled={lockoutTimeLeft > 0}
                   placeholder="••••••" 
                   value={adminPassInput} 
                   onChange={e => {
@@ -453,22 +507,35 @@ const LandingPage: React.FC<LandingPageProps> = ({
                     if (loginError) setLoginError(false);
                   }} 
                   className={`w-full px-4 py-4 sm:py-7 rounded-xl sm:rounded-2xl bg-white/5 border-2 outline-none font-bold text-center text-4xl sm:text-6xl transition-all
-                    ${loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
+                    ${lockoutTimeLeft > 0 ? 'border-rose-900/50 text-rose-900 opacity-50' : loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
                 />
               </div>
 
               <div className="flex flex-col gap-4">
                 <button 
                   type="submit" 
-                  className="w-full bg-[#630330] hover:bg-[#7a0b3d] text-white py-4 sm:py-7 rounded-xl sm:rounded-2xl font-black uppercase text-xs sm:text-base shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all active:scale-95"
+                  disabled={lockoutTimeLeft > 0 || !adminPassInput}
+                  className={`w-full py-4 sm:py-7 rounded-xl sm:rounded-2xl font-black uppercase text-xs sm:text-base shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all active:scale-95
+                    ${lockoutTimeLeft > 0 ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-[#630330] hover:bg-[#7a0b3d] text-white'}`}
                 >
-                  {lang === Language.TH ? 'ยืนยัน' : 'Verify'}
+                  {lockoutTimeLeft > 0 ? 'Locked' : lang === Language.TH ? 'ยืนยัน' : 'Verify'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-10px); }
+          75% { transform: translateX(10px); }
+        }
+        .animate-shake {
+          animation: shake 0.2s ease-in-out 0s 2;
+        }
+      `}</style>
     </div>
   );
 };
