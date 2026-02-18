@@ -50,6 +50,8 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
       default: return '';
     }
   };
+
+  const description = getLocalized(site.description);
   
   return (
     <div className={`group relative overflow-hidden rounded-[2rem] bg-white dark:bg-slate-900 border-2 transition-all duration-500 flex flex-col h-full shadow-md hover:shadow-2xl hover:-translate-y-2
@@ -115,9 +117,11 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
           </div>
         </div>
         
-        <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed line-clamp-3 font-medium italic opacity-70 group-hover:opacity-100 transition-opacity">
-          "{getLocalized(site.description)}"
-        </p>
+        {description && (
+          <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed line-clamp-3 font-medium italic opacity-70 group-hover:opacity-100 transition-opacity">
+            "{description}"
+          </p>
+        )}
 
         {/* Contact Information */}
         <div className="space-y-2 pt-1">

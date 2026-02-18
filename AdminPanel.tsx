@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef } from 'react';
 import { 
   Language, 
@@ -293,7 +294,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const formData = new FormData(e.currentTarget);
     const thName = formData.get('name_th') as string;
     const thLoc = formData.get('loc_th') as string;
-    const thDesc = formData.get('desc_th') as string;
+    const thDesc = formData.get('desc_th') as string || "";
     const thPos = formData.get('pos_th') as string;
     setIsTranslating(true);
     const results = await performBatchTranslation([
@@ -1090,7 +1091,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <div className="space-y-2">
                 <label className={labelClass}>รายละเอียดงานเบื้องต้น</label>
-                <textarea name="desc_th" defaultValue={editingSite?.description.th} required placeholder="ระบุลักษณะงานพอสังเขป..." className={`${inputClass} min-h-[120px] shadow-inner`}></textarea>
+                <textarea name="desc_th" defaultValue={editingSite?.description.th} placeholder="ระบุลักษณะงานพอสังเขป..." className={`${inputClass} min-h-[120px] shadow-inner`}></textarea>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div className="space-y-2">
