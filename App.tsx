@@ -37,7 +37,10 @@ import {
   ClipboardList
 } from 'lucide-react';
 
-const SHEET_API_URL = "https://script.google.com/macros/s/AKfycby-TUywvMFjsfpq629r1Fou59reZ4bBTghCxOHHpx8Cz9nxRPlha4Pxf2nS8QgHv13c/exec"; 
+// Updated URL from User
+const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbz_rZSPEd4aoCXIKLq5uuvLuV3j9cIZbm2mHBrPNI8NAxwh58oxXPhljaoZgNsSDVd7/exec"; 
+const CACHE_KEY = "wise_portal_last_sync";
+const CACHE_EXPIRY = 30 * 60 * 1000; // 30 Minutes
 
 const App: React.FC = () => {
   const [lang, setLang] = useState<Language>(() => {
@@ -63,9 +66,12 @@ const App: React.FC = () => {
   });
 
   const [viewState, setViewState] = useState<'landing' | 'dashboard'>('landing');
-  const [role, setRole] = useState<UserRole>(UserRole.STUDENT);
   
-  // Custom Context Menu State
+  const [role, setRole] = useState<UserRole>(() => {
+    const savedRole = sessionStorage.getItem('wise_role');
+    return (savedRole as UserRole) || UserRole.STUDENT;
+  });
+  
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, visible: boolean }>({ x: 0, y: 0, visible: false });
   const [activeElement, setActiveElement] = useState<HTMLElement | null>(null);
 
@@ -87,109 +93,58 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : INITIAL_FORMS;
   });
 
-  // UI & Sync States
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<number | null>(null);
+  const [lastSync, setLastSync] = useState<number | null>(() => {
+    const saved = localStorage.getItem(CACHE_KEY);
+    return saved ? parseInt(saved) : null;
+  });
   const [activeMajor, setActiveMajor] = useState<Major | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showDocHub, setShowDocHub] = useState(false);
 
-  // Security: Disable DevTools and Custom Context Menu
-  useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      // Show custom menu at mouse coordinates
-      setContextMenu({ x: e.clientX, y: e.clientY, visible: true });
-      setActiveElement(e.target as HTMLElement);
-    };
-
-    const handleClick = () => {
-      setContextMenu(prev => ({ ...prev, visible: false }));
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Disable F12
-      if (e.key === 'F12') {
-        e.preventDefault();
-        return false;
+  // Utility for resilient fetching from Google Apps Script
+  const fetchWithRetry = async (url: string, options: RequestInit = {}, retries = 3): Promise<Response> => {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        redirect: 'follow', // Crucial for GAS Web Apps
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response;
+    } catch (err) {
+      if (retries > 0) {
+        await new Promise(r => setTimeout(r, 1000));
+        return fetchWithRetry(url, options, retries - 1);
       }
-      // Disable Ctrl+Shift+I, J, C
-      if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) {
-        e.preventDefault();
-        return false;
-      }
-      // Disable Ctrl+U (View Source)
-      if (e.ctrlKey && e.key === 'u') {
-        e.preventDefault();
-        return false;
-      }
-    };
-
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('click', handleClick);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('click', handleClick);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
-
-  const handleCopy = () => {
-    const selectedText = window.getSelection()?.toString();
-    if (selectedText) {
-      navigator.clipboard.writeText(selectedText);
+      throw err;
     }
   };
 
-  const handlePaste = async () => {
-    if (activeElement && (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement)) {
-      try {
-        const text = await navigator.clipboard.readText();
-        const start = activeElement.selectionStart || 0;
-        const end = activeElement.selectionEnd || 0;
-        const val = activeElement.value;
-        activeElement.value = val.substring(0, start) + text + val.substring(end);
-        // Dispatch input event to update React state if bound
-        activeElement.dispatchEvent(new Event('input', { bubbles: true }));
-      } catch (err) {
-        console.warn("Paste failed:", err);
-      }
-    }
-  };
-
-  // History Management for Back Button support
-  useEffect(() => {
-    window.history.replaceState({ view: 'landing' }, '');
-    const handlePopState = (event: PopStateEvent) => {
-      if (event.state && event.state.view) {
-        setViewState(event.state.view);
-      } else {
-        setViewState('landing');
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  // Persist language choice
-  useEffect(() => {
-    localStorage.setItem('wise_portal_lang', lang);
-  }, [lang]);
-
-  const fetchFromSheets = useCallback(async () => {
+  const fetchFromSheets = useCallback(async (force = false) => {
     if (!SHEET_API_URL) return;
+
+    const now = Date.now();
+    const lastSyncTime = localStorage.getItem(CACHE_KEY);
+    if (!force && lastSyncTime && (now - parseInt(lastSyncTime)) < CACHE_EXPIRY) {
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const response = await fetch(SHEET_API_URL);
+      // Add cache buster to URL
+      const url = `${SHEET_API_URL}${SHEET_API_URL.includes('?') ? '&' : '?'}cache_bust=${now}`;
+      const response = await fetchWithRetry(url);
       const cloudData = await response.json();
+      
       if (cloudData.sites) setSites(cloudData.sites);
       if (cloudData.schedules) setSchedules(cloudData.schedules);
       if (cloudData.forms) setForms(cloudData.forms);
       if (cloudData.studentStatuses) setStudentStatuses(cloudData.studentStatuses);
-      setLastSync(Date.now());
+      
+      const syncTime = Date.now();
+      setLastSync(syncTime);
+      localStorage.setItem(CACHE_KEY, syncTime.toString());
     } catch (error) {
       console.error("Failed to fetch from Google Sheets:", error);
     } finally {
@@ -201,11 +156,17 @@ const App: React.FC = () => {
     if (!SHEET_API_URL) return;
     setIsSyncing(true);
     try {
-      await fetch(SHEET_API_URL, {
+      // Use text/plain to avoid CORS preflight (OPTIONS request) which GAS doesn't handle well
+      await fetchWithRetry(SHEET_API_URL, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
         body: JSON.stringify({ type, data }),
       });
-      setLastSync(Date.now());
+      const syncTime = Date.now();
+      setLastSync(syncTime);
+      localStorage.setItem(CACHE_KEY, syncTime.toString());
     } catch (error) {
       console.error(`Failed to sync ${type} to Google Sheets:`, error);
     } finally {
@@ -216,6 +177,57 @@ const App: React.FC = () => {
   useEffect(() => {
     fetchFromSheets();
   }, [fetchFromSheets]);
+
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY, visible: true });
+      setActiveElement(e.target as HTMLElement);
+    };
+    const handleClick = () => setContextMenu(prev => ({ ...prev, visible: false }));
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F12') e.preventDefault();
+      if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) e.preventDefault();
+      if (e.ctrlKey && e.key === 'u') e.preventDefault();
+    };
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const handleCopy = () => {
+    const selectedText = window.getSelection()?.toString();
+    if (selectedText) navigator.clipboard.writeText(selectedText);
+  };
+
+  const handlePaste = async () => {
+    if (activeElement && (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement)) {
+      try {
+        const text = await navigator.clipboard.readText();
+        const start = activeElement.selectionStart || 0;
+        const end = activeElement.selectionEnd || 0;
+        const val = activeElement.value;
+        activeElement.value = val.substring(0, start) + text + val.substring(end);
+        activeElement.dispatchEvent(new Event('input', { bubbles: true }));
+      } catch (err) { console.warn("Paste failed:", err); }
+    }
+  };
+
+  useEffect(() => {
+    window.history.replaceState({ view: 'landing' }, '');
+    const handlePopState = (event: PopStateEvent) => {
+      setViewState(event.state?.view || 'landing');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => { localStorage.setItem('wise_portal_lang', lang); }, [lang]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -236,15 +248,46 @@ const App: React.FC = () => {
 
   const isRtl = lang === Language.AR && role !== UserRole.ADMIN;
 
-  const handleAdminLogin = (password: string): boolean => {
-    const validPasswords = ['fst111', '24725', '5990'];
-    if (validPasswords.includes(password)) {
-      setRole(UserRole.ADMIN);
-      setViewState('dashboard');
-      window.history.pushState({ view: 'dashboard' }, '');
-      return true;
+  const handleAdminLogin = async (password: string): Promise<boolean> => {
+    if (!SHEET_API_URL) return false;
+    
+    setIsSyncing(true);
+    try {
+      const response = await fetchWithRetry(SHEET_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify({ type: 'auth', password })
+      });
+      
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        const result = await response.json();
+        if (result && result.success) {
+          setRole(UserRole.ADMIN);
+          sessionStorage.setItem('wise_role', UserRole.ADMIN);
+          setViewState('dashboard');
+          window.history.pushState({ view: 'dashboard' }, '');
+          return true;
+        }
+      } else {
+        const text = await response.text();
+        if (text.includes("Success") || text.includes("Authorized")) {
+          setRole(UserRole.ADMIN);
+          sessionStorage.setItem('wise_role', UserRole.ADMIN);
+          setViewState('dashboard');
+          window.history.pushState({ view: 'dashboard' }, '');
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("Auth failed:", error);
+      return false;
+    } finally {
+      setIsSyncing(false);
     }
-    return false;
   };
 
   const handleEnterDashboard = () => {
@@ -254,10 +297,9 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     setRole(UserRole.STUDENT);
+    sessionStorage.removeItem('wise_role');
     setViewState('landing');
-    if (window.history.state && window.history.state.view === 'dashboard') {
-      window.history.back();
-    }
+    if (window.history.state?.view === 'dashboard') window.history.back();
   };
 
   const getLocalized = (localized: LocalizedString) => {
@@ -283,10 +325,9 @@ const App: React.FC = () => {
         <LandingPage 
           lang={lang} setLang={setLang} currentT={currentT} isRtl={isRtl}
           onEnterDashboard={handleEnterDashboard}
-          onAdminLogin={handleAdminLogin}
+          onAdminLogin={handleAdminLogin as any}
           studentStatuses={studentStatuses}
         />
-        {/* Custom Context Menu */}
         {contextMenu.visible && (
           <div 
             className="fixed z-[9999] w-48 bg-white/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl py-1.5 reveal-anim overflow-hidden"
@@ -343,9 +384,9 @@ const App: React.FC = () => {
           <div className="relative z-[110] flex items-center gap-1.5 sm:gap-4">
             {role === UserRole.ADMIN && (
               <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-xl rounded-full border border-white/10 shadow-inner">
-                {isSyncing ? <RefreshCw size={12} className="text-[#D4AF37] animate-spin" /> : <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>}
+                {isLoading || isSyncing ? <RefreshCw size={12} className="text-[#D4AF37] animate-spin" /> : <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>}
                 <span className="text-[10px] font-black text-white/90 uppercase tracking-widest">
-                  {isSyncing ? "Syncing..." : "LIVE SECURE"}
+                  {isLoading ? "FETCHING..." : isSyncing ? "SYNCING..." : "LIVE SECURE"}
                 </span>
               </div>
             )}
@@ -356,18 +397,10 @@ const App: React.FC = () => {
                   <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" />
                 </div>
               )}
-
-              <button 
-                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
-                className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-white/10 backdrop-blur-xl text-white/80 rounded-2xl border border-white/20 hover:bg-white/25 hover:scale-105 active:scale-95 transition-all shadow-lg"
-              >
+              <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-white/10 backdrop-blur-xl text-white/80 rounded-2xl border border-white/20 hover:bg-white/25 hover:scale-105 active:scale-95 transition-all shadow-lg">
                 {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
               </button>
-              
-              <button 
-                onClick={handleLogout} 
-                className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-rose-500/30 backdrop-blur-xl text-rose-300 border border-rose-400/30 rounded-2xl hover:bg-rose-600 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-xl group/logout"
-              >
+              <button onClick={handleLogout} className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-rose-500/30 backdrop-blur-xl text-rose-300 border border-rose-400/30 rounded-2xl hover:bg-rose-600 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-xl group/logout">
                 <LogOut size={18} className="group-hover/logout:-translate-x-1 transition-transform" />
               </button>
             </div>
@@ -383,7 +416,7 @@ const App: React.FC = () => {
             schedules={schedules} setSchedules={setSchedules}
             forms={forms} setForms={setForms}
             currentT={currentT} lang={lang}
-            fetchFromSheets={fetchFromSheets}
+            fetchFromSheets={() => fetchFromSheets(true)}
             syncToSheets={syncToSheets}
             isLoading={isLoading}
             isSyncing={isSyncing}
@@ -400,40 +433,36 @@ const App: React.FC = () => {
                 </div>
               </div>
               <div className="flex flex-col gap-3">
-                {sortedSchedules.length > 0 ? (
-                  sortedSchedules.map((item) => (
-                    <div key={item.id} className="group relative flex flex-row items-center justify-between p-2 sm:p-5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-slate-100 dark:border-slate-800 rounded-2xl transition-all duration-300 border-l-[6px] border-l-emerald-500 overflow-hidden shadow-lg hover:shadow-xl dark:shadow-none">
-                      <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1 pr-1 sm:pr-4">
-                         <div className="relative shrink-0 flex items-center justify-center w-3.5 h-3.5 sm:w-4 sm:h-4">
-                           <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,1)]"></div>
-                           <div className="absolute inset-0 w-full h-full rounded-full border border-emerald-400 animate-ping opacity-75"></div>
-                         </div>
-                         <h4 className="text-[10px] min-[360px]:text-[11px] sm:text-base font-black text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-3 break-words">
-                           {getLocalized(item.event)}
-                         </h4>
-                      </div>
-                      <div className="flex items-center gap-0.5 sm:gap-3 flex-shrink-0">
-                         <div className="flex items-center gap-1 px-1 sm:px-3 py-1 sm:py-1.5 bg-emerald-50/80 dark:bg-emerald-950/40 rounded-lg sm:rounded-xl border border-emerald-100 dark:border-emerald-800/40 transition-transform group-hover:scale-105">
-                            <Play size={7} className="text-emerald-500 fill-emerald-500 shrink-0" />
-                            <div className="flex flex-col leading-none">
-                              <span className="hidden sm:block text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter mb-1">{currentT.startDateLabel}</span>
-                              <span className="text-[8px] min-[400px]:text-[9px] sm:text-[12px] font-black text-emerald-900 dark:text-emerald-200 whitespace-nowrap">{getLocalized(item.startDate)}</span>
-                            </div>
-                         </div>
-                         <div className="flex items-center gap-1 px-1 sm:px-3 py-1 sm:py-1.5 bg-rose-50/80 dark:bg-rose-950/40 rounded-lg sm:rounded-xl border border-rose-100 dark:border-rose-800/40 transition-transform group-hover:scale-105">
-                            <Flag size={7} className="text-rose-500 fill-rose-500 shrink-0" />
-                            <div className="flex flex-col leading-none">
-                              <span className="hidden sm:block text-[8px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-tighter mb-1">{currentT.endDateLabel}</span>
-                              <span className="text-[8px] min-[400px]:text-[9px] sm:text-[12px] font-black text-rose-900 dark:text-rose-200 whitespace-nowrap">{getLocalized(item.endDate)}</span>
-                            </div>
-                         </div>
-                      </div>
+                {sortedSchedules.length > 0 ? sortedSchedules.map((item) => (
+                  <div key={item.id} className="group relative flex flex-row items-center justify-between p-2 sm:p-5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-slate-100 dark:border-slate-800 rounded-2xl transition-all duration-300 border-l-[6px] border-l-emerald-500 overflow-hidden shadow-lg hover:shadow-xl dark:shadow-none">
+                    <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1 pr-1 sm:pr-4">
+                       <div className="relative shrink-0 flex items-center justify-center w-3.5 h-3.5 sm:w-4 sm:h-4">
+                         <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,1)]"></div>
+                         <div className="absolute inset-0 w-full h-full rounded-full border border-emerald-400 animate-ping opacity-75"></div>
+                       </div>
+                       <h4 className="text-[10px] min-[360px]:text-[11px] sm:text-base font-black text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-3 break-words">
+                         {getLocalized(item.event)}
+                       </h4>
                     </div>
-                  ))
-                ) : (
-                  <div className="p-10 text-center text-[12px] font-bold text-slate-400 uppercase border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl bg-white/30">
-                    No upcoming events scheduled
+                    <div className="flex items-center gap-0.5 sm:gap-3 flex-shrink-0">
+                       <div className="flex items-center gap-1 px-1 sm:px-3 py-1 sm:py-1.5 bg-emerald-50/80 dark:bg-emerald-950/40 rounded-lg sm:rounded-xl border border-emerald-100 dark:border-emerald-800/40 transition-transform group-hover:scale-105">
+                          <Play size={7} className="text-emerald-500 fill-emerald-500 shrink-0" />
+                          <div className="flex flex-col leading-none">
+                            <span className="hidden sm:block text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter mb-1">{currentT.startDateLabel}</span>
+                            <span className="text-[8px] min-[400px]:text-[9px] sm:text-[12px] font-black text-emerald-900 dark:text-emerald-200 whitespace-nowrap">{getLocalized(item.startDate)}</span>
+                          </div>
+                       </div>
+                       <div className="flex items-center gap-1 px-1 sm:px-3 py-1 sm:py-1.5 bg-rose-50/80 dark:bg-rose-950/40 rounded-lg sm:rounded-xl border border-rose-100 dark:border-rose-800/40 transition-transform group-hover:scale-105">
+                          <Flag size={7} className="text-rose-500 fill-rose-500 shrink-0" />
+                          <div className="flex flex-col leading-none">
+                            <span className="hidden sm:block text-[8px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-tighter mb-1">{currentT.endDateLabel}</span>
+                            <span className="text-[8px] min-[400px]:text-[9px] sm:text-[12px] font-black text-rose-900 dark:text-rose-200 whitespace-nowrap">{getLocalized(item.endDate)}</span>
+                          </div>
+                       </div>
+                    </div>
                   </div>
+                )) : (
+                  <div className="p-10 text-center text-[12px] font-bold text-slate-400 uppercase border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl bg-white/30">No upcoming events scheduled</div>
                 )}
               </div>
             </section>
@@ -516,20 +545,12 @@ const App: React.FC = () => {
                   <div className="flex items-center gap-2 px-2"><div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div><h4 className="text-[12px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{currentT.appForms}</h4></div>
                   <div className="grid grid-cols-1 gap-3">
                     {forms.filter(f => f.category === FormCategory.APPLICATION).map(form => (
-                      <a 
-                        key={form.id} 
-                        href={form.url && !form.url.startsWith('PENDING') ? form.url : '#'} 
-                        onClick={(e) => {
-                          if (!form.url || form.url === '#' || form.url.startsWith('PENDING')) {
-                            e.preventDefault();
-                            alert(lang === Language.TH ? 'ระบบกำลังประมวลผลไฟล์เอกสาร กรุณาลองใหม่ในภายหลัง' : 'System is processing the document, please try again later.');
-                          }
-                        }}
-                        download={form.url && form.url.startsWith('data:') ? `${getLocalized(form.title)}.pdf` : undefined}
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="group flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 rounded-2xl transition-all"
-                      >
+                      <a key={form.id} href={form.url && !form.url.startsWith('PENDING') ? form.url : '#'} onClick={(e) => {
+                        if (!form.url || form.url === '#' || form.url.startsWith('PENDING')) {
+                          e.preventDefault();
+                          alert(lang === Language.TH ? 'ระบบกำลังประมวลผลไฟล์เอกสาร กรุณาลองใหม่ในภายหลัง' : 'System is processing the document.');
+                        }
+                      }} download={form.url?.startsWith('data:') ? `${getLocalized(form.title)}.pdf` : undefined} target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 rounded-2xl transition-all">
                         <div className="flex items-center gap-4">
                            <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm text-indigo-600"><FileText size={20} /></div>
                            <h5 className="font-bold text-slate-800 dark:text-white text-sm sm:text-base">{getLocalized(form.title)}</h5>
@@ -543,20 +564,12 @@ const App: React.FC = () => {
                   <div className="flex items-center gap-2 px-2"><div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div><h4 className="text-[12px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{currentT.monitoringForms}</h4></div>
                   <div className="grid grid-cols-1 gap-3">
                     {forms.filter(f => f.category === FormCategory.MONITORING).map(form => (
-                      <a 
-                        key={form.id} 
-                        href={form.url && !form.url.startsWith('PENDING') ? form.url : '#'} 
-                        onClick={(e) => {
-                          if (!form.url || form.url === '#' || form.url.startsWith('PENDING')) {
-                            e.preventDefault();
-                            alert(lang === Language.TH ? 'ระบบกำลังประมวลผลไฟล์เอกสาร กรุณาลองใหม่ในภายหลัง' : 'System is processing the document, please try again later.');
-                          }
-                        }}
-                        download={form.url && form.url.startsWith('data:') ? `${getLocalized(form.title)}.pdf` : undefined}
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="group flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 rounded-2xl transition-all"
-                      >
+                      <a key={form.id} href={form.url && !form.url.startsWith('PENDING') ? form.url : '#'} onClick={(e) => {
+                        if (!form.url || form.url === '#' || form.url.startsWith('PENDING')) {
+                          e.preventDefault();
+                          alert(lang === Language.TH ? 'ระบบกำลังประมวลผลไฟล์เอกสาร กรุณาลองใหม่ในภายหลัง' : 'System is processing the document.');
+                        }
+                      }} download={form.url?.startsWith('data:') ? `${getLocalized(form.title)}.pdf` : undefined} target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 rounded-2xl transition-all">
                         <div className="flex items-center gap-4">
                            <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm text-indigo-600"><FileText size={20} /></div>
                            <h5 className="font-bold text-slate-800 dark:text-white text-sm sm:text-base">{getLocalized(form.title)}</h5>
@@ -570,21 +583,10 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Custom Context Menu */}
       {contextMenu.visible && (
-        <div 
-          className="fixed z-[9999] w-48 bg-white/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl py-1.5 reveal-anim overflow-hidden"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          <button onClick={handleCopy} className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-            <Copy size={16} className="text-[#630330] dark:text-[#D4AF37]" />
-            <span className="text-xs font-black uppercase tracking-widest">{lang === Language.TH ? 'คัดลอก' : 'Copy'}</span>
-          </button>
-          <button onClick={handlePaste} className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-            <ClipboardList size={16} className="text-[#630330] dark:text-[#D4AF37]" />
-            <span className="text-xs font-black uppercase tracking-widest">{lang === Language.TH ? 'วาง' : 'Paste'}</span>
-          </button>
+        <div className="fixed z-[9999] w-48 bg-white/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl py-1.5 reveal-anim overflow-hidden" style={{ top: contextMenu.y, left: contextMenu.x }}>
+          <button onClick={handleCopy} className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><Copy size={16} className="text-[#630330] dark:text-[#D4AF37]" /><span className="text-xs font-black uppercase tracking-widest">{lang === Language.TH ? 'คัดลอก' : 'Copy'}</span></button>
+          <button onClick={handlePaste} className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><ClipboardList size={16} className="text-[#630330] dark:text-[#D4AF37]" /><span className="text-xs font-black uppercase tracking-widest">{lang === Language.TH ? 'วาง' : 'Paste'}</span></button>
         </div>
       )}
     </div>

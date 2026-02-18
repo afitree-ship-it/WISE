@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Language, 
@@ -29,7 +30,11 @@ import {
   Calendar,
   MapPin,
   AlertTriangle,
-  Lock
+  Lock,
+  Check,
+  ShieldAlert,
+  RefreshCw,
+  Zap
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -37,9 +42,8 @@ interface LandingPageProps {
   setLang: (lang: Language) => void;
   currentT: Translation;
   isRtl: boolean;
-  // Fix: Corrected type from void to () => void to allow usage as a callback and event handler
   onEnterDashboard: () => void;
-  onAdminLogin: (password: string) => boolean;
+  onAdminLogin: (password: string) => Promise<boolean>;
   studentStatuses: StudentStatusRecord[];
 }
 
@@ -59,13 +63,21 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState('');
   const [loginError, setLoginError] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
-  // Brute Force Protection State
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [lockoutTimeLeft, setLockoutTimeLeft] = useState(0);
+  const [failedAttempts, setFailedAttempts] = useState(() => {
+    return parseInt(localStorage.getItem('wise_failed_attempts') || '0');
+  });
+  const [lockoutTimeLeft, setLockoutTimeLeft] = useState(() => {
+    const lockedUntil = parseInt(localStorage.getItem('wise_locked_until') || '0');
+    const now = Date.now();
+    return lockedUntil > now ? Math.ceil((lockedUntil - now) / 1000) : 0;
+  });
+
   const maxAttempts = 5;
-  const lockoutDuration = 30; // seconds
+  const lockoutDuration = 60; // seconds
   const shakeRef = useRef<boolean>(false);
 
   useEffect(() => {
@@ -77,42 +89,66 @@ const LandingPage: React.FC<LandingPageProps> = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Cooldown timer effect
   useEffect(() => {
     let timer: any;
     if (lockoutTimeLeft > 0) {
       timer = setInterval(() => {
-        setLockoutTimeLeft(prev => prev - 1);
+        setLockoutTimeLeft(prev => {
+          const next = prev - 1;
+          if (next <= 0) {
+            localStorage.removeItem('wise_locked_until');
+            setFailedAttempts(0);
+            localStorage.setItem('wise_failed_attempts', '0');
+          }
+          return next;
+        });
       }, 1000);
-    } else if (lockoutTimeLeft === 0 && failedAttempts >= maxAttempts) {
-      setFailedAttempts(0); // Reset after lockout
     }
     return () => clearInterval(timer);
-  }, [lockoutTimeLeft, failedAttempts]);
+  }, [lockoutTimeLeft]);
 
-  const handleAdminSubmit = (e: React.FormEvent) => {
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (lockoutTimeLeft > 0) return;
+    if (lockoutTimeLeft > 0 || isVerifying || loginSuccess) return;
 
-    const success = onAdminLogin(adminPassInput);
-    if (!success) {
-      const newAttempts = failedAttempts + 1;
-      setFailedAttempts(newAttempts);
-      setLoginError(true);
-      setAdminPassInput('');
-      
-      // Trigger shake animation
-      shakeRef.current = true;
-      setTimeout(() => { shakeRef.current = false; }, 500);
+    setIsVerifying(true);
+    setLoginError(false);
+    
+    // Start optimistic UI / Scanning feeling
+    const startTime = Date.now();
+    
+    const success = await onAdminLogin(adminPassInput);
+    
+    // Calculate elapsed time to ensure user sees at least some feedback if the response is too fast, 
+    // but keep it very short for "fast" feeling.
+    const elapsedTime = Date.now() - startTime;
+    const minFeedbackTime = 400; 
+    const waitTime = Math.max(0, minFeedbackTime - elapsedTime);
 
-      if (newAttempts >= maxAttempts) {
-        setLockoutTimeLeft(lockoutDuration);
+    setTimeout(() => {
+      if (success) {
+        setLoginSuccess(true);
+        // Instant visual feedback for success before component unmounts
+        setIsVerifying(false);
+      } else {
+        setIsVerifying(false);
+        const newAttempts = failedAttempts + 1;
+        setFailedAttempts(newAttempts);
+        localStorage.setItem('wise_failed_attempts', newAttempts.toString());
+        setLoginError(true);
+        setAdminPassInput('');
+        
+        shakeRef.current = true;
+        setTimeout(() => { shakeRef.current = false; }, 500);
+
+        if (newAttempts >= maxAttempts) {
+          const lockedUntil = Date.now() + (lockoutDuration * 1000);
+          localStorage.setItem('wise_locked_until', lockedUntil.toString());
+          setLockoutTimeLeft(lockoutDuration);
+        }
       }
-    } else {
-      setFailedAttempts(0);
-      setLockoutTimeLeft(0);
-    }
+    }, waitTime);
   };
 
   const handleCheckStatus = (e: React.FormEvent) => {
@@ -317,6 +353,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
               <button 
                 onClick={() => {
                   setLoginError(false);
+                  setLoginSuccess(false);
                   setShowAdminLogin(true);
                 }}
                 className="flex items-center gap-2 mt-8 opacity-30 hover:opacity-100 transition-all duration-500 group touch-auto"
@@ -472,18 +509,21 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
       {showAdminLogin && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-3xl reveal-anim overflow-y-auto touch-auto">
-          <div className={`w-full max-w-[420px] my-auto flex flex-col items-center relative p-6 sm:p-14 rounded-[2rem] sm:rounded-[3rem] border transition-all duration-300 ${lockoutTimeLeft > 0 ? 'border-rose-900 bg-rose-950/20' : 'border-white/10 bg-white/5'} shadow-3xl ${shakeRef.current ? 'animate-shake' : ''}`}>
+          <div className={`w-full max-w-[420px] my-auto flex flex-col items-center relative p-6 sm:p-14 rounded-[2rem] sm:rounded-[3rem] border transition-all duration-300 ${loginSuccess ? 'border-emerald-500/50 bg-emerald-950/20' : lockoutTimeLeft > 0 ? 'border-rose-900 bg-rose-950/20' : 'border-white/10 bg-white/5'} shadow-3xl ${shakeRef.current ? 'animate-shake' : ''}`}>
             <button onClick={() => setShowAdminLogin(false)} className="absolute top-4 right-4 sm:top-8 sm:right-8 p-2 sm:p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all">
               <X size={20} className="sm:w-6 sm:h-6" />
             </button>
             
-            <div className={`inline-flex p-4 sm:p-7 rounded-2xl sm:rounded-[2rem] ${lockoutTimeLeft > 0 ? 'bg-rose-500/20 text-rose-500' : 'bg-[#D4AF37]/10 text-[#D4AF37]'} mb-4 sm:mb-8 shadow-[0_0_50px_rgba(212,175,55,0.2)] relative`}>
-              {lockoutTimeLeft > 0 ? <Lock size={40} className="sm:w-[48px] sm:h-[48px]" /> : <Fingerprint size={40} className="animate-pulse sm:w-[48px] sm:h-[48px]" />}
+            <div className={`inline-flex p-4 sm:p-7 rounded-2xl sm:rounded-[2rem] ${loginSuccess ? 'bg-emerald-500/20 text-emerald-400 scale-110' : lockoutTimeLeft > 0 ? 'bg-rose-500/20 text-rose-500' : 'bg-[#D4AF37]/10 text-[#D4AF37]'} mb-4 sm:mb-8 shadow-[0_0_50px_rgba(212,175,55,0.2)] relative transition-all duration-300`}>
+              {loginSuccess ? <ShieldCheck size={40} className="sm:w-[48px] sm:h-[48px]" /> : lockoutTimeLeft > 0 ? <Lock size={40} className="sm:w-[48px] sm:h-[48px]" /> : <Fingerprint size={40} className={`${isVerifying ? 'animate-pulse' : ''} sm:w-[48px] sm:h-[48px]`} />}
+              {isVerifying && !loginSuccess && <div className="absolute inset-0 border-4 border-[#D4AF37] border-t-transparent rounded-2xl sm:rounded-[2rem] animate-spin"></div>}
             </div>
             
-            <h3 className="text-lg sm:text-2xl font-bold text-white uppercase mb-2 text-center">Staff Access</h3>
+            <h3 className="text-lg sm:text-2xl font-black text-white uppercase mb-2 text-center tracking-tighter">
+              {loginSuccess ? 'ACCESS GRANTED' : lockoutTimeLeft > 0 ? 'SYSTEM LOCKED' : 'SECURE AUTHENTICATION'}
+            </h3>
             
-            {failedAttempts > 0 && lockoutTimeLeft === 0 && (
+            {failedAttempts > 0 && lockoutTimeLeft === 0 && !loginSuccess && (
               <p className="text-rose-400 text-[10px] font-black uppercase mb-4 tracking-wider text-center">
                 Attempts remaining: {maxAttempts - failedAttempts}
               </p>
@@ -492,41 +532,72 @@ const LandingPage: React.FC<LandingPageProps> = ({
             {lockoutTimeLeft > 0 && (
               <div className="w-full text-center mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 animate-pulse">
                 <p className="text-rose-500 text-xs font-black uppercase mb-2 tracking-widest flex items-center justify-center gap-2">
-                  <AlertTriangle size={14} /> System Locked
+                  <AlertTriangle size={14} /> SECURITY PROTOCOL ACTIVE
                 </p>
                 <p className="text-white text-3xl font-black">00:{lockoutTimeLeft < 10 ? `0${lockoutTimeLeft}` : lockoutTimeLeft}</p>
-                <p className="text-rose-400 text-[9px] font-bold uppercase mt-2">Too many failed attempts. Please wait.</p>
+                <p className="text-rose-400 text-[9px] font-bold uppercase mt-2">Temporary lockout due to repeated failures.</p>
               </div>
             )}
             
             <form onSubmit={handleAdminSubmit} className="w-full space-y-4 sm:space-y-6">
-              <div className="relative">
+              <div className="relative group overflow-hidden rounded-xl sm:rounded-2xl">
                 <input 
                   type="password" 
                   autoFocus={!isMobile}
-                  disabled={lockoutTimeLeft > 0}
+                  disabled={lockoutTimeLeft > 0 || isVerifying || loginSuccess}
                   placeholder="••••••" 
                   value={adminPassInput} 
                   onChange={e => {
                     setAdminPassInput(e.target.value);
                     if (loginError) setLoginError(false);
                   }} 
-                  className={`w-full px-4 py-4 sm:py-7 rounded-xl sm:rounded-2xl bg-white/5 border-2 outline-none font-bold text-center text-4xl sm:text-6xl transition-all
-                    ${lockoutTimeLeft > 0 ? 'border-rose-900/50 text-rose-900 opacity-50' : loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
+                  className={`w-full px-4 py-4 sm:py-7 rounded-xl sm:rounded-2xl bg-white/5 border-2 outline-none font-black text-center text-4xl sm:text-6xl tracking-[0.2em] transition-all
+                    ${loginSuccess ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' : lockoutTimeLeft > 0 ? 'border-rose-900/50 text-rose-900 opacity-50' : loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
                 />
+                {(isVerifying || loginSuccess) && (
+                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent animate-scan-beam"></div>
+                )}
+                {isVerifying && !loginSuccess && (
+                  <div className="absolute inset-0 bg-[#D4AF37]/5 pointer-events-none animate-pulse"></div>
+                )}
               </div>
 
               <div className="flex flex-col gap-4">
                 <button 
                   type="submit" 
-                  disabled={lockoutTimeLeft > 0 || !adminPassInput}
-                  className={`w-full py-4 sm:py-7 rounded-xl sm:rounded-2xl font-black uppercase text-xs sm:text-base shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all active:scale-95
-                    ${lockoutTimeLeft > 0 ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-[#630330] hover:bg-[#7a0b3d] text-white'}`}
+                  disabled={lockoutTimeLeft > 0 || !adminPassInput || isVerifying || loginSuccess}
+                  className={`group/btn w-full py-4 sm:py-6 rounded-xl sm:rounded-2xl font-black uppercase text-xs sm:text-base shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all active:scale-95 flex items-center justify-center gap-3
+                    ${loginSuccess ? 'bg-emerald-500 text-white shadow-emerald-500/30' : lockoutTimeLeft > 0 ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : isVerifying ? 'bg-slate-700 text-white shadow-xl' : 'bg-[#630330] hover:bg-[#7a0b3d] text-white hover:shadow-mangosteen'}`}
                 >
-                  {lockoutTimeLeft > 0 ? 'Locked' : lang === Language.TH ? 'ยืนยัน' : 'Verify'}
+                  {loginSuccess ? (
+                    <>
+                      <Zap size={20} className="animate-bounce" />
+                      REDIRECTING...
+                    </>
+                  ) : isVerifying ? (
+                    <>
+                      <RefreshCw className="animate-spin" size={20} />
+                      DECRYPTING...
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck size={20} className="group-hover/btn:scale-110 transition-transform" />
+                      {lang === Language.TH ? 'ยืนยันตัวตน' : 'VERIFY ACCESS'}
+                    </>
+                  )}
                 </button>
+                
+                {loginError && !lockoutTimeLeft && (
+                   <p className="text-rose-500 text-[10px] font-bold uppercase text-center tracking-widest flex items-center justify-center gap-2 animate-bounce">
+                     <ShieldAlert size={14} /> UNAUTHORIZED SECURITY KEY
+                   </p>
+                )}
               </div>
             </form>
+            
+            <p className="mt-8 text-[9px] font-black text-white/20 uppercase tracking-[0.4em] select-none">
+              WISE SYSTEM v4.0.2
+            </p>
           </div>
         </div>
       )}
@@ -539,6 +610,16 @@ const LandingPage: React.FC<LandingPageProps> = ({
         }
         .animate-shake {
           animation: shake 0.2s ease-in-out 0s 2;
+        }
+        @keyframes scan-beam {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-scan-beam {
+          animation: scan-beam 1.5s ease-in-out infinite;
+        }
+        .shadow-mangosteen {
+          box-shadow: 0 10px 30px -5px rgba(99, 3, 48, 0.4);
         }
       `}</style>
     </div>
