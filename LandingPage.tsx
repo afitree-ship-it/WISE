@@ -489,7 +489,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
                                 <div className="flex flex-col min-w-0">
                                   <span className="text-[7px] sm:text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">ระยะเวลาฝึก / Period</span>
-                                  <span className="text-[9px] sm:text-sm font-black text-slate-700 dark:text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis">
+                                  <span className="text-9px] sm:text-sm font-black text-slate-700 dark:text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis">
                                     {formatDate(record.startDate)} — {formatDate(record.endDate)}
                                   </span>
                                 </div>
@@ -525,7 +525,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
             
             {failedAttempts > 0 && lockoutTimeLeft === 0 && !loginSuccess && (
               <p className="text-rose-400 text-[10px] font-black uppercase mb-4 tracking-wider text-center">
-                Attempts remaining: {maxAttempts - failedAttempts}
+                จำนวนครั้งที่เหลือ: {maxAttempts - failedAttempts}
               </p>
             )}
 
@@ -572,12 +572,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   {loginSuccess ? (
                     <>
                       <Zap size={20} className="animate-bounce" />
-                      REDIRECTING...
+                      กำลังเข้าระบบ...
                     </>
                   ) : isVerifying ? (
                     <>
                       <RefreshCw className="animate-spin" size={20} />
-                      DECRYPTING...
+                      กำลังเข้าระบบ...
                     </>
                   ) : (
                     <>
@@ -589,15 +589,11 @@ const LandingPage: React.FC<LandingPageProps> = ({
                 
                 {loginError && !lockoutTimeLeft && (
                    <p className="text-rose-500 text-[10px] font-bold uppercase text-center tracking-widest flex items-center justify-center gap-2 animate-bounce">
-                     <ShieldAlert size={14} /> UNAUTHORIZED SECURITY KEY
+                     <ShieldAlert size={14} /> รหัสผิดพลาด
                    </p>
                 )}
               </div>
             </form>
-            
-            <p className="mt-8 text-[9px] font-black text-white/20 uppercase tracking-[0.4em] select-none">
-              WISE SYSTEM v4.0.2
-            </p>
           </div>
         </div>
       )}

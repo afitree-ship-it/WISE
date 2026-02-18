@@ -291,6 +291,10 @@ const App: React.FC = () => {
   };
 
   const handleEnterDashboard = () => {
+    // FIX: Always reset to STUDENT role and clear admin session when entering via the Landing Page "Start Now" button.
+    // This ensures that an Admin who navigated back to Home will be treated as a Student upon re-entering.
+    setRole(UserRole.STUDENT);
+    sessionStorage.removeItem('wise_role');
     setViewState('dashboard');
     window.history.pushState({ view: 'dashboard' }, '');
   };
