@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 
 // Updated URL from User
-const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbz_rZSPEd4aoCXIKLq5uuvLuV3j9cIZbm2mHBrPNI8NAxwh58oxXPhljaoZgNsSDVd7/exec"; 
+const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbxg8LaEOErVY44P3jAHcnfD726S_RA1fpa5ANEXpf-Cn4_gHB2f3c8shF4jgd3j8Iu-/exec"; 
 const CACHE_KEY = "wise_portal_last_sync";
 const CACHE_EXPIRY = 30 * 60 * 1000; // 30 Minutes
 
@@ -76,21 +76,39 @@ const App: React.FC = () => {
   const [activeElement, setActiveElement] = useState<HTMLElement | null>(null);
 
   // Data States
+  const sanitizeData = useCallback((data: any[], prefix: string) => {
+    if (!Array.isArray(data)) return [];
+    const seen = new Set();
+    return data.map((item, index) => {
+      let id = item.id;
+      // If ID is missing, duplicate, or looks like a plain timestamp that might collide
+      if (!id || seen.has(id)) {
+        id = `${prefix}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`;
+      }
+      seen.add(id);
+      return { ...item, id };
+    });
+  }, []);
+
   const [sites, setSites] = useState<InternshipSite[]>(() => {
     const saved = localStorage.getItem('wise_sites');
-    return saved ? JSON.parse(saved) : INITIAL_SITES;
+    const data = saved ? JSON.parse(saved) : INITIAL_SITES;
+    return sanitizeData(data, 'site');
   });
   const [studentStatuses, setStudentStatuses] = useState<StudentStatusRecord[]>(() => {
     const saved = localStorage.getItem('wise_student_statuses');
-    return saved ? JSON.parse(saved) : INITIAL_STUDENT_STATUSES;
+    const data = saved ? JSON.parse(saved) : INITIAL_STUDENT_STATUSES;
+    return sanitizeData(data, 'st');
   });
   const [schedules, setSchedules] = useState<ScheduleEvent[]>(() => {
     const saved = localStorage.getItem('wise_schedules');
-    return saved ? JSON.parse(saved) : INITIAL_SCHEDULE;
+    const data = saved ? JSON.parse(saved) : INITIAL_SCHEDULE;
+    return sanitizeData(data, 'sch');
   });
   const [forms, setForms] = useState<DocumentForm[]>(() => {
     const saved = localStorage.getItem('wise_forms');
-    return saved ? JSON.parse(saved) : INITIAL_FORMS;
+    const data = saved ? JSON.parse(saved) : INITIAL_FORMS;
+    return sanitizeData(data, 'frm');
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -137,10 +155,10 @@ const App: React.FC = () => {
       const response = await fetchWithRetry(url);
       const cloudData = await response.json();
       
-      if (cloudData.sites) setSites(cloudData.sites);
-      if (cloudData.schedules) setSchedules(cloudData.schedules);
-      if (cloudData.forms) setForms(cloudData.forms);
-      if (cloudData.studentStatuses) setStudentStatuses(cloudData.studentStatuses);
+      if (cloudData.sites) setSites(sanitizeData(cloudData.sites, 'site'));
+      if (cloudData.schedules) setSchedules(sanitizeData(cloudData.schedules, 'sch'));
+      if (cloudData.forms) setForms(sanitizeData(cloudData.forms, 'frm'));
+      if (cloudData.studentStatuses) setStudentStatuses(sanitizeData(cloudData.studentStatuses, 'st'));
       
       const syncTime = Date.now();
       setLastSync(syncTime);
