@@ -57,13 +57,13 @@ import {
 
 interface AdminPanelProps {
   sites: InternshipSite[];
-  setSites: (sites: InternshipSite[]) => void;
+  setSites: React.Dispatch<React.SetStateAction<InternshipSite[]>>;
   studentStatuses: StudentStatusRecord[];
-  setStudentStatuses: (statuses: StudentStatusRecord[]) => void;
+  setStudentStatuses: React.Dispatch<React.SetStateAction<StudentStatusRecord[]>>;
   schedules: ScheduleEvent[];
-  setSchedules: (schedules: ScheduleEvent[]) => void;
+  setSchedules: React.Dispatch<React.SetStateAction<ScheduleEvent[]>>;
   forms: DocumentForm[];
-  setForms: (forms: DocumentForm[]) => void;
+  setForms: React.Dispatch<React.SetStateAction<DocumentForm[]>>;
   currentT: Translation;
   lang: Language;
   fetchFromSheets: () => Promise<void>;
@@ -144,6 +144,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const getLocalized = (localized: LocalizedString) => {
     return localized.th || localized.en || '';
+  };
+
+  // Resilient date parsing to handle both YYYY-MM-DD and ISO strings
+  const parseDateResilient = (dateStr?: string) => {
+    if (!dateStr) return null;
+    if (dateStr.includes('T')) return new Date(dateStr);
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return null;
+    const [y, m, d] = parts.map(Number);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+    return new Date(y, m - 1, d);
+  };
+
+  const formatDateForDisplay = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const d = parseDateResilient(dateStr);
+    if (!d || isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  const formatDateForInput = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const d = parseDateResilient(dateStr);
+    if (!d || isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -246,9 +274,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       status: 'upcoming',
       createdAt: editingSchedule?.createdAt || Date.now()
     };
-    let updated = editingSchedule ? schedules.map(s => s.id === editingSchedule.id ? newEvent : s) : [newEvent, ...schedules];
-    setSchedules(updated);
-    syncToSheets('schedules', updated);
+    
+    setSchedules(prev => {
+      const updated = editingSchedule ? prev.map(s => s.id === editingSchedule.id ? newEvent : s) : [newEvent, ...prev];
+      syncToSheets('schedules', updated);
+      return updated;
+    });
+    
     setShowScheduleModal(false);
     setEditingSchedule(null);
   };
@@ -280,9 +312,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const syncPayload = fileData 
       ? { ...newForm, url: `PENDING_UPLOAD:${selectedFile?.name}`, _fileData: fileData, _fileName: selectedFile?.name }
       : newForm;
-    let updated = editingForm ? forms.map(f => f.id === editingForm.id ? newForm : f) : [newForm, ...forms];
-    setForms(updated);
-    if (fileData) { syncToSheets('uploadForm', [syncPayload]); } else { syncToSheets('forms', updated); }
+      
+    setForms(prev => {
+      const updated = editingForm ? prev.map(f => f.id === editingForm.id ? newForm : f) : [newForm, ...prev];
+      if (fileData) { syncToSheets('uploadForm', [syncPayload]); } else { syncToSheets('forms', updated); }
+      return updated;
+    });
+    
     setShowFormModal(false);
     setEditingForm(null);
     setSelectedFile(null);
@@ -304,20 +340,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsTranslating(false);
     const newSite: InternshipSite = {
       id: editingSite?.id || Date.now().toString(),
-      name: results['name'],
-      location: results['loc'],
-      description: results['desc'],
-      position: results['pos'],
+      name: results['name'] || { th: thName, en: thName, ar: thName, ms: thName },
+      location: results['loc'] || { th: thLoc, en: thLoc, ar: thLoc, ms: thLoc },
+      description: results['desc'] || { th: thDesc, en: thDesc, ar: thDesc, ms: thDesc },
+      position: results['pos'] || { th: thPos, en: thPos, ar: thPos, ms: thPos },
       status: formData.get('status') as any,
       major: formData.get('major') as Major, 
-      contactLink: formData.get('contact_link') as string || undefined,
-      email: formData.get('email') as string || undefined,
-      phone: formData.get('phone') as string || undefined,
+      contactLink: (formData.get('contact_link') as string) || "",
+      email: (formData.get('email') as string) || "",
+      phone: (formData.get('phone') as string) || "",
       createdAt: editingSite?.createdAt || Date.now()
     };
-    let updated = editingSite ? sites.map(s => s.id === editingSite.id ? newSite : s) : [newSite, ...sites];
-    setSites(updated);
-    syncToSheets('sites', updated);
+    
+    setSites(prev => {
+      const updated = editingSite ? prev.map(s => s.id === editingSite.id ? newSite : s) : [newSite, ...prev];
+      syncToSheets('sites', updated);
+      return updated;
+    });
+    
     setShowSiteModal(false);
     setEditingSite(null);
   };
@@ -354,20 +394,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       id: editingStatusRecord?.id || Date.now().toString(),
       studentId: rawStudentId.trim(),
       name: rawName.trim(),
-      location: rawLocation.trim() || undefined,
-      position: rawPosition.trim() || undefined,
-      term: rawTerm.trim() || undefined,
-      academicYear: rawYear.trim() || undefined,
+      location: rawLocation.trim() || "",
+      position: rawPosition.trim() || "",
+      term: rawTerm.trim() || "",
+      academicYear: rawYear.trim() || "",
       status: formData.get('status') as ApplicationStatus,
       major: formData.get('major') as Major,
       internshipType: formData.get('internship_type') as InternshipType,
-      startDate: formData.get('start_date') as string || undefined,
-      endDate: formData.get('end_date') as string || undefined,
+      startDate: formData.get('start_date') as string || "",
+      endDate: formData.get('end_date') as string || "",
       lastUpdated: Date.now()
     };
-    let updated = editingStatusRecord ? studentStatuses.map(s => s.id === editingStatusRecord.id ? newRecord : s) : [newRecord, ...studentStatuses];
-    setStudentStatuses(updated);
-    syncToSheets('studentStatuses', updated);
+    
+    setStudentStatuses(prev => {
+      const updated = editingStatusRecord ? prev.map(s => s.id === editingStatusRecord.id ? newRecord : s) : [newRecord, ...prev];
+      syncToSheets('studentStatuses', updated);
+      return updated;
+    });
+    
     setShowAdminStatusModal(false);
     setEditingStatusRecord(null);
     setStatusError(null);
@@ -377,12 +421,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleConfirmDelete = () => {
     if (!itemToDelete) return;
     const { id, type } = itemToDelete;
-    let updated: any[] = [];
+    
     switch (type) {
-      case 'student': updated = studentStatuses.filter(s => s.id !== id); setStudentStatuses(updated); syncToSheets('studentStatuses', updated); break;
-      case 'site': updated = sites.filter(s => s.id !== id); setSites(updated); syncToSheets('sites', updated); break;
-      case 'schedule': updated = schedules.filter(s => s.id !== id); setSchedules(updated); syncToSheets('schedules', updated); break;
-      case 'form': updated = forms.filter(f => f.id !== id); setForms(updated); syncToSheets('forms', updated); break;
+      case 'student': 
+        setStudentStatuses(prev => {
+          const updated = prev.filter(s => s.id !== id);
+          syncToSheets('studentStatuses', updated);
+          return updated;
+        });
+        break;
+      case 'site': 
+        setSites(prev => {
+          const updated = prev.filter(s => s.id !== id);
+          syncToSheets('sites', updated);
+          return updated;
+        });
+        break;
+      case 'schedule': 
+        setSchedules(prev => {
+          const updated = prev.filter(s => s.id !== id);
+          syncToSheets('schedules', updated);
+          return updated;
+        });
+        break;
+      case 'form': 
+        setForms(prev => {
+          const updated = prev.filter(f => f.id !== id);
+          syncToSheets('forms', updated);
+          return updated;
+        });
+        break;
     }
     setShowDeleteModal(false);
     setItemToDelete(null);
@@ -483,28 +551,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   return (
     <>
-      <aside className="w-full md:w-64 lg:w-72 flex-shrink-0 flex flex-col h-fit md:h-full overflow-y-auto hide-scrollbar z-[60]">
-         <div className="flex flex-row md:flex-col gap-2 p-1.5 md:p-0 bg-[#e4d4bc]/80 dark:bg-slate-950/80 backdrop-blur-md md:bg-transparent rounded-2xl">
+      <aside className="w-full md:w-52 lg:w-60 flex-shrink-0 flex flex-col h-fit md:h-full overflow-y-auto hide-scrollbar z-[60]">
+         <div className="flex flex-row md:flex-col gap-1.5 p-1.5 md:p-0 bg-[#e4d4bc]/80 dark:bg-slate-950/80 backdrop-blur-md md:bg-transparent rounded-2xl">
             {adminMenu.map(item => (
               <button
                 key={item.id}
                 onClick={() => setAdminActiveTab(item.id as any)}
                 className={`
-                  flex items-center gap-3 px-5 py-3.5 rounded-2xl font-black uppercase text-[11px] min-[400px]:text-sm transition-all whitespace-nowrap md:w-full
+                  flex items-center gap-2.5 px-4 py-3 rounded-xl font-black uppercase text-[10px] min-[400px]:text-xs transition-all whitespace-nowrap md:w-full
                   ${adminActiveTab === item.id 
                     ? `bg-[#630330] text-white shadow-lg shadow-[#630330]/20` 
                     : 'bg-white/90 dark:bg-slate-900 text-slate-600 dark:text-slate-500 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-800'
                   }
                 `}
               >
-                <span className={`${adminActiveTab === item.id ? 'text-[#D4AF37]' : ''}`}>{item.icon}</span>
-                {item.label}
+                <span className={`shrink-0 ${adminActiveTab === item.id ? 'text-[#D4AF37]' : ''}`}>{React.cloneElement(item.icon as React.ReactElement<any>, { size: 18 })}</span>
+                <span className="truncate">{item.label}</span>
               </button>
             ))}
-            <div className="hidden md:block mt-4 p-5 rounded-2xl bg-gradient-to-br from-[#2A0114] to-[#630330] text-white shadow-xl shadow-[#2A0114]/20 border border-white/5">
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37] mb-1">WISE Portal</p>
-              <h4 className="font-bold text-xs leading-tight opacity-90">ระบบจัดการหลังบ้าน <br /> คณะวิทยาศาสตร์ฯ มฟน.</h4>
-              <button onClick={fetchFromSheets} disabled={isLoading} className="mt-3 flex items-center gap-2 text-[9px] font-black uppercase text-[#D4AF37] hover:text-white transition-all">
+            <div className="hidden md:block mt-3 p-4 rounded-xl bg-gradient-to-br from-[#2A0114] to-[#630330] text-white shadow-xl shadow-[#2A0114]/20 border border-white/5">
+              <p className="text-[8px] font-black uppercase tracking-widest text-[#D4AF37] mb-1">WISE Portal</p>
+              <h4 className="font-bold text-[10px] leading-tight opacity-90">ระบบจัดการหลังบ้าน <br /> คณะวิทยาศาสตร์ฯ มฟน.</h4>
+              <button onClick={fetchFromSheets} disabled={isLoading} className="mt-2.5 flex items-center gap-2 text-[8px] font-black uppercase text-[#D4AF37] hover:text-white transition-all">
                 <RefreshCw size={10} className={isLoading ? 'animate-spin' : ''} /> รีเฟรชข้อมูล
               </button>
             </div>
@@ -603,14 +671,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     {filteredAdminStudents.map(record => (
                       <div key={record.id} className="p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex flex-col gap-4 group hover:border-amber-200 hover:shadow-xl transition-all shadow-sm">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1 overflow-hidden pr-2">
-                            <h4 className="font-black text-slate-900 dark:text-white text-lg truncate leading-tight">{record.name}</h4>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <h4 className="font-black text-slate-900 dark:text-white text-lg leading-tight break-words">{record.name}</h4>
                             <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5"><Fingerprint size={12} /> ID: {record.studentId}</p>
                           </div>
-                          <div className="flex gap-1 shrink-0">
-                            <button onClick={() => { setEditingStatusRecord(record); setStatusError(null); setIsForceSaveVisible(false); setShowAdminStatusModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-xl transition-all"><Pencil size={18} /></button>
-                            <button onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"><Trash size={18} /></button>
+                          <div className="flex gap-1.5 shrink-0">
+                            <button onClick={() => { setEditingStatusRecord(record); setStatusError(null); setIsForceSaveVisible(false); setShowAdminStatusModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-xl transition-all shadow-sm"><Pencil size={18} /></button>
+                            <button onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all shadow-sm"><Trash size={18} /></button>
                           </div>
                         </div>
                         <div className="grid grid-cols-1 gap-2.5">
@@ -662,7 +730,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
                              <Calendar size={14} className="text-slate-400" />
                              {record.startDate && record.endDate ? (
-                               <span>ระยะเวลา: {record.startDate} ถึง {record.endDate}</span>
+                               <span>ระยะเวลา: {formatDateForDisplay(record.startDate)} ถึง {formatDateForDisplay(record.endDate)}</span>
                              ) : (
                                <span className="italic text-slate-300">ยังไม่ได้ระบุระยะเวลาฝึก</span>
                              )}
@@ -940,11 +1008,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className={labelClass}>วันที่เริ่มฝึก</label>
-                  <input type="date" name="start_date" defaultValue={editingStatusRecord?.startDate} className={`${inputClass} border-emerald-100 focus:border-emerald-500`} />
+                  <input type="date" name="start_date" defaultValue={formatDateForInput(editingStatusRecord?.startDate)} className={`${inputClass} border-emerald-100 focus:border-emerald-500`} />
                 </div>
                 <div className="space-y-2">
                   <label className={labelClass}>วันที่สิ้นสุด</label>
-                  <input type="date" name="end_date" defaultValue={editingStatusRecord?.endDate} className={`${inputClass} border-rose-100 focus:border-rose-500`} />
+                  <input type="date" name="end_date" defaultValue={formatDateForInput(editingStatusRecord?.endDate)} className={`${inputClass} border-rose-100 focus:border-rose-500`} />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
