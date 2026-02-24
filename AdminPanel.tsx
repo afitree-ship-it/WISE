@@ -691,54 +691,54 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <div className="flex items-start justify-between gap-4">
                           <div className="space-y-1 min-w-0 flex-1">
                             <h4 className="font-black text-slate-900 dark:text-white text-lg leading-tight break-words">{record.name}</h4>
-                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5"><Fingerprint size={12} /> ID: {record.studentId}</p>
+                            <p className="text-xs font-bold text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5"><Fingerprint size={12} /> ID: {record.studentId}</p>
                           </div>
                           <div className="flex gap-1.5 shrink-0">
                             <button onClick={() => { setEditingStatusRecord(record); setStatusError(null); setIsForceSaveVisible(false); setShowAdminStatusModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-xl transition-all shadow-sm"><Pencil size={18} /></button>
                             <button onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all shadow-sm"><Trash size={18} /></button>
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 gap-2.5">
+                        <div className="grid grid-cols-1 gap-3">
                            <div className="flex items-center gap-2">
-                             <span className="text-[10px] font-black text-slate-400 uppercase w-16">กระบวนการ:</span>
-                             <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${getStatusColor(record.status)}`}>{getStatusLabel(record.status)}</div>
+                             <span className="text-xs font-black text-slate-400 uppercase w-20">กระบวนการ:</span>
+                             <div className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase border ${getStatusColor(record.status)}`}>{getStatusLabel(record.status)}</div>
                            </div>
                            <div className="flex items-center gap-2">
-                             <span className="text-[10px] font-black text-slate-400 uppercase w-16">สถานที่:</span>
-                             <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[150px] flex items-center gap-1">
-                               <MapPin size={10} className="text-rose-400" />
+                             <span className="text-xs font-black text-slate-400 uppercase w-20">สถานที่:</span>
+                             <div className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate max-w-[200px] flex items-center gap-1">
+                               <MapPin size={12} className="text-rose-400" />
                                {record.location || '-'}
                              </div>
                            </div>
                            <div className="flex items-center gap-2">
-                             <span className="text-[10px] font-black text-slate-400 uppercase w-16">ตำแหน่ง:</span>
-                             <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[150px] flex items-center gap-1">
-                               <Briefcase size={10} className="text-emerald-400" />
+                             <span className="text-xs font-black text-slate-400 uppercase w-20">ตำแหน่ง:</span>
+                             <div className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate max-w-[200px] flex items-center gap-1">
+                               <Briefcase size={12} className="text-emerald-400" />
                                {record.position || '-'}
                              </div>
                            </div>
                            <div className="flex items-center gap-2">
-                             <span className="text-[10px] font-black text-slate-400 uppercase w-16">เทอม/ปี:</span>
-                             <div className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-tighter">
+                             <span className="text-xs font-black text-slate-400 uppercase w-20">เทอม/ปี:</span>
+                             <div className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-tight">
                                {record.term ? `เทอม ${record.term}` : '-'} / {record.academicYear || '-'}
                              </div>
                            </div>
                            <div className="flex items-center gap-2">
-                             <span className="text-[10px] font-black text-slate-400 uppercase w-16">รูปแบบ:</span>
-                             <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 flex items-center gap-1.5`}>
-                               {record.internshipType === InternshipType.INTERNSHIP ? <Briefcase size={12} className="text-emerald-500" /> : <GraduationCap size={12} className="text-indigo-500" />}
+                             <span className="text-xs font-black text-slate-400 uppercase w-20">รูปแบบ:</span>
+                             <div className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 flex items-center gap-1.5`}>
+                               {record.internshipType === InternshipType.INTERNSHIP ? <Briefcase size={14} className="text-emerald-500" /> : <GraduationCap size={14} className="text-indigo-500" />}
                                {record.internshipType === InternshipType.INTERNSHIP ? 'ฝึกงาน' : 'สหกิจศึกษา'}
                              </div>
                            </div>
                            <div className="flex items-center gap-2">
-                             <span className="text-[10px] font-black text-slate-400 uppercase w-16 shrink-0">สาขา:</span>
-                             <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${
+                             <span className="text-xs font-black text-slate-400 uppercase w-20 shrink-0">สาขา:</span>
+                             <div className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase border ${
                                 record.major === Major.HALAL_FOOD ? 'bg-amber-50 border-amber-100 text-amber-600' : 
                                 record.major === Major.DIGITAL_TECH ? 'bg-blue-50 border-blue-100 text-blue-600' :
                                 record.major === Major.INFO_TECH ? 'bg-indigo-50 border-indigo-100 text-indigo-600' :
                                 'bg-emerald-50 border-emerald-100 text-emerald-600'
                              } flex items-center gap-1.5`}>
-                               {record.major === Major.HALAL_FOOD ? <Salad size={12} /> : record.major === Major.DIGITAL_TECH ? <Cpu size={12} /> : record.major === Major.INFO_TECH ? <Network size={12} /> : <Database size={12} />}
+                               {record.major === Major.HALAL_FOOD ? <Salad size={14} /> : record.major === Major.DIGITAL_TECH ? <Cpu size={14} /> : record.major === Major.INFO_TECH ? <Network size={14} /> : <Database size={14} />}
                                {getMajorLabel(record.major)}
                              </div>
                            </div>
@@ -929,22 +929,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
                 return (
                   <div className="space-y-8">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                        <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-700/50">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">นักศึกษาทั้งหมด</p>
-                          <h4 className="text-3xl font-black text-slate-900 dark:text-white">{total} <span className="text-sm font-bold text-slate-400">คน</span></h4>
+                          <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">นักศึกษาทั้งหมด</p>
+                          <h4 className="text-4xl font-black text-slate-900 dark:text-white">{total} <span className="text-base font-bold text-slate-400">คน</span></h4>
                        </div>
                        <div className="p-6 bg-emerald-50 dark:bg-emerald-950/20 rounded-[2rem] border border-emerald-100 dark:border-emerald-900/20">
-                          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">ตอบรับแล้ว</p>
-                          <h4 className="text-3xl font-black text-emerald-600">{byStatus[ApplicationStatus.ACCEPTED] || 0} <span className="text-sm font-bold text-emerald-400">คน</span></h4>
+                          <p className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-1">ตอบรับแล้ว</p>
+                          <h4 className="text-4xl font-black text-emerald-600">{byStatus[ApplicationStatus.ACCEPTED] || 0} <span className="text-base font-bold text-emerald-400">คน</span></h4>
                        </div>
                        <div className="p-6 bg-amber-50 dark:bg-amber-950/20 rounded-[2rem] border border-amber-100 dark:border-amber-900/20">
-                          <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">รอตรวจสอบ</p>
-                          <h4 className="text-3xl font-black text-amber-600">{byStatus[ApplicationStatus.PENDING] || 0} <span className="text-sm font-bold text-amber-400">คน</span></h4>
+                          <p className="text-xs font-black text-amber-600 uppercase tracking-widest mb-1">รอตรวจสอบ</p>
+                          <h4 className="text-4xl font-black text-amber-600">{byStatus[ApplicationStatus.PENDING] || 0} <span className="text-base font-bold text-amber-400">คน</span></h4>
                        </div>
                        <div className="p-6 bg-blue-50 dark:bg-blue-950/20 rounded-[2rem] border border-blue-100 dark:border-blue-900/20">
-                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">กำลังจัดเตรียม</p>
-                          <h4 className="text-3xl font-black text-blue-600">{byStatus[ApplicationStatus.PREPARING] || 0} <span className="text-sm font-bold text-blue-400">คน</span></h4>
+                          <p className="text-xs font-black text-blue-600 uppercase tracking-widest mb-1">กำลังจัดเตรียม</p>
+                          <h4 className="text-4xl font-black text-blue-600">{byStatus[ApplicationStatus.PREPARING] || 0} <span className="text-base font-bold text-blue-400">คน</span></h4>
                        </div>
                     </div>
 
@@ -959,10 +959,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                              {topLocations.length > 0 ? topLocations.map(([loc, count], idx) => (
                                <div key={loc} className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
                                   <div className="flex items-center gap-3 min-w-0">
-                                     <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px] font-black text-slate-400">{idx + 1}</div>
-                                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">{loc}</span>
+                                     <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-black text-slate-400">{idx + 1}</div>
+                                     <span className="text-sm font-bold text-slate-700 dark:text-slate-300 truncate">{loc}</span>
                                   </div>
-                                  <span className="text-xs font-black text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-3 py-1 rounded-lg">{count} คน</span>
+                                  <span className="text-sm font-black text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-3 py-1 rounded-lg">{count} คน</span>
                                </div>
                              )) : (
                                <div className="py-10 text-center text-slate-400 font-bold text-xs uppercase tracking-widest italic">ไม่มีข้อมูลสถานที่</div>
@@ -981,20 +981,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <div className="flex items-center gap-4">
                                    <div className="p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm text-indigo-600"><Briefcase size={24} /></div>
                                    <div>
-                                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">ฝึกงาน (Internship)</p>
-                                      <h6 className="text-xl font-black text-indigo-700 dark:text-indigo-400">{byType[InternshipType.INTERNSHIP] || 0} คน</h6>
+                                      <p className="text-xs font-black text-indigo-400 uppercase tracking-widest">ฝึกงาน (Internship)</p>
+                                      <h6 className="text-2xl font-black text-indigo-700 dark:text-indigo-400">{byType[InternshipType.INTERNSHIP] || 0} คน</h6>
                                    </div>
                                 </div>
                                 <div className="text-right">
-                                   <p className="text-2xl font-black text-indigo-600">{total > 0 ? Math.round(((byType[InternshipType.INTERNSHIP] || 0) / total) * 100) : 0}%</p>
+                                   <p className="text-3xl font-black text-indigo-600">{total > 0 ? Math.round(((byType[InternshipType.INTERNSHIP] || 0) / total) * 100) : 0}%</p>
                                 </div>
                              </div>
                              <div className="p-6 bg-emerald-50 dark:bg-emerald-950/20 rounded-3xl border border-emerald-100 dark:border-emerald-900/20 flex items-center justify-between">
                                 <div className="flex items-center gap-4">
                                    <div className="p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm text-emerald-600"><GraduationCap size={24} /></div>
                                    <div>
-                                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">สหกิจศึกษา (Co-op)</p>
-                                      <h6 className="text-xl font-black text-emerald-700 dark:text-emerald-400">{byType[InternshipType.COOP] || 0} คน</h6>
+                                      <p className="text-xs font-black text-emerald-400 uppercase tracking-widest">สหกิจศึกษา (Co-op)</p>
+                                      <h6 className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{byType[InternshipType.COOP] || 0} คน</h6>
                                    </div>
                                 </div>
                                 <div className="text-right">
