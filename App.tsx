@@ -132,15 +132,17 @@ const App: React.FC = () => {
       return response;
     } catch (err) {
       if (retries > 0) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 500));
         return fetchWithRetry(url, options, retries - 1);
       }
       throw err;
     }
   };
 
+  const isFetchingRef = useRef(false);
+
   const fetchFromSheets = useCallback(async (force = false) => {
-    if (!SHEET_API_URL) return;
+    if (!SHEET_API_URL || isFetchingRef.current) return;
 
     const now = Date.now();
     const lastSyncTime = localStorage.getItem(CACHE_KEY);
@@ -148,6 +150,7 @@ const App: React.FC = () => {
       return;
     }
 
+    isFetchingRef.current = true;
     setIsLoading(true);
     try {
       // Add cache buster to URL
@@ -167,6 +170,7 @@ const App: React.FC = () => {
       console.error("Failed to fetch from Google Sheets:", error);
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
   }, []);
 
@@ -270,6 +274,11 @@ const App: React.FC = () => {
     if (!SHEET_API_URL) return false;
     
     setIsSyncing(true);
+    
+    // Start fetching data in parallel to authentication to save time
+    // We don't await it immediately so the auth request can also start
+    const dataFetchPromise = fetchFromSheets(true);
+    
     try {
       const response = await fetchWithRetry(SHEET_API_URL, {
         method: 'POST',
@@ -280,25 +289,31 @@ const App: React.FC = () => {
       });
       
       const contentType = response.headers.get("content-type");
+      let isAuthorized = false;
+
       if (contentType && contentType.indexOf("application/json") !== -1) {
         const result = await response.json();
         if (result && result.success) {
-          setRole(UserRole.ADMIN);
-          sessionStorage.setItem('wise_role', UserRole.ADMIN);
-          setViewState('dashboard');
-          window.history.pushState({ view: 'dashboard' }, '');
-          return true;
+          isAuthorized = true;
         }
       } else {
         const text = await response.text();
         if (text.includes("Success") || text.includes("Authorized")) {
-          setRole(UserRole.ADMIN);
-          sessionStorage.setItem('wise_role', UserRole.ADMIN);
-          setViewState('dashboard');
-          window.history.pushState({ view: 'dashboard' }, '');
-          return true;
+          isAuthorized = true;
         }
       }
+
+      if (isAuthorized) {
+        // We don't await dataFetchPromise here to make login instant.
+        // The data will continue loading in the background and update the UI when ready.
+        
+        setRole(UserRole.ADMIN);
+        sessionStorage.setItem('wise_role', UserRole.ADMIN);
+        setViewState('dashboard');
+        window.history.pushState({ view: 'dashboard' }, '');
+        return true;
+      }
+      
       return false;
     } catch (error) {
       console.error("Auth failed:", error);
@@ -371,6 +386,32 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-[#e4d4bc] dark:bg-slate-950 overflow-hidden' : 'bg-[#FFF8E7] dark:bg-slate-900'}`}>
+      {/* Global Loading Bar */}
+      {(isLoading || isSyncing) && (
+        <div className="fixed top-0 left-0 w-full h-1 z-[9999] pointer-events-none overflow-hidden">
+          <div className="absolute inset-0 bg-[#D4AF37]/10"></div>
+          <div className="absolute top-0 h-full bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent animate-loading-bar"></div>
+        </div>
+      )}
+
+      {/* Floating Loading Indicator */}
+      {(isLoading || isSyncing) && (
+        <div className="fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-2.5 bg-black/80 backdrop-blur-xl rounded-full border border-white/10 shadow-2xl animate-in slide-in-from-bottom-4 duration-500 pointer-events-none">
+          <div className="relative w-4 h-4">
+            <div className="absolute inset-0 border-2 border-[#D4AF37]/20 rounded-full"></div>
+            <div className="absolute inset-0 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] leading-none">
+            {isLoading ? "Loading" : "Syncing"}
+          </span>
+          <div className="flex gap-0.5">
+            <div className="w-0.5 h-0.5 bg-[#D4AF37] rounded-full animate-bounce"></div>
+            <div className="w-0.5 h-0.5 bg-[#D4AF37] rounded-full animate-bounce [animation-delay:0.2s]"></div>
+            <div className="w-0.5 h-0.5 bg-[#D4AF37] rounded-full animate-bounce [animation-delay:0.4s]"></div>
+          </div>
+        </div>
+      )}
+
       <div className="sticky top-0 z-[100] w-full px-2 sm:px-4 pt-2">
         <nav className="container mx-auto h-auto min-h-[72px] navbar-luxe-container rounded-[1.5rem] px-4 sm:px-8 flex items-center justify-between border border-white/20 py-2 shadow-[0_20px_50px_rgba(0,0,0,0.3)] group">
           <div className="absolute inset-0 z-0 pointer-events-none rounded-[1.5rem] overflow-hidden">

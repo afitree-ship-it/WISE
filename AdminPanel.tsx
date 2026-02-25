@@ -581,8 +581,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="hidden md:block mt-3 p-4 rounded-xl bg-gradient-to-br from-[#2A0114] to-[#630330] text-white shadow-xl shadow-[#2A0114]/20 border border-white/5">
               <p className="text-[8px] font-black uppercase tracking-widest text-[#D4AF37] mb-1">WISE Portal</p>
               <h4 className="font-bold text-[10px] leading-tight opacity-90">ระบบจัดการหลังบ้าน <br /> คณะวิทยาศาสตร์ฯ มฟน.</h4>
-              <button onClick={fetchFromSheets} disabled={isLoading} className="mt-2.5 flex items-center gap-2 text-[8px] font-black uppercase text-[#D4AF37] hover:text-white transition-all">
-                <RefreshCw size={10} className={isLoading ? 'animate-spin' : ''} /> รีเฟรชข้อมูล
+              <button onClick={fetchFromSheets} disabled={isLoading} className={`mt-2.5 flex items-center gap-2 text-[8px] font-black uppercase text-[#D4AF37] hover:text-white transition-all ${isLoading ? 'opacity-50' : ''}`}>
+                <RefreshCw size={10} className={isLoading ? 'animate-spin' : ''} /> {isLoading ? 'กำลังโหลดข้อมูล...' : 'รีเฟรชข้อมูล'}
               </button>
             </div>
          </div>
@@ -642,6 +642,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </header>
 
           <div className="flex-grow overflow-y-auto relative custom-scrollbar">
+             {/* Subtle Loading Overlay */}
+             {isLoading && (
+               <div className="absolute inset-0 z-[100] bg-white/40 dark:bg-slate-900/40 backdrop-blur-[1px] flex items-center justify-center pointer-events-none animate-in fade-in duration-500">
+                  <div className="flex flex-col items-center gap-4">
+                     <div className="relative w-16 h-16">
+                        <div className="absolute inset-0 border-4 border-[#D4AF37]/10 rounded-full"></div>
+                        <div className="absolute inset-0 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
+                        <div className="absolute inset-4 border-2 border-[#D4AF37]/20 border-b-transparent rounded-full animate-spin-reverse"></div>
+                     </div>
+                     <div className="flex flex-col items-center">
+                        <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em] animate-pulse">Synchronizing</p>
+                        <div className="flex gap-1 mt-1">
+                           <div className="w-1 h-1 bg-[#D4AF37] rounded-full animate-bounce"></div>
+                           <div className="w-1 h-1 bg-[#D4AF37] rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                           <div className="w-1 h-1 bg-[#D4AF37] rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+             )}
              <div className="sticky top-0 left-0 right-0 h-8 bg-gradient-to-b from-white dark:from-slate-900 to-transparent z-[40] pointer-events-none opacity-80" />
              <div className="px-6 sm:px-8 pb-12">
               {adminActiveTab === 'students' && (

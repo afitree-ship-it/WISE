@@ -86,6 +86,14 @@ const LandingPage: React.FC<LandingPageProps> = ({
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
+    
+    // Pre-warm the Google Apps Script to reduce cold start delay
+    const preWarm = () => {
+      const url = "https://script.google.com/macros/s/AKfycbxg8LaEOErVY44P3jAHcnfD726S_RA1fpa5ANEXpf-Cn4_gHB2f3c8shF4jgd3j8Iu-/exec";
+      fetch(url, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
+    };
+    preWarm();
+    
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -123,7 +131,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
     // Calculate elapsed time to ensure user sees at least some feedback if the response is too fast, 
     // but keep it very short for "fast" feeling.
     const elapsedTime = Date.now() - startTime;
-    const minFeedbackTime = 400; 
+    const minFeedbackTime = 150; 
     const waitTime = Math.max(0, minFeedbackTime - elapsedTime);
 
     setTimeout(() => {
@@ -514,12 +522,43 @@ const LandingPage: React.FC<LandingPageProps> = ({
               <X size={20} className="sm:w-6 sm:h-6" />
             </button>
             
-            <div className={`inline-flex p-4 sm:p-7 rounded-2xl sm:rounded-[2rem] ${loginSuccess ? 'bg-emerald-500/20 text-emerald-400 scale-110' : lockoutTimeLeft > 0 ? 'bg-rose-500/20 text-rose-500' : 'bg-[#D4AF37]/10 text-[#D4AF37]'} mb-4 sm:mb-8 shadow-[0_0_50px_rgba(212,175,55,0.2)] relative transition-all duration-300`}>
-              {loginSuccess ? <ShieldCheck size={40} className="sm:w-[48px] sm:h-[48px]" /> : lockoutTimeLeft > 0 ? <Lock size={40} className="sm:w-[48px] sm:h-[48px]" /> : <Fingerprint size={40} className={`${isVerifying ? 'animate-pulse' : ''} sm:w-[48px] sm:h-[48px]`} />}
-              {isVerifying && !loginSuccess && <div className="absolute inset-0 border-4 border-[#D4AF37] border-t-transparent rounded-2xl sm:rounded-[2rem] animate-spin"></div>}
+            <div className={`inline-flex p-4 sm:p-7 rounded-full ${loginSuccess ? 'bg-emerald-500/20 text-emerald-400 scale-110' : lockoutTimeLeft > 0 ? 'bg-rose-500/20 text-rose-500' : 'bg-[#D4AF37]/10 text-[#D4AF37]'} mb-4 sm:mb-8 shadow-[0_0_50px_rgba(212,175,55,0.1)] relative transition-all duration-700`}>
+              {loginSuccess ? <ShieldCheck size={40} className="sm:w-[48px] sm:h-[48px]" /> : lockoutTimeLeft > 0 ? <Lock size={40} className="sm:w-[48px] sm:h-[48px]" /> : <Fingerprint size={40} className={`${isVerifying ? 'opacity-20 scale-95' : ''} sm:w-[48px] sm:h-[48px] transition-all duration-700`} />}
+              {isVerifying && !loginSuccess && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <svg className="w-full h-full absolute inset-0 -rotate-90" viewBox="0 0 100 100">
+                    {/* Clearer Background Track */}
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="46"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      strokeDasharray="289"
+                      strokeDashoffset="0"
+                      className="text-[#D4AF37] opacity-10"
+                    />
+                    {/* Dynamic Loading Line */}
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="46"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="5"
+                      strokeDasharray="289"
+                      strokeDashoffset="289"
+                      strokeLinecap="round"
+                      className="text-[#D4AF37] animate-loading-line-dynamic drop-shadow-[0_0_12px_rgba(212,175,55,0.8)]"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#D4AF37]/0 via-[#D4AF37]/15 to-[#D4AF37]/0 animate-spin-slow"></div>
+                </div>
+              )}
             </div>
             
-            <h3 className="text-lg sm:text-2xl font-black text-white uppercase mb-2 text-center tracking-tighter">
+            <h3 className="text-lg sm:text-2xl font-black text-white uppercase mb-2 text-center tracking-tighter opacity-90">
               {loginSuccess ? 'ACCESS GRANTED' : lockoutTimeLeft > 0 ? 'SYSTEM LOCKED' : 'SECURE AUTHENTICATION'}
             </h3>
             
@@ -551,14 +590,14 @@ const LandingPage: React.FC<LandingPageProps> = ({
                     setAdminPassInput(e.target.value);
                     if (loginError) setLoginError(false);
                   }} 
-                  className={`w-full px-4 py-4 sm:py-7 rounded-xl sm:rounded-2xl bg-white/5 border-2 outline-none font-black text-center text-4xl sm:text-6xl tracking-[0.2em] transition-all
+                  className={`w-full px-4 py-4 sm:py-7 rounded-xl sm:rounded-2xl bg-white/5 border-2 outline-none font-black text-center text-4xl sm:text-6xl tracking-[0.2em] transition-all duration-500
                     ${loginSuccess ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' : lockoutTimeLeft > 0 ? 'border-rose-900/50 text-rose-900 opacity-50' : loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
                 />
                 {(isVerifying || loginSuccess) && (
-                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent animate-scan-beam"></div>
+                   <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent animate-scan-beam-slow"></div>
                 )}
                 {isVerifying && !loginSuccess && (
-                  <div className="absolute inset-0 bg-[#D4AF37]/5 pointer-events-none animate-pulse"></div>
+                  <div className="absolute inset-0 bg-[#D4AF37]/5 pointer-events-none animate-pulse-soft"></div>
                 )}
               </div>
 
@@ -607,12 +646,36 @@ const LandingPage: React.FC<LandingPageProps> = ({
         .animate-shake {
           animation: shake 0.2s ease-in-out 0s 2;
         }
-        @keyframes scan-beam {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
+        @keyframes loading-line-dynamic {
+          0% { stroke-dashoffset: 280; transform: rotate(0deg); }
+          50% { stroke-dashoffset: 75; transform: rotate(180deg); }
+          100% { stroke-dashoffset: 280; transform: rotate(720deg); }
         }
-        .animate-scan-beam {
-          animation: scan-beam 1.5s ease-in-out infinite;
+        .animate-loading-line-dynamic {
+          animation: loading-line-dynamic 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+          transform-origin: center;
+        }
+        @keyframes spin-slow {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 8s linear infinite;
+        }
+        @keyframes scan-beam-slow {
+          0% { transform: translateX(-100%); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateX(100%); opacity: 0; }
+        }
+        .animate-scan-beam-slow {
+          animation: scan-beam-slow 2s ease-in-out infinite;
+        }
+        @keyframes pulse-soft {
+          0%, 100% { opacity: 0.1; transform: scale(1); }
+          50% { opacity: 0.3; transform: scale(1.05); }
+        }
+        .animate-pulse-soft {
+          animation: pulse-soft 3s ease-in-out infinite;
         }
         .shadow-mangosteen {
           box-shadow: 0 10px 30px -5px rgba(99, 3, 48, 0.4);
