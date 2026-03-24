@@ -99,6 +99,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [adminStudentStatusFilter, setAdminStudentStatusFilter] = useState<ApplicationStatus | 'all'>('all');
   const [adminStudentMajorFilter, setAdminStudentMajorFilter] = useState<Major | 'all'>('all');
   const [adminStudentYearFilter, setAdminStudentYearFilter] = useState<string | 'all'>('all');
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
   
   const [adminSiteSearch, setAdminSiteSearch] = useState('');
   const [adminSiteMajorFilter, setAdminSiteMajorFilter] = useState<Major | 'all'>('all');
@@ -243,6 +245,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
     return result;
   }, [studentStatuses, adminStudentSearch, adminStudentStatusFilter, adminStudentMajorFilter, adminStudentYearFilter]);
+
+  const toggleStudentSelection = (id: string) => {
+    setSelectedStudentIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllStudents = () => {
+    if (selectedStudentIds.length === filteredAdminStudents.length) {
+      setSelectedStudentIds([]);
+    } else {
+      setSelectedStudentIds(filteredAdminStudents.map(s => s.id));
+    }
+  };
+
+  const handleBulkStatusUpdate = async (newStatus: ApplicationStatus) => {
+    if (selectedStudentIds.length === 0) return;
+    
+    const updatedStatuses = studentStatuses.map(s => {
+      if (selectedStudentIds.includes(s.id)) {
+        return { ...s, status: newStatus, lastUpdated: Date.now() };
+      }
+      return s;
+    });
+    
+    setStudentStatuses(updatedStatuses);
+    await syncToSheets('studentStatuses', updatedStatuses);
+    setSelectedStudentIds([]);
+    setShowBulkStatusModal(false);
+  };
 
   const filteredAdminSites = useMemo(() => {
     let result = sites;
@@ -529,11 +561,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const getStatusColor = (status: ApplicationStatus) => {
     switch (status) {
-      case ApplicationStatus.PENDING: return 'bg-amber-100 text-amber-700 border-amber-200';
-      case ApplicationStatus.PREPARING: return 'bg-blue-100 text-blue-700 border-blue-200';
-      case ApplicationStatus.ACCEPTED: return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      case ApplicationStatus.REJECTED: return 'bg-rose-100 text-rose-700 border-rose-200';
-      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+      case ApplicationStatus.PENDING: return 'bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-500/20';
+      case ApplicationStatus.PREPARING: return 'bg-blue-600 text-white border-blue-700 shadow-sm shadow-blue-600/20';
+      case ApplicationStatus.ACCEPTED: return 'bg-emerald-600 text-white border-emerald-700 shadow-sm shadow-emerald-600/20';
+      case ApplicationStatus.REJECTED: return 'bg-rose-600 text-white border-rose-700 shadow-sm shadow-rose-600/20';
+      default: return 'bg-slate-500 text-white border-slate-600 shadow-sm shadow-slate-500/20';
     }
   };
 
@@ -561,23 +593,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   return (
     <>
       <aside className="w-full md:w-52 lg:w-60 flex-shrink-0 flex flex-col h-fit md:h-full overflow-y-auto hide-scrollbar z-[60]">
-         <div className="flex flex-row md:flex-col gap-1.5 p-1.5 md:p-0 bg-[#e4d4bc]/80 dark:bg-slate-950/80 backdrop-blur-md md:bg-transparent rounded-2xl">
-            {adminMenu.map(item => (
-              <button
-                key={item.id}
-                onClick={() => setAdminActiveTab(item.id as any)}
-                className={`
-                  flex items-center gap-2.5 px-4 py-3 rounded-xl font-black uppercase text-[10px] min-[400px]:text-xs transition-all whitespace-nowrap md:w-full
-                  ${adminActiveTab === item.id 
-                    ? `bg-[#630330] text-white shadow-lg shadow-[#630330]/20` 
-                    : 'bg-white/90 dark:bg-slate-900 text-slate-600 dark:text-slate-500 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-800'
-                  }
-                `}
-              >
-                <span className={`shrink-0 ${adminActiveTab === item.id ? 'text-[#D4AF37]' : ''}`}>{React.cloneElement(item.icon as React.ReactElement<any>, { size: 18 })}</span>
-                <span className="truncate">{item.label}</span>
-              </button>
-            ))}
+         <div className="flex flex-row md:flex-col gap-1.5 p-1.5 md:p-0 bg-[#e4d4bc]/80 dark:bg-slate-950/80 backdrop-blur-md md:bg-transparent rounded-2xl h-full">
+            <div className="flex flex-row md:flex-col gap-1.5">
+              {adminMenu.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setAdminActiveTab(item.id as any)}
+                  className={`
+                    flex items-center gap-2.5 px-4 py-3 rounded-xl font-black uppercase text-[10px] min-[400px]:text-xs transition-all whitespace-nowrap md:w-full
+                    ${adminActiveTab === item.id 
+                      ? `bg-[#630330] text-white shadow-lg shadow-[#630330]/20` 
+                      : 'bg-white/90 dark:bg-slate-900 text-slate-600 dark:text-slate-500 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-800'
+                    }
+                  `}
+                >
+                  <span className={`shrink-0 ${adminActiveTab === item.id ? 'text-[#D4AF37]' : ''}`}>{React.cloneElement(item.icon as React.ReactElement<any>, { size: 18 })}</span>
+                  <span className="truncate">{item.label}</span>
+                </button>
+              ))}
+            </div>
+            
             <div className="hidden md:block mt-3 p-4 rounded-xl bg-gradient-to-br from-[#2A0114] to-[#630330] text-white shadow-xl shadow-[#2A0114]/20 border border-white/5">
               <p className="text-[8px] font-black uppercase tracking-widest text-[#D4AF37] mb-1">WISE Portal</p>
               <h4 className="font-bold text-[10px] leading-tight opacity-90">ระบบจัดการหลังบ้าน <br /> คณะวิทยาศาสตร์ฯ มฟน.</h4>
@@ -585,6 +620,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <RefreshCw size={10} className={isLoading ? 'animate-spin' : ''} /> {isLoading ? 'กำลังโหลดข้อมูล...' : 'รีเฟรชข้อมูล'}
               </button>
             </div>
+
+            {/* Bulk Action Area (Sidebar Bottom) */}
+            {adminActiveTab === 'students' && selectedStudentIds.length > 0 && (
+              <div className="hidden md:flex flex-col mt-auto pt-6 pb-2 animate-in slide-in-from-bottom-10 duration-500">
+                <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border-2 border-indigo-500/40 flex flex-col gap-4 shadow-2xl shadow-indigo-500/10 ring-4 ring-indigo-500/5">
+                  <div className="flex items-center justify-between px-1">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">เลือกแล้ว</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-3xl font-black text-slate-900 dark:text-white leading-none">{selectedStudentIds.length}</span>
+                        <span className="text-xs font-black text-slate-400 uppercase">คน</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setSelectedStudentIds([])}
+                      className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center shadow-sm"
+                      title="ยกเลิกการเลือก"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <button 
+                    onClick={() => setShowBulkStatusModal(true)}
+                    className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-black uppercase rounded-2xl shadow-2xl shadow-indigo-500/40 transition-all hover:scale-[1.03] active:scale-[0.97] flex items-center justify-center gap-3 tracking-wider ring-2 ring-white/10"
+                  >
+                    <Layers size={24} strokeWidth={3} /> แก้ไขสถานะกลุ่ม
+                  </button>
+                </div>
+              </div>
+            )}
          </div>
       </aside>
 
@@ -667,55 +732,81 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               {adminActiveTab === 'students' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <div className="flex flex-col gap-4">
-                    {/* Status Filter */}
-                    <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
-                      <button onClick={() => setAdminStudentStatusFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === 'all' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>สถานะทั้งหมด</button>
-                      {[
-                        { id: ApplicationStatus.PENDING, label: 'รอตรวจสอบ', color: 'amber' },
-                        { id: ApplicationStatus.PREPARING, label: 'กำลังจัดเตรียม', color: 'blue' },
-                        { id: ApplicationStatus.ACCEPTED, label: 'ตอบรับแล้ว', color: 'emerald' },
-                        { id: ApplicationStatus.REJECTED, label: 'ปฏิเสธ', color: 'rose' }
-                      ].map(st => (
-                        <button key={st.id} onClick={() => setAdminStudentStatusFilter(st.id)} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === st.id ? `bg-${st.color}-500 text-white shadow-md` : `text-slate-500 hover:bg-${st.color}-50 dark:hover:bg-${st.color}-950/20`}`}><div className={`w-2 h-2 rounded-full ${adminStudentStatusFilter === st.id ? 'bg-white' : `bg-${st.color}-400`}`} />{st.label}</button>
-                      ))}
-                    </div>
-                    {/* Major Filter */}
-                    <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
-                      <button onClick={() => setAdminStudentMajorFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${adminStudentMajorFilter === 'all' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-800'}`}>ทุกสาขาวิชา ({studentStatuses.length})</button>
-                      <button onClick={() => setAdminStudentMajorFilter(Major.HALAL_FOOD)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.HALAL_FOOD ? 'bg-amber-500 text-white' : 'text-slate-500 hover:bg-amber-50'}`}><Salad size={14} /> R&D</button>
-                      <button onClick={() => setAdminStudentMajorFilter(Major.DIGITAL_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50'}`}><Cpu size={14} /> TDS</button>
-                      <button onClick={() => setAdminStudentMajorFilter(Major.INFO_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.INFO_TECH ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-indigo-50'}`}><Network size={14} /> IT</button>
-                      <button onClick={() => setAdminStudentMajorFilter(Major.DATA_SCIENCE)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.DATA_SCIENCE ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-emerald-50'}`}><Database size={14} /> DSA</button>
-                    </div>
-                    {/* Year Filter (New) */}
-                    <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
-                      <button onClick={() => setAdminStudentYearFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${adminStudentYearFilter === 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>ทุกปีการศึกษา</button>
-                      <div className="relative">
-                        <select 
-                          value={adminStudentYearFilter === 'all' ? '' : adminStudentYearFilter} 
-                          onChange={(e) => setAdminStudentYearFilter(e.target.value || 'all')}
-                          className={`pl-4 pr-10 py-2.5 rounded-xl text-xs font-black uppercase transition-all outline-none appearance-none cursor-pointer ${adminStudentYearFilter !== 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500'}`}
-                        >
-                          <option value="">-- เลือกปีการศึกษา --</option>
-                          {academicYears.map(year => (
-                            <option key={year} value={year}>{year}</option>
-                          ))}
-                        </select>
-                        <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${adminStudentYearFilter !== 'all' ? 'text-white' : 'text-slate-400'}`} />
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      {/* Status Filter */}
+                      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
+                        <button onClick={() => setAdminStudentStatusFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === 'all' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>สถานะทั้งหมด</button>
+                        {[
+                          { id: ApplicationStatus.PENDING, label: 'รอตรวจสอบ', color: 'amber' },
+                          { id: ApplicationStatus.PREPARING, label: 'กำลังจัดเตรียม', color: 'blue' },
+                          { id: ApplicationStatus.ACCEPTED, label: 'ตอบรับแล้ว', color: 'emerald' },
+                          { id: ApplicationStatus.REJECTED, label: 'ปฏิเสธ', color: 'rose' }
+                        ].map(st => (
+                          <button key={st.id} onClick={() => setAdminStudentStatusFilter(st.id)} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === st.id ? `bg-${st.color}-500 text-white shadow-md` : `text-slate-500 hover:bg-${st.color}-50 dark:hover:bg-${st.color}-950/20`}`}><div className={`w-2 h-2 rounded-full ${adminStudentStatusFilter === st.id ? 'bg-white' : `bg-${st.color}-400`}`} />{st.label}</button>
+                        ))}
                       </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Major Filter */}
+                        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
+                          <button onClick={() => setAdminStudentMajorFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${adminStudentMajorFilter === 'all' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-800'}`}>ทุกสาขาวิชา ({studentStatuses.length})</button>
+                          <button onClick={() => setAdminStudentMajorFilter(Major.HALAL_FOOD)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.HALAL_FOOD ? 'bg-amber-500 text-white' : 'text-slate-500 hover:bg-amber-50'}`}><Salad size={14} /> R&D</button>
+                          <button onClick={() => setAdminStudentMajorFilter(Major.DIGITAL_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50'}`}><Cpu size={14} /> TDS</button>
+                          <button onClick={() => setAdminStudentMajorFilter(Major.INFO_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.INFO_TECH ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-indigo-50'}`}><Network size={14} /> IT</button>
+                          <button onClick={() => setAdminStudentMajorFilter(Major.DATA_SCIENCE)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.DATA_SCIENCE ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-emerald-50'}`}><Database size={14} /> DSA</button>
+                        </div>
+                        {/* Year Filter (New) */}
+                        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
+                          <button onClick={() => setAdminStudentYearFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${adminStudentYearFilter === 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>ทุกปีการศึกษา</button>
+                          <div className="relative">
+                            <select 
+                              value={adminStudentYearFilter === 'all' ? '' : adminStudentYearFilter} 
+                              onChange={(e) => setAdminStudentYearFilter(e.target.value || 'all')}
+                              className={`pl-4 pr-10 py-2.5 rounded-xl text-xs font-black uppercase transition-all outline-none appearance-none cursor-pointer ${adminStudentYearFilter !== 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500'}`}
+                            >
+                              <option value="">-- เลือกปีการศึกษา --</option>
+                              {academicYears.map(year => (
+                                <option key={year} value={year}>{year}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${adminStudentYearFilter !== 'all' ? 'text-white' : 'text-slate-400'}`} />
+                          </div>
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={toggleSelectAllStudents}
+                        className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-all flex items-center gap-2"
+                      >
+                        {selectedStudentIds.length === filteredAdminStudents.length ? <ShieldX size={14} /> : <ShieldCheck size={14} />}
+                        {selectedStudentIds.length === filteredAdminStudents.length ? 'ยกเลิกเลือกทั้งหมด' : 'เลือกทั้งหมดในหน้านี้'}
+                      </button>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     {filteredAdminStudents.map(record => (
-                      <div key={record.id} className="p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex flex-col gap-4 group hover:border-amber-200 hover:shadow-xl transition-all shadow-sm">
-                        <div className="flex items-start justify-between gap-4">
+                      <div key={record.id} className={`p-6 rounded-[2rem] border ${selectedStudentIds.includes(record.id) ? 'border-indigo-500 bg-indigo-50/40 dark:bg-indigo-900/20 ring-2 ring-indigo-500/20' : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800'} flex flex-col gap-4 group hover:border-amber-200 hover:shadow-xl transition-all shadow-sm relative`}>
+                        <div className="absolute top-5 right-5 z-10">
+                          <button 
+                            onClick={() => toggleStudentSelection(record.id)}
+                            className={`w-12 h-12 rounded-2xl border-2 flex flex-col items-center justify-center transition-all shadow-md ${selectedStudentIds.includes(record.id) ? 'bg-indigo-600 border-indigo-600 text-white scale-110 shadow-indigo-500/40' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:scale-105'}`}
+                          >
+                            {selectedStudentIds.includes(record.id) ? (
+                              <Check size={24} strokeWidth={4} />
+                            ) : (
+                              <>
+                                <div className="w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-600 mb-0.5 group-hover:border-indigo-400 transition-colors"></div>
+                                <span className="text-[8px] font-black uppercase text-slate-400 group-hover:text-indigo-500">เลือก</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <div className="flex items-start justify-between gap-4 pr-14">
                           <div className="space-y-1 min-w-0 flex-1">
                             <h4 className="font-black text-slate-900 dark:text-white text-lg leading-tight break-words">{record.name}</h4>
                             <p className="text-xs font-bold text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5"><Fingerprint size={12} /> ID: {record.studentId}</p>
-                          </div>
-                          <div className="flex gap-1.5 shrink-0">
-                            <button onClick={() => { setEditingStatusRecord(record); setStatusError(null); setIsForceSaveVisible(false); setShowAdminStatusModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-xl transition-all shadow-sm"><Pencil size={18} /></button>
-                            <button onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all shadow-sm"><Trash size={18} /></button>
                           </div>
                         </div>
                         <div className="grid grid-cols-1 gap-3">
@@ -745,8 +836,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                            </div>
                            <div className="flex items-center gap-2">
                              <span className="text-xs font-black text-slate-400 uppercase w-20">รูปแบบ:</span>
-                             <div className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 flex items-center gap-1.5`}>
-                               {record.internshipType === InternshipType.INTERNSHIP ? <Briefcase size={14} className="text-emerald-500" /> : <GraduationCap size={14} className="text-indigo-500" />}
+                             <div className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase border flex items-center gap-1.5 ${
+                                record.internshipType === InternshipType.INTERNSHIP 
+                                  ? 'bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400' 
+                                  : 'bg-indigo-50 border-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:border-indigo-800 dark:text-indigo-400'
+                              }`}>
+                               {record.internshipType === InternshipType.INTERNSHIP ? <Briefcase size={14} /> : <GraduationCap size={14} />}
                                {record.internshipType === InternshipType.INTERNSHIP ? 'ฝึกงาน' : 'สหกิจศึกษา'}
                              </div>
                            </div>
@@ -764,13 +859,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                            </div>
                         </div>
                         <div className="pt-3 border-t border-slate-50 dark:border-slate-700/50 flex flex-col gap-2">
-                           <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
-                             <Calendar size={14} className="text-slate-400" />
-                             {record.startDate && record.endDate ? (
-                               <span>ระยะเวลา: {formatDateForDisplay(record.startDate)} ถึง {formatDateForDisplay(record.endDate)}</span>
-                             ) : (
-                               <span className="italic text-slate-300">ยังไม่ได้ระบุระยะเวลาฝึก</span>
-                             )}
+                           <div className="flex items-center justify-between gap-2">
+                             <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
+                               <Calendar size={14} className="text-slate-400" />
+                               {record.startDate && record.endDate ? (
+                                 <span>{formatDateForDisplay(record.startDate)} - {formatDateForDisplay(record.endDate)}</span>
+                               ) : (
+                                 <span className="italic text-slate-300">ไม่ได้ระบุวันที่</span>
+                               )}
+                             </div>
+                             <div className="flex gap-1.5 shrink-0">
+                               <button onClick={() => { setEditingStatusRecord(record); setStatusError(null); setIsForceSaveVisible(false); setShowAdminStatusModal(true); }} className="p-2 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-lg transition-all"><Pencil size={16} /></button>
+                               <button onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }} className="p-2 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-lg transition-all"><Trash size={16} /></button>
+                             </div>
                            </div>
                            <div className="flex items-center gap-2 text-[9px] font-black text-slate-300 uppercase tracking-tighter">
                              <RefreshCw size={10} /> อัปเดตล่าสุด: {new Date(record.lastUpdated).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
@@ -844,6 +945,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Floating Bulk Action Bar (Mobile Only) */}
+              {adminActiveTab === 'students' && selectedStudentIds.length > 0 && (
+                <div className="md:hidden fixed bottom-6 left-6 right-6 z-[100] animate-in slide-in-from-bottom-10 duration-500">
+                  <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border-2 border-indigo-500/30 p-4 rounded-[2rem] shadow-2xl flex items-center justify-between gap-4 ring-8 ring-indigo-500/5">
+                    <div className="flex items-center gap-3 pl-2">
+                       <span className="text-3xl font-black text-slate-900 dark:text-white leading-none">{selectedStudentIds.length}</span>
+                       <span className="text-xs font-black text-slate-400 uppercase">คน</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => setShowBulkStatusModal(true)}
+                        className="px-10 py-5 bg-indigo-600 text-white text-sm font-black uppercase rounded-2xl shadow-2xl shadow-indigo-500/40 transition-all active:scale-90 flex items-center gap-3 tracking-wider"
+                      >
+                        <Layers size={24} strokeWidth={3} /> แก้ไขสถานะกลุ่ม
+                      </button>
+                      <button onClick={() => setSelectedStudentIds([])} className="p-3 text-slate-400 hover:text-rose-500 transition-colors"><X size={28} /></button>
+                    </div>
+                  </div>
                 </div>
               )}
              </div>
@@ -1233,14 +1355,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <label className={labelClass}>ประเภทการจัดการ</label>
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { id: InternshipType.INTERNSHIP, label: 'ฝึกงาน', icon: <Briefcase size={22} />, color: 'emerald' }, 
-                      { id: InternshipType.COOP, label: 'สหกิจศึกษา', icon: <GraduationCap size={22} />, color: 'indigo' }
+                      { id: InternshipType.INTERNSHIP, label: 'ฝึกงาน', icon: <Briefcase size={22} />, color: 'emerald', bg: 'bg-emerald-50/50' }, 
+                      { id: InternshipType.COOP, label: 'สหกิจศึกษา', icon: <GraduationCap size={22} />, color: 'indigo', bg: 'bg-indigo-50/50' }
                     ].map((it) => (
                       <label key={it.id} className="relative cursor-pointer group">
                         <input type="radio" name="internship_type" value={it.id} defaultChecked={editingStatusRecord?.internshipType === it.id || (!editingStatusRecord && it.id === InternshipType.INTERNSHIP)} className="peer hidden" />
-                        <div className={`flex flex-col items-center justify-center py-6 rounded-2xl border-2 transition-all duration-300 text-center bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 peer-checked:border-${it.color}-500 peer-checked:bg-${it.color}-50/50 dark:peer-checked:bg-${it.color}-950/20 shadow-sm`}>
-                          <div className={`text-slate-300 peer-checked:text-${it.color}-600 mb-2`}>{it.icon}</div>
-                          <span className={`text-xs font-black leading-tight text-slate-500 peer-checked:text-${it.color}-700 uppercase`}>{it.label}</span>
+                        <div className={`flex flex-col items-center justify-center py-6 rounded-2xl border-2 transition-all duration-300 text-center ${it.bg} dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 peer-checked:border-${it.color}-500 peer-checked:bg-${it.color}-500 peer-checked:text-white shadow-sm`}>
+                          <div className={`text-${it.color}-500/60 peer-checked:text-white mb-2 group-hover:scale-110 transition-transform`}>{it.icon}</div>
+                          <span className={`text-xs font-black leading-tight text-${it.color}-700/70 peer-checked:text-white uppercase`}>{it.label}</span>
                         </div>
                       </label>
                     ))}
@@ -1257,8 +1379,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     ].map((st) => (
                       <label key={st.id} className="relative cursor-pointer group">
                         <input type="radio" name="status" value={st.id} defaultChecked={editingStatusRecord?.status === st.id || (!editingStatusRecord && st.id === ApplicationStatus.PENDING)} className="peer hidden" />
-                        <div className={`flex items-center justify-center py-3.5 rounded-xl border-2 transition-all duration-300 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 peer-checked:border-${st.color}-500 peer-checked:bg-${st.color}-50/50 dark:peer-checked:bg-${st.color}-950/20 shadow-sm`}>
-                          <span className={`text-[11px] font-black uppercase text-slate-500 peer-checked:text-${st.color}-700`}>{st.label}</span>
+                        <div className={`flex items-center justify-center py-3.5 rounded-xl border-2 transition-all duration-300 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 peer-checked:border-${st.color}-500 peer-checked:bg-${st.color}-500 peer-checked:text-white shadow-sm`}>
+                          <span className={`text-[11px] font-black uppercase text-slate-500 peer-checked:text-white`}>{st.label}</span>
                         </div>
                       </label>
                     ))}
@@ -1414,6 +1536,48 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <button type="submit" disabled={isTranslating || isSyncing} className="flex-1 py-5 rounded-2xl bg-rose-600 text-white font-black uppercase text-sm shadow-xl shadow-rose-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50">บันทึกข้อมูล</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* BULK STATUS UPDATE MODAL */}
+      {showBulkStatusModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowBulkStatusModal(false)}>
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 sm:p-10 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowBulkStatusModal(false)} className="absolute top-8 right-8 p-3 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><X size={24} className="text-slate-400" /></button>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-8 uppercase flex items-center gap-4"><Layers size={28} className="text-indigo-500" />แก้ไขสถานะกลุ่ม</h3>
+            <p className="text-sm font-bold text-slate-500 mb-6">เลือกสถานะใหม่สำหรับนักศึกษาที่เลือกทั้งหมด ({selectedStudentIds.length} คน)</p>
+            
+            <div className="grid grid-cols-1 gap-3">
+              {[
+                { id: ApplicationStatus.PENDING, label: 'รอตรวจสอบ', color: 'amber', desc: 'สถานะเริ่มต้นเมื่อนักศึกษาส่งข้อมูล' },
+                { id: ApplicationStatus.PREPARING, label: 'กำลังจัดเตรียม', color: 'blue', desc: 'อยู่ระหว่างดำเนินการจัดทำเอกสาร' },
+                { id: ApplicationStatus.ACCEPTED, label: 'ตอบรับแล้ว', color: 'emerald', desc: 'สถานประกอบการตอบรับเข้าฝึกงาน' },
+                { id: ApplicationStatus.REJECTED, label: 'ปฏิเสธ', color: 'rose', desc: 'ไม่ผ่านการพิจารณาหรือยกเลิก' }
+              ].map(st => (
+                <button 
+                  key={st.id} 
+                  onClick={() => handleBulkStatusUpdate(st.id)}
+                  className="w-full p-4 rounded-2xl border-2 border-slate-50 dark:border-slate-800 hover:border-indigo-500 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-all text-left flex items-center gap-4 group"
+                >
+                  <div className={`w-10 h-10 rounded-xl bg-${st.color}-500 flex items-center justify-center text-white shadow-lg shadow-${st.color}-500/20 group-hover:scale-110 transition-transform`}>
+                    <Check size={20} strokeWidth={3} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-slate-900 dark:text-white uppercase">{st.label}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{st.desc}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+            
+            <div className="mt-8">
+              <button 
+                onClick={() => setShowBulkStatusModal(false)} 
+                className="w-full py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 font-black uppercase text-xs hover:bg-slate-50 transition-all"
+              >
+                ยกเลิก
+              </button>
+            </div>
           </div>
         </div>
       )}
