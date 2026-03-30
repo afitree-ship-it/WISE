@@ -99,6 +99,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [adminStudentStatusFilter, setAdminStudentStatusFilter] = useState<ApplicationStatus | 'all'>('all');
   const [adminStudentMajorFilter, setAdminStudentMajorFilter] = useState<Major | 'all'>('all');
   const [adminStudentYearFilter, setAdminStudentYearFilter] = useState<string | 'all'>('all');
+  const [adminStudentTermFilter, setAdminStudentTermFilter] = useState<string | 'all'>('all');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
   
@@ -243,8 +244,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (adminStudentYearFilter !== 'all') {
       result = result.filter(s => String(s.academicYear || '').trim() === adminStudentYearFilter);
     }
+    if (adminStudentTermFilter !== 'all') {
+      result = result.filter(s => String(s.term || '').trim() === adminStudentTermFilter);
+    }
     return result;
-  }, [studentStatuses, adminStudentSearch, adminStudentStatusFilter, adminStudentMajorFilter, adminStudentYearFilter]);
+  }, [studentStatuses, adminStudentSearch, adminStudentStatusFilter, adminStudentMajorFilter, adminStudentYearFilter, adminStudentTermFilter]);
 
   const toggleStudentSelection = (id: string) => {
     setSelectedStudentIds(prev => 
@@ -569,7 +573,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const getStatusLabel = (status: ApplicationStatus) => {
+  const getStatusLabel = (status: ApplicationStatus | 'all') => {
+    if (status === 'all') return 'ทั้งหมด';
     switch (status) {
       case ApplicationStatus.PENDING: return 'รอการตรวจสอบ';
       case ApplicationStatus.PREPARING: return 'กำลังจัดเตรียม';
@@ -590,9 +595,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const inputClass = "w-full px-6 py-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 dark:text-white border-2 border-slate-200 dark:border-slate-700 focus:border-amber-500 focus:bg-white outline-none font-bold text-lg transition-all shadow-sm";
   const labelClass = "text-base font-black uppercase text-black dark:text-white ml-1 tracking-widest block mb-2";
 
+  const handleAddData = () => {
+    if (adminActiveTab === 'students') { 
+      setEditingStatusRecord(null); 
+      setStatusError(null); 
+      setIsForceSaveVisible(false); 
+      setShowAdminStatusModal(true); 
+    }
+    else if (adminActiveTab === 'sites') { setEditingSite(null); setShowSiteModal(true); }
+    else if (adminActiveTab === 'schedule') { setEditingSchedule(null); setShowScheduleModal(true); }
+    else { setEditingForm(null); setSelectedFile(null); setUploadMethod('url'); setShowFormModal(true); }
+  };
+
   return (
     <>
-      <aside className="w-full md:w-52 lg:w-60 flex-shrink-0 flex flex-col h-fit md:h-full overflow-y-auto hide-scrollbar z-[60]">
+      <aside className="w-full md:w-52 lg:w-60 flex-shrink-0 flex flex-col h-fit md:h-full overflow-x-auto md:overflow-y-auto hide-scrollbar z-[60]">
          <div className="flex flex-row md:flex-col gap-1.5 p-1.5 md:p-0 bg-[#e4d4bc]/80 dark:bg-slate-950/80 backdrop-blur-md md:bg-transparent rounded-2xl h-full">
             <div className="flex flex-row md:flex-col gap-1.5">
               {adminMenu.map(item => (
@@ -653,53 +670,48 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
          </div>
       </aside>
 
-      <main className="flex-grow reveal-anim relative h-full flex flex-col overflow-hidden">
-        <div className="bg-white/95 dark:bg-slate-900 rounded-[2.25rem] border border-slate-200/50 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col h-full">
-          <header className="flex-shrink-0 z-[50] px-6 sm:px-8 py-4 sm:py-6 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <main className="flex-grow reveal-anim relative min-h-0 flex flex-col overflow-hidden">
+        <div className="bg-white/95 dark:bg-slate-900 rounded-3xl sm:rounded-[2.25rem] border border-slate-200/50 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col h-full">
+          <header className="flex-shrink-0 z-[50] px-4 sm:px-8 py-3 sm:py-6 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
              <div className="flex items-center gap-3">
-                <div className={`p-2.5 sm:p-3 rounded-2xl bg-${adminActiveTab === 'students' ? 'amber' : adminActiveTab === 'sites' ? 'rose' : adminActiveTab === 'schedule' ? 'emerald' : 'indigo'}-50 dark:bg-slate-800 text-${adminActiveTab === 'students' ? 'amber' : adminActiveTab === 'sites' ? 'rose' : adminActiveTab === 'schedule' ? 'emerald' : 'indigo'}-600 shadow-inner`}>
-                  {React.cloneElement(adminMenu.find(m => m.id === adminActiveTab)?.icon as React.ReactElement<any>, { size: 24 })}
+                <div className={`p-2 sm:p-3 rounded-2xl bg-${adminActiveTab === 'students' ? 'amber' : adminActiveTab === 'sites' ? 'rose' : adminActiveTab === 'schedule' ? 'emerald' : 'indigo'}-50 dark:bg-slate-800 text-${adminActiveTab === 'students' ? 'amber' : adminActiveTab === 'sites' ? 'rose' : adminActiveTab === 'schedule' ? 'emerald' : 'indigo'}-600 shadow-inner`}>
+                  {React.cloneElement(adminMenu.find(m => m.id === adminActiveTab)?.icon as React.ReactElement<any>, { size: 20 })}
                 </div>
                 <div>
-                  <h2 className="text-lg sm:text-2xl font-black uppercase text-slate-900 dark:text-white leading-none tracking-tight">{adminMenu.find(m => m.id === adminActiveTab)?.label}</h2>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Management Suite</p>
+                  <h2 className="text-base sm:text-2xl font-black uppercase text-slate-900 dark:text-white leading-none tracking-tight">{adminMenu.find(m => m.id === adminActiveTab)?.label}</h2>
+                  <p className="hidden sm:block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Management Suite</p>
                 </div>
              </div>
-             <div className="flex flex-col sm:flex-row items-center gap-3">
+             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
                 {adminActiveTab === 'students' && (
                   <div className="flex gap-2 w-full sm:w-auto">
                     <button 
                       onClick={() => setShowStatsModal(true)}
-                      className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-black uppercase text-xs flex items-center justify-center gap-2 border border-blue-200 dark:border-blue-800/50 hover:bg-blue-200 transition-all shadow-sm"
+                      className="flex-1 sm:flex-none px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-black uppercase text-[10px] sm:text-xs flex items-center justify-center gap-2 border border-blue-200 dark:border-blue-800/50 hover:bg-blue-200 transition-all shadow-sm"
                     >
-                      <BarChart3 size={18} /> สถิติ
+                      <BarChart3 size={16} /> สถิติ
                     </button>
                     <button 
                       onClick={() => setShowReportModal(true)}
-                      className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-black uppercase text-xs flex items-center justify-center gap-2 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 transition-all shadow-sm"
+                      className="flex-1 sm:flex-none px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-black uppercase text-[10px] sm:text-xs flex items-center justify-center gap-2 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 transition-all shadow-sm"
                     >
-                      <FileSpreadsheet size={18} /> ส่งออกรายงาน
+                      <FileSpreadsheet size={16} /> ส่งออกรายงาน
                     </button>
                   </div>
                 )}
                 <div className="relative w-full sm:w-64 group">
-                   <Search size={22} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors" />
+                   <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors" />
                    <input 
                      type="text" 
                      placeholder="ค้นหา..." 
                      value={adminActiveTab === 'students' ? adminStudentSearch : adminSiteSearch}
                      onChange={(e) => adminActiveTab === 'students' ? setAdminStudentSearch(e.target.value) : setAdminSiteSearch(e.target.value)}
-                     className="w-full pl-12 pr-5 py-3 bg-slate-50/50 dark:bg-slate-800 dark:text-white border border-slate-200/50 dark:border-slate-700 rounded-xl outline-none font-bold text-sm sm:text-base focus:ring-2 focus:ring-[#D4AF37]/20 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-inner"
+                     className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-slate-50/50 dark:bg-slate-800 dark:text-white border border-slate-200/50 dark:border-slate-700 rounded-xl outline-none font-bold text-xs sm:text-base focus:ring-2 focus:ring-[#D4AF37]/20 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-inner"
                    />
                 </div>
                 <button 
-                  onClick={() => {
-                    if(adminActiveTab === 'students') { setEditingStatusRecord(null); setStatusError(null); setIsForceSaveVisible(false); setShowAdminStatusModal(true); }
-                    else if(adminActiveTab === 'sites') { setEditingSite(null); setShowSiteModal(true); }
-                    else if(adminActiveTab === 'schedule') { setEditingSchedule(null); setShowScheduleModal(true); }
-                    else { setEditingForm(null); setSelectedFile(null); setUploadMethod('url'); setShowFormModal(true); }
-                  }}
-                  className={`w-full sm:w-auto px-8 py-3 rounded-xl bg-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600 text-white font-black uppercase text-sm sm:text-base flex items-center justify-center gap-3 shadow-lg shadow-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600/20 transition-all hover:scale-105 active:scale-95`}
+                  onClick={handleAddData}
+                  className={`hidden sm:flex w-full sm:w-auto px-8 py-3 rounded-xl bg-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600 text-white font-black uppercase text-sm sm:text-base items-center justify-center gap-3 shadow-lg shadow-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600/20 transition-all hover:scale-105 active:scale-95`}
                 >
                   <Plus size={22} /> เพิ่มข้อมูล
                 </button>
@@ -751,7 +763,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="flex flex-wrap items-center gap-2">
                         {/* Major Filter */}
                         <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
-                          <button onClick={() => setAdminStudentMajorFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${adminStudentMajorFilter === 'all' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-800'}`}>ทุกสาขาวิชา ({studentStatuses.length})</button>
+                          <button onClick={() => setAdminStudentMajorFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${adminStudentMajorFilter === 'all' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-800'}`}>ทุกสาขาวิชา</button>
                           <button onClick={() => setAdminStudentMajorFilter(Major.HALAL_FOOD)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.HALAL_FOOD ? 'bg-amber-500 text-white' : 'text-slate-500 hover:bg-amber-50'}`}><Salad size={14} /> R&D</button>
                           <button onClick={() => setAdminStudentMajorFilter(Major.DIGITAL_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50'}`}><Cpu size={14} /> TDS</button>
                           <button onClick={() => setAdminStudentMajorFilter(Major.INFO_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.INFO_TECH ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-indigo-50'}`}><Network size={14} /> IT</button>
@@ -774,6 +786,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${adminStudentYearFilter !== 'all' ? 'text-white' : 'text-slate-400'}`} />
                           </div>
                         </div>
+                        {/* Term Filter */}
+                        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
+                          <button onClick={() => setAdminStudentTermFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${adminStudentTermFilter === 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>ทุกเทอม</button>
+                          <div className="relative">
+                            <select 
+                              value={adminStudentTermFilter === 'all' ? '' : adminStudentTermFilter} 
+                              onChange={(e) => setAdminStudentTermFilter(e.target.value || 'all')}
+                              className={`pl-4 pr-10 py-2.5 rounded-xl text-xs font-black uppercase transition-all outline-none appearance-none cursor-pointer ${adminStudentTermFilter !== 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500'}`}
+                            >
+                              <option value="">-- เลือกเทอม --</option>
+                              {['1', '2', '3'].map(term => (
+                                <option key={term} value={term}>เทอม {term}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${adminStudentTermFilter !== 'all' ? 'text-white' : 'text-slate-400'}`} />
+                          </div>
+                        </div>
                       </div>
 
                       <button 
@@ -785,6 +814,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </button>
                     </div>
                   </div>
+                  
+                  <div className="flex items-center justify-between px-2">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <Users size={14} className="text-amber-500" />
+                      พบนักศึกษา{adminStudentStatusFilter === 'all' ? 'ทั้งหมด' : getStatusLabel(adminStudentStatusFilter)} {filteredAdminStudents.length} คน
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     {filteredAdminStudents.map(record => (
                       <div key={record.id} className={`p-6 rounded-[2rem] border ${selectedStudentIds.includes(record.id) ? 'border-indigo-500 bg-indigo-50/40 dark:bg-indigo-900/20 ring-2 ring-indigo-500/20' : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800'} flex flex-col gap-4 group hover:border-amber-200 hover:shadow-xl transition-all shadow-sm relative`}>
@@ -1476,6 +1513,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* INTERNSHIP SITE MODAL */}
+      {/* Floating Action Button for Mobile */}
+      <button 
+        onClick={handleAddData}
+        className={`sm:hidden fixed bottom-6 right-6 z-[100] w-14 h-14 rounded-full bg-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600 text-white shadow-2xl flex items-center justify-center active:scale-90 transition-all border-4 border-white dark:border-slate-900`}
+      >
+        <Plus size={28} strokeWidth={3} />
+      </button>
+
       {showSiteModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowSiteModal(false)}>
           <div className="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 sm:p-12 overflow-y-auto max-h-[90svh] relative custom-scrollbar" onClick={(e) => e.stopPropagation()}>

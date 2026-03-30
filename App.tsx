@@ -385,7 +385,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-[#e4d4bc] dark:bg-slate-950 overflow-hidden' : 'bg-[#FFF8E7] dark:bg-slate-900'}`}>
+    <div className={`min-h-screen min-h-[100dvh] flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-[#e4d4bc] dark:bg-slate-950 overflow-hidden' : 'bg-[#FFF8E7] dark:bg-slate-900'}`}>
       {/* Global Loading Bar */}
       {(isLoading || isSyncing) && (
         <div className="fixed top-0 left-0 w-full h-1 z-[9999] pointer-events-none overflow-hidden">
@@ -471,7 +471,7 @@ const App: React.FC = () => {
         </nav>
       </div>
 
-      <div className={`container mx-auto px-2 sm:px-4 ${role === UserRole.ADMIN ? 'h-[calc(100vh-100px)] pt-4 pb-4' : 'py-4'} flex flex-col md:flex-row gap-6 flex-grow relative`}>
+      <div className={`container mx-auto px-2 sm:px-4 ${role === UserRole.ADMIN ? 'h-[calc(100dvh-100px)] md:h-[calc(100vh-100px)] pt-4 pb-4' : 'py-4'} flex flex-col md:flex-row gap-6 flex-grow relative`}>
         {role === UserRole.ADMIN ? (
           <AdminPanel 
             sites={sites} setSites={setSites}
