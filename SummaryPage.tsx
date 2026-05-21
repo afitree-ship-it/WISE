@@ -116,7 +116,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack }) => {
           .text-emerald-600 { color: #059669 !important; }
         }
       `}} />
-      <div className="w-full max-w-7xl">
+      <div className="w-full max-w-[98%] xl:max-w-[99%] px-1 sm:px-4">
         <header className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4 no-print">
           <div className="flex items-center gap-4 w-full md:w-auto">
             <button 
@@ -198,7 +198,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack }) => {
             </p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-3 sm:p-5 shadow-2xl shadow-indigo-100/20 dark:shadow-none border border-slate-100 dark:border-slate-800 flex flex-col h-[78vh] max-h-[78vh] print-content min-h-0 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-3 sm:p-5 shadow-2xl shadow-indigo-100/20 dark:shadow-none border border-slate-100 dark:border-slate-800 flex flex-col h-[84vh] sm:h-[88vh] max-h-[88vh] print-content min-h-0 overflow-hidden">
            <SharedSummaryTable 
              students={summaryStudents} 
              formatDateBE={formatDateBE} 
