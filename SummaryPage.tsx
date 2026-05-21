@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ClipboardList, ArrowLeft, Share2, Calendar, BookOpen, Printer } from 'lucide-react';
 import { StudentStatusRecord, ApplicationStatus } from './types';
 import SharedSummaryTable from './SharedSummaryTable';
@@ -9,26 +9,10 @@ import { ShareLinkModal } from './components/ShareLinkModal';
 interface SummaryPageProps {
   students: StudentStatusRecord[];
   onBack: () => void;
-  apiUrl: string; // ← เพิ่ม
 }
 
-const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack, apiUrl }) => {
+const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack }) => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  
-  // เพิ่ม local students state
-  const [localStudents, setLocalStudents] = useState<StudentStatusRecord[]>(students);
-  useEffect(() => { setLocalStudents(students); }, [students]);
-
-  // เพิ่ม sessionId
-  const sessionId = useMemo(() => {
-    let id = sessionStorage.getItem('wise_session_id');
-    if (!id) {
-      id = `s-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      sessionStorage.setItem('wise_session_id', id);
-    }
-    return id;
-  }, []);
-
   const years = useMemo(() => {
     const uniqueYears = Array.from(new Set(students.map(s => String(s.academicYear || '').trim()).filter(Boolean)))
       .filter(y => /^\d+$/.test(y)); // Ensure only numeric values are treated as academic years to prevent UI issues from old/shifted columns
@@ -53,84 +37,22 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack, apiUrl }) =
     return t ? t.split(',') : []; // Default to empty (shows all)
   });
 
-  // แก้ summaryStudents ให้ใช้ localStudents แทน students
   const summaryStudents = useMemo(() => {
-    return localStudents.filter(s => {
-      const matchesYear = selectedYears.length === 0 || selectedYears.includes(String(s.academicYear || '').trim());
-      const matchesTerm = selectedTerms.length === 0 || selectedTerms.includes(String(s.term || '').trim());
+    return students.filter(s => {
+      const studentYear = String(s.academicYear || '').trim();
+      const studentTerm = String(s.term || '').trim();
+      
+      const matchesYear = selectedYears.length === 0 || selectedYears.includes(studentYear);
+      const matchesTerm = selectedTerms.length === 0 || selectedTerms.includes(studentTerm);
+      
       return matchesYear && matchesTerm;
     }).sort((a, b) => {
+      // Sort Accepted first, then by last updated
       if (a.status === ApplicationStatus.ACCEPTED && b.status !== ApplicationStatus.ACCEPTED) return -1;
       if (a.status !== ApplicationStatus.ACCEPTED && b.status === ApplicationStatus.ACCEPTED) return 1;
       return b.lastUpdated - a.lastUpdated;
     });
-  }, [localStudents, selectedYears, selectedTerms]);
-
-  // ฟังก์ชัน supervisor
-  const gasPost = async (body: object) => {
-    try {
-      const res = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(body),
-        redirect: 'follow',
-      });
-      return res.json();
-    } catch (err) {
-      console.error("API call error:", err);
-      throw err;
-    }
-  };
-
-  const handleSupervisorEdit = async (id: string): Promise<boolean> => {
-    try {
-      const result = await gasPost({
-        type: 'studentStatuses',
-        action: 'supervisorLock',
-        item: { id, sessionId, lockedAt: Date.now() },
-      });
-      if (result.status === 'success') {
-        setLocalStudents(prev => prev.map(s =>
-          s.id === id ? { ...s, supervisorLock: sessionId, supervisorLockedAt: Date.now() } : s
-        ));
-        return true;
-      }
-      alert('มีคนกำลังแก้ไขอยู่ กรุณารอสักครู่');
-      return false;
-    } catch {
-      return false;
-    }
-  };
-
-  const handleSupervisorSave = async (id: string, name: string) => {
-    try {
-      await gasPost({
-        type: 'studentStatuses',
-        action: 'supervisorUnlock',
-        item: { id, sessionId, supervisor: name },
-      });
-      setLocalStudents(prev => prev.map(s =>
-        s.id === id ? { ...s, supervisor: name, supervisorLock: '', supervisorLockedAt: 0 } : s
-      ));
-    } catch (e) {
-      console.error('Save supervisor failed:', e);
-    }
-  };
-
-  const handleSupervisorCancel = async (id: string) => {
-    try {
-      await gasPost({
-        type: 'studentStatuses',
-        action: 'supervisorUnlock',
-        item: { id, sessionId },
-      });
-      setLocalStudents(prev => prev.map(s =>
-        s.id === id ? { ...s, supervisorLock: '', supervisorLockedAt: 0 } : s
-      ));
-    } catch (e) {
-      console.error('Unlock failed:', e);
-    }
-  };
+  }, [students, selectedYears, selectedTerms]);
 
   const handleShare = () => {
     setIsShareModalOpen(true);
@@ -280,12 +202,8 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack, apiUrl }) =
            <SharedSummaryTable 
              students={summaryStudents} 
              formatDateBE={formatDateBE} 
-             isReadOnly={false} 
+             isReadOnly={true} 
              showSupervisor={true}
-             sessionId={sessionId}
-             onSupervisorEdit={handleSupervisorEdit}
-             onSupervisorSave={handleSupervisorSave}
-             onSupervisorCancel={handleSupervisorCancel}
            />
            <footer className="mt-3 pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-50 dark:border-slate-800 no-print">
               <div className="flex items-center gap-2">

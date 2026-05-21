@@ -49,8 +49,6 @@ export interface StudentStatusRecord {
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
   supervisor?: string; // อาจารย์นิเทศ
-  supervisorLock?: string;
-  supervisorLockedAt?: number;
   lastUpdated: number;
   remarks?: string;
 }
