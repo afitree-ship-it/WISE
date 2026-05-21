@@ -420,6 +420,7 @@ const App: React.FC = () => {
     return (
       <SummaryPage 
         students={studentStatuses} 
+        apiUrl={SHEET_API_URL}
         onBack={() => {
           setViewState('landing');
           window.history.pushState({ view: 'landing' }, '', window.location.pathname);
