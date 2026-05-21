@@ -497,8 +497,20 @@ const LandingPage: React.FC<LandingPageProps> = ({
                                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
                                 <div className="flex flex-col min-w-0">
                                   <span className="text-[7px] sm:text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">ระยะเวลาฝึก / Period</span>
-                                  <span className="text-9px] sm:text-sm font-black text-slate-700 dark:text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis">
+                                  <span className="text-[9px] sm:text-sm font-black text-slate-700 dark:text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis">
                                     {formatDate(record.startDate)} — {formatDate(record.endDate)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {record.supervisor && (
+                              <div className="flex items-center gap-3 px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800/50 shadow-sm mt-1">
+                                <UserCircle className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-500 shrink-0" />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-[7px] sm:text-[8px] font-black uppercase text-indigo-400 tracking-widest leading-none mb-1">อาจารย์นิเทศ / Supervisor</span>
+                                  <span className="text-[9px] sm:text-sm font-black text-indigo-700 dark:text-indigo-300 whitespace-nowrap overflow-hidden text-ellipsis">
+                                    {record.supervisor}
                                   </span>
                                 </div>
                               </div>

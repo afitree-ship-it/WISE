@@ -48,6 +48,7 @@ export interface StudentStatusRecord {
   academicYear?: string; // ปีการศึกษา
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
+  supervisor?: string; // อาจารย์นิเทศ
   lastUpdated: number;
   remarks?: string;
 }

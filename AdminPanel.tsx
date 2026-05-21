@@ -15,6 +15,7 @@ import {
 } from './types';
 import { TRANSLATIONS } from './constants';
 import { GoogleGenAI, Type } from "@google/genai";
+import { ShareLinkModal } from './components/ShareLinkModal';
 import { 
   Plus, 
   Pencil, 
@@ -47,16 +48,22 @@ import {
   MapPin,
   FileSpreadsheet,
   Info,
+  BookOpen,
   Database,
   Network,
   ChevronDown,
+  ChevronRight,
   CalendarRange,
   GraduationCap as GraduationIcon,
   Layers,
   BarChart3,
   PieChart,
-  TrendingUp
+  TrendingUp,
+  UserCheck,
+  Share2
 } from 'lucide-react';
+import SharedSummaryTable from './SharedSummaryTable';
+import { formatDateBE } from './dateUtils';
 
 interface AdminPanelProps {
   sites: InternshipSite[];
@@ -69,8 +76,10 @@ interface AdminPanelProps {
   setForms: React.Dispatch<React.SetStateAction<DocumentForm[]>>;
   currentT: Translation;
   lang: Language;
+  adminPasswords: string[];
+  setAdminPasswords: React.Dispatch<React.SetStateAction<string[]>>;
   fetchFromSheets: () => Promise<void>;
-  syncToSheets: (type: string, data: any[]) => Promise<void>;
+  syncToSheets: (type: string, data: any[], action?: 'all' | 'add' | 'update' | 'delete', item?: any) => Promise<void>;
   isLoading: boolean;
   isSyncing: boolean;
   lastSync: number | null;
@@ -87,12 +96,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   setForms,
   currentT,
   lang,
+  adminPasswords,
+  setAdminPasswords,
   fetchFromSheets,
   syncToSheets,
   isLoading,
   isSyncing,
 }) => {
-  const [adminActiveTab, setAdminActiveTab] = useState<'students' | 'sites' | 'schedule' | 'forms'>('students');
+  const [adminActiveTab, setAdminActiveTab] = useState<'students' | 'sites' | 'schedule' | 'forms' | 'admins'>('students');
   
   // Local UI States
   const [adminStudentSearch, setAdminStudentSearch] = useState('');
@@ -116,9 +127,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEvent | null>(null);
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingForm, setEditingForm] = useState<DocumentForm | null>(null);
+  const [showAdminPasswordModal, setShowAdminPasswordModal] = useState(false);
+  const [newAdminPass, setNewAdminPass] = useState('');
   
   // Report Modal States
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [statsFilter, setStatsFilter] = useState({
     major: 'all' as Major | 'all',
@@ -142,7 +156,57 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   
   // Custom Delete Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'student' | 'site' | 'schedule' | 'form' } | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'student' | 'site' | 'schedule' | 'form' | 'admin' } | null>(null);
+  const [isSummaryConfigured, setIsSummaryConfigured] = useState(false);
+  const [summaryFilter, setSummaryFilter] = useState({
+    years: [] as string[],
+    terms: [] as string[]
+  });
+  const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
+  const [termDropdownOpen, setTermDropdownOpen] = useState(false);
+
+  const yearsOptions = useMemo(() => {
+    const vals = Array.from(new Set(studentStatuses.map(s => String(s.academicYear || '').trim()).filter(Boolean)))
+      .filter(y => /^\d+$/.test(y)); // Ensure only numeric values are treated as academic years (filters out glitches like HALAL_FOOD)
+    return vals.sort((a, b) => b.localeCompare(a));
+  }, [studentStatuses]);
+
+  const termsOptions = useMemo(() => {
+    const vals = Array.from(new Set(studentStatuses.map(s => String(s.term || '').trim()).filter(Boolean)))
+      .filter(t => /^\d+$/.test(t)); // Ensure only numeric values are treated as semesters
+    return vals.sort();
+  }, [studentStatuses]);
+
+  const summaryStudents = useMemo(() => {
+    return studentStatuses.filter(s => {
+      const studentYear = String(s.academicYear || '').trim();
+      const studentTerm = String(s.term || '').trim();
+      
+      const matchesYear = summaryFilter.years.length === 0 || summaryFilter.years.includes(studentYear);
+      const matchesTerm = summaryFilter.terms.length === 0 || summaryFilter.terms.includes(studentTerm);
+      
+      return matchesYear && matchesTerm;
+    }).sort((a, b) => {
+      if (a.status === ApplicationStatus.ACCEPTED && b.status !== ApplicationStatus.ACCEPTED) return -1;
+      if (a.status !== ApplicationStatus.ACCEPTED && b.status === ApplicationStatus.ACCEPTED) return 1;
+      return b.lastUpdated - a.lastUpdated;
+    });
+  }, [studentStatuses, summaryFilter]);
+
+  const toggleSummaryYear = (year: string) => {
+    setSummaryFilter(prev => ({
+      ...prev,
+      years: prev.years.includes(year) ? prev.years.filter(y => y !== year) : [...prev.years, year]
+    }));
+  };
+
+  const toggleSummaryTerm = (term: string) => {
+    setSummaryFilter(prev => ({
+      ...prev,
+      terms: prev.terms.includes(term) ? prev.terms.filter(t => t !== term) : [...prev.terms, term]
+    }));
+  };
 
   // Year range generation for filtering (2560 to current + 5)
   const academicYears = useMemo(() => {
@@ -175,6 +239,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (!d || isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
   };
+
+  /*const formatDateBE = (dateStr?: string) => {
+    if (!dateStr || dateStr === '-') return '-';
+    const d = parseDateResilient(dateStr);
+    if (!d || isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+  };*/
 
   const formatDateForInput = (dateStr?: string) => {
     if (!dateStr) return '';
@@ -275,7 +346,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     });
     
     setStudentStatuses(updatedStatuses);
-    await syncToSheets('studentStatuses', updatedStatuses);
+    // Bulk update still uses 'all' for now as we don't have a bulk-update action in GAS yet,
+    // but we can pass individual items if we wanted. For now, matching previous successful pattern.
+    await syncToSheets('studentStatuses', updatedStatuses, 'all');
     setSelectedStudentIds([]);
     setShowBulkStatusModal(false);
   };
@@ -322,7 +395,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     
     setSchedules(prev => {
       const updated = editingSchedule ? prev.map(s => s.id === editingSchedule.id ? newEvent : s) : [newEvent, ...prev];
-      syncToSheets('schedules', updated);
+      syncToSheets('schedules', updated, editingSchedule ? 'update' : 'add', newEvent);
       return updated;
     });
     
@@ -360,7 +433,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       
     setForms(prev => {
       const updated = editingForm ? prev.map(f => f.id === editingForm.id ? newForm : f) : [newForm, ...prev];
-      if (fileData) { syncToSheets('uploadForm', [syncPayload]); } else { syncToSheets('forms', updated); }
+      if (fileData) { 
+        syncToSheets('uploadForm', [syncPayload], 'add', syncPayload); 
+      } else { 
+        syncToSheets('forms', updated, editingForm ? 'update' : 'add', newForm); 
+      }
       return updated;
     });
     
@@ -399,7 +476,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     
     setSites(prev => {
       const updated = editingSite ? prev.map(s => s.id === editingSite.id ? newSite : s) : [newSite, ...prev];
-      syncToSheets('sites', updated);
+      syncToSheets('sites', updated, editingSite ? 'update' : 'add', newSite);
       return updated;
     });
     
@@ -443,6 +520,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       position: rawPosition.trim() || "",
       term: rawTerm.trim() || "",
       academicYear: rawYear.trim() || "",
+      supervisor: formData.get('supervisor') as string || "",
       status: formData.get('status') as ApplicationStatus,
       major: formData.get('major') as Major,
       internshipType: formData.get('internship_type') as InternshipType,
@@ -453,7 +531,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     
     setStudentStatuses(prev => {
       const updated = editingStatusRecord ? prev.map(s => s.id === editingStatusRecord.id ? newRecord : s) : [newRecord, ...prev];
-      syncToSheets('studentStatuses', updated);
+      syncToSheets('studentStatuses', updated, editingStatusRecord ? 'update' : 'add', newRecord);
       return updated;
     });
     
@@ -461,6 +539,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setEditingStatusRecord(null);
     setStatusError(null);
     setIsForceSaveVisible(false);
+  };
+
+  const handleSaveAdminPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!newAdminPass.trim()) return;
+    
+    const updatedAdmins = [...adminPasswords, newAdminPass.trim()];
+    setAdminPasswords(updatedAdmins);
+    await syncToSheets('admins', updatedAdmins.map(p => ({ password: p })), 'add', { password: newAdminPass.trim() });
+    
+    setShowAdminPasswordModal(false);
+    setNewAdminPass('');
   };
 
   const handleConfirmDelete = () => {
@@ -471,30 +561,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       case 'student': 
         setStudentStatuses(prev => {
           const updated = prev.filter(s => s.id !== id);
-          syncToSheets('studentStatuses', updated);
+          syncToSheets('studentStatuses', updated, 'delete', { id });
           return updated;
         });
         break;
       case 'site': 
         setSites(prev => {
           const updated = prev.filter(s => s.id !== id);
-          syncToSheets('sites', updated);
+          syncToSheets('sites', updated, 'delete', { id });
           return updated;
         });
         break;
       case 'schedule': 
         setSchedules(prev => {
           const updated = prev.filter(s => s.id !== id);
-          syncToSheets('schedules', updated);
+          syncToSheets('schedules', updated, 'delete', { id });
           return updated;
         });
         break;
       case 'form': 
         setForms(prev => {
           const updated = prev.filter(f => f.id !== id);
-          syncToSheets('forms', updated);
+          syncToSheets('forms', updated, 'delete', { id });
           return updated;
         });
+        break;
+      case 'admin':
+        const passwordToDelete = id; // For admins, the ID being passed is the password itself
+        const updatedAdmins = adminPasswords.filter(p => p !== passwordToDelete);
+        setAdminPasswords(updatedAdmins);
+        syncToSheets('admins', updatedAdmins.map(p => ({ password: p })), 'delete', { password: passwordToDelete });
         break;
     }
     setShowDeleteModal(false);
@@ -533,7 +629,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const headers = ["ID", "Student Name", "Major", "Type", "Location", "Position", "Term", "Year", "Start Date", "End Date", "Status"];
     const rows = filtered.map(s => [
       `"${s.studentId}"`, `"${s.name}"`, `"${getMajorLabel(s.major)}"`, `"${s.internshipType === InternshipType.INTERNSHIP ? 'Internship' : 'Co-op'}"`,
-      `"${s.location || '-'}"`, `"${s.position || '-'}"`, `"${s.term || '-'}"`, `"${s.academicYear || '-'}"`, `"${s.startDate || '-'}"`, `"${s.endDate || '-'}"`, `"${getStatusLabel(s.status)}"`
+      `"${s.location || '-'}"`, `"${s.position || '-'}"`, `"${s.term || '-'}"`, `"${s.academicYear || '-'}"`, `"${formatDateBE(s.startDate)}"`, `"${formatDateBE(s.endDate)}"`, `"${getStatusLabel(s.status)}"`
     ]);
     const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -589,6 +685,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     { id: 'sites', label: 'สถานประกอบการ', icon: <Building2 size={20} />, color: 'rose' },
     { id: 'schedule', label: 'กำหนดการสำคัญ', icon: <CalendarDays size={20} />, color: 'emerald' },
     { id: 'forms', label: 'จัดการเอกสาร', icon: <FileText size={20} />, color: 'indigo' },
+    { id: 'admins', label: 'จัดการรหัสแอดมิน', icon: <ShieldCheck size={20} />, color: 'slate' },
   ];
 
   // Helper class for consistent input styling
@@ -604,6 +701,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
     else if (adminActiveTab === 'sites') { setEditingSite(null); setShowSiteModal(true); }
     else if (adminActiveTab === 'schedule') { setEditingSchedule(null); setShowScheduleModal(true); }
+    else if (adminActiveTab === 'admins') {
+      setNewAdminPass('');
+      setShowAdminPasswordModal(true);
+    }
     else { setEditingForm(null); setSelectedFile(null); setUploadMethod('url'); setShowFormModal(true); }
   };
 
@@ -696,6 +797,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       className="flex-1 sm:flex-none px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-black uppercase text-[10px] sm:text-xs flex items-center justify-center gap-2 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 transition-all shadow-sm"
                     >
                       <FileSpreadsheet size={16} /> ส่งออกรายงาน
+                    </button>
+                    <button 
+                      onClick={() => setShowSummaryModal(true)}
+                      className="flex-1 sm:flex-none px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 font-black uppercase text-[10px] sm:text-xs flex items-center justify-center gap-2 border border-indigo-200 dark:border-indigo-800/50 hover:bg-indigo-200 transition-all shadow-sm"
+                    >
+                      <ClipboardList size={16} /> สรุปภาพรวม
                     </button>
                   </div>
                 )}
@@ -897,12 +1004,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                         <div className="pt-3 border-t border-slate-50 dark:border-slate-700/50 flex flex-col gap-2">
                            <div className="flex items-center justify-between gap-2">
-                             <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
-                               <Calendar size={14} className="text-slate-400" />
-                               {record.startDate && record.endDate ? (
-                                 <span>{formatDateForDisplay(record.startDate)} - {formatDateForDisplay(record.endDate)}</span>
-                               ) : (
-                                 <span className="italic text-slate-300">ไม่ได้ระบุวันที่</span>
+                             <div className="flex flex-col gap-1">
+                               <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
+                                 <Calendar size={14} className="text-slate-400" />
+                                 {record.startDate && record.endDate ? (
+                                   <span>{formatDateForDisplay(record.startDate)} - {formatDateForDisplay(record.endDate)}</span>
+                                 ) : (
+                                   <span className="italic text-slate-300">ไม่ได้ระบุวันที่</span>
+                                 )}
+                               </div>
+                               {record.supervisor && (
+                                 <div className="flex items-center gap-2 text-[10px] font-black text-indigo-600 dark:text-indigo-400">
+                                   <UserCheck size={14} className="text-indigo-400" />
+                                   <span>อ.นิเทศ: {record.supervisor}</span>
+                                 </div>
                                )}
                              </div>
                              <div className="flex gap-1.5 shrink-0">
@@ -982,6 +1097,49 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+              {adminActiveTab === 'admins' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-slate-700 text-white rounded-2xl shadow-lg">
+                        <ShieldCheck size={24} />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-slate-900 dark:text-white text-lg leading-none uppercase">แอดแอดมินที่เข้าระบบได้</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Admin Access Control List</p>
+                      </div>
+                    </div>
+                    <p className="text-xs font-black text-slate-500 uppercase">ทั้งหมด {adminPasswords.length} รหัสผ่าน</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {adminPasswords.map((pass, idx) => (
+                      <div key={idx} className="p-5 rounded-[1.75rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex items-center justify-between group hover:border-slate-300 hover:shadow-xl transition-all shadow-sm">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400">
+                            <Fingerprint size={20} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Password</p>
+                            <h5 className="font-black text-slate-900 dark:text-white font-mono tracking-wider">••••••••</h5>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => { setItemToDelete({ id: pass, type: 'admin' }); setShowDeleteModal(true); }} 
+                          className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-xl transition-all"
+                        >
+                          <Trash size={18} />
+                        </button>
+                      </div>
+                    ))}
+                    <button 
+                      onClick={() => { setNewAdminPass(''); setShowAdminPasswordModal(true); }}
+                      className="p-5 rounded-[1.75rem] border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-center gap-3 group hover:border-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-400 font-black uppercase text-xs"
+                    >
+                      <Plus size={20} className="group-hover:scale-110 transition-transform" /> เพิ่มรหัสใหม่
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1079,8 +1237,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
              {(() => {
                 const filtered = studentStatuses.filter(s => {
                   const majorMatch = statsFilter.major === 'all' || s.major === statsFilter.major;
-                  const termMatch = statsFilter.term === 'all' || s.term === statsFilter.term;
-                  const yearMatch = statsFilter.year === 'all' || s.academicYear === statsFilter.year;
+                  const termMatch = statsFilter.term === 'all' || String(s.term || '').trim() === statsFilter.term;
+                  const yearMatch = statsFilter.year === 'all' || String(s.academicYear || '').trim() === statsFilter.year;
                   return majorMatch && termMatch && yearMatch;
                 });
 
@@ -1387,7 +1545,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <input type="date" name="end_date" defaultValue={formatDateForInput(editingStatusRecord?.endDate)} className={`${inputClass} border-rose-100 focus:border-rose-500`} />
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className={labelClass}>อาจารย์นิเทศ (Supervisor)</label>
+                  <div className="relative">
+                    <UserCheck size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
+                    <input name="supervisor" defaultValue={editingStatusRecord?.supervisor} placeholder="ระบุชื่ออาจารย์นิเทศ" className={`${inputClass} pl-14`} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
                   <label className={labelClass}>ประเภทการจัดการ</label>
                   <div className="grid grid-cols-2 gap-4">
@@ -1512,6 +1677,222 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
+      {/* SUMMARY MODAL */}
+      {showSummaryModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-2 sm:p-4 bg-slate-950/60 backdrop-blur-md reveal-anim" onClick={() => setShowSummaryModal(false)}>
+          <div className="w-full max-w-[98vw] lg:max-w-7xl bg-white dark:bg-slate-900 rounded-[2rem] p-4 sm:p-6 shadow-3xl flex flex-col max-h-[95svh] relative overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <header className="flex items-center justify-between mb-4 px-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl text-indigo-600 dark:text-indigo-400"><ClipboardList size={28} /></div>
+                <div>
+                  <h3 className="text-xl font-black uppercase text-slate-900 dark:text-white leading-none">สรุปภาพรวมการฝึกงาน</h3>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Student Internship Summary View (Global)</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {isSummaryConfigured && (
+                  <button 
+                    onClick={() => setIsSummaryConfigured(false)}
+                    className="px-4 py-2 text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-all"
+                  >
+                    เปลี่ยนตัวกรอง
+                  </button>
+                )}
+                <button onClick={() => setShowSummaryModal(false)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={24} className="text-slate-400" /></button>
+              </div>
+            </header>
+
+            <div className="flex-1 min-h-0 flex flex-col relative">
+               {isSummaryConfigured ? (
+                 <div className="flex flex-col flex-1 min-h-0 px-2 overflow-hidden">
+                   <div className="flex flex-wrap items-center justify-between gap-4 mb-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                     <div className="flex flex-wrap gap-2">
+                        {summaryFilter.years.length > 0 ? summaryFilter.years.map(y => (
+                          <span key={y} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black">ปีการศึกษา {y}</span>
+                        )) : <span className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-600 rounded-lg text-[10px] font-black">ทุกปีการศึกษา</span>}
+                        
+                        <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+                        
+                        {summaryFilter.terms.length > 0 ? summaryFilter.terms.map(t => (
+                          <span key={t} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[10px] font-black">ภาคเรียน {t}</span>
+                        )) : <span className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-600 rounded-lg text-[10px] font-black">ทุกภาคเรียน</span>}
+                     </div>
+
+                     <button 
+                        onClick={() => {
+                          const params = new URLSearchParams();
+                          params.set('view', 'summary');
+                          if (summaryFilter.years.length > 0) params.set('years', summaryFilter.years.join(','));
+                          if (summaryFilter.terms.length > 0) params.set('terms', summaryFilter.terms.join(','));
+                          
+                          setIsShareModalOpen(true);
+                        }}
+                        className="flex items-center gap-3 px-8 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase text-xs shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
+                      >
+                        <Share2 size={16} /> แชร์ลิงก์สรุปนี้
+                      </button>
+                   </div>
+                   
+                   <div className="flex-1 min-h-0 flex flex-col">
+                     <SharedSummaryTable 
+                       students={summaryStudents} 
+                       formatDateBE={formatDateBE}
+                       onSupervisorChange={(id: string, name: string) => {
+                         const updated = studentStatuses.map(s => s.id === id ? { ...s, supervisor: name, lastUpdated: Date.now() } : s);
+                         setStudentStatuses(updated);
+                         syncToSheets('studentStatuses', updated);
+                       }}
+                     />
+                   </div>
+                 </div>
+               ) : (
+                 <div className="h-full flex flex-col items-center justify-center p-4 sm:p-8 text-center bg-white dark:bg-slate-900/40 rounded-[2rem] reveal-anim overflow-y-auto">
+                    <h3 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white uppercase mb-4 tracking-tight">เลือกข้อมูลสรุป</h3>
+                    <p className="text-slate-400 font-bold mb-8 max-w-md mx-auto leading-relaxed">กำหนดขอบเขตข้อมูล ปีการศึกษา และภาคเรียน ที่คุณต้องการแชร์หรือเข้าชม</p>
+ 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full max-w-2xl mb-10 px-4">
+                       {/* Year Selection Dropdown */}
+                       <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 flex items-center gap-1.5 px-1 tracking-wider">
+                             <Calendar size={12} className="text-indigo-500" /> ปีการศึกษาที่ต้องการแชร์
+                          </label>
+                          <div className="relative">
+                            <button 
+                              onClick={() => {
+                                setYearDropdownOpen(!yearDropdownOpen);
+                                setTermDropdownOpen(false);
+                              }}
+                              className={`w-full flex items-center justify-between p-3.5 sm:p-4 bg-white dark:bg-slate-800 border-2 rounded-2xl text-sm font-bold transition-all shadow-sm ${
+                                yearDropdownOpen ? 'border-indigo-500 ring-4 ring-indigo-100 dark:ring-indigo-900/10' : 'border-slate-200 dark:border-slate-700'
+                              } ${summaryFilter.years.length > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-200'}`}
+                            >
+                              <span className="truncate">
+                                {summaryFilter.years.length === 0 ? 'ทุกปีการศึกษา (ทั้งหมด)' : `เลือกแล้ว ${summaryFilter.years.length} ปี (${summaryFilter.years.join(', ')})`}
+                              </span>
+                              <ChevronDown size={20} className={`text-slate-400 transition-transform ${yearDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            
+                            {yearDropdownOpen && (
+                              <div className="absolute top-full left-0 right-0 mt-2 p-2 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] z-[250] animate-in fade-in zoom-in-95 duration-200">
+                                <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1 p-1">
+                                  <button 
+                                    onClick={() => {
+                                      setSummaryFilter(p => ({ ...p, years: [] }));
+                                      setYearDropdownOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase transition-all ${
+                                      summaryFilter.years.length === 0 ? 'bg-indigo-600 text-white shadow-lg' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500'
+                                    }`}
+                                  >
+                                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${summaryFilter.years.length === 0 ? 'border-white bg-white' : 'border-slate-300'}`}>
+                                      {summaryFilter.years.length === 0 && <div className="w-2 h-2 rounded-sm bg-indigo-600"></div>}
+                                    </div>
+                                    ทุกปีการศึกษา
+                                  </button>
+                                  {yearsOptions.map(y => (
+                                   <button 
+                                     key={y}
+                                     onClick={() => toggleSummaryYear(y)}
+                                     className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase transition-all ${
+                                       summaryFilter.years.includes(y) ? 'bg-indigo-600 text-white shadow-lg' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500'
+                                     }`}
+                                   >
+                                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${summaryFilter.years.includes(y) ? 'border-white bg-white' : 'border-slate-300'}`}>
+                                       {summaryFilter.years.includes(y) && <div className="w-2 h-2 rounded-sm bg-indigo-600"></div>}
+                                     </div>
+                                     ปี {y}
+                                   </button>
+                                 ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                       </div>
+ 
+                       {/* Term Selection Dropdown */}
+                       <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 flex items-center gap-1.5 px-1 tracking-wider">
+                             <BookOpen size={12} className="text-emerald-500" /> ภาคเรียนที่ต้องการแชร์
+                          </label>
+                          <div className="relative">
+                            <button 
+                              onClick={() => {
+                                setTermDropdownOpen(!termDropdownOpen);
+                                setYearDropdownOpen(false);
+                              }}
+                              className={`w-full flex items-center justify-between p-3.5 sm:p-4 bg-white dark:bg-slate-800 border-2 rounded-2xl text-sm font-bold transition-all shadow-sm ${
+                                termDropdownOpen ? 'border-emerald-500 ring-4 ring-emerald-100 dark:ring-emerald-900/10' : 'border-slate-200 dark:border-slate-700'
+                              } ${summaryFilter.terms.length > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}`}
+                            >
+                              <span className="truncate">
+                                {summaryFilter.terms.length === 0 ? 'ทุกภาคเรียน (ทั้งหมด)' : `เลือกแล้ว ${summaryFilter.terms.length} เทอม (${summaryFilter.terms.join(', ')})`}
+                              </span>
+                              <ChevronDown size={20} className={`text-slate-400 transition-transform ${termDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            
+                            {termDropdownOpen && (
+                              <div className="absolute top-full left-0 right-0 mt-2 p-2 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] z-[250] animate-in fade-in zoom-in-95 duration-200">
+                                <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1 p-1">
+                                  <button 
+                                    onClick={() => {
+                                      setSummaryFilter(p => ({ ...p, terms: [] }));
+                                      setTermDropdownOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase transition-all ${
+                                      summaryFilter.terms.length === 0 ? 'bg-emerald-600 text-white shadow-lg' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500'
+                                    }`}
+                                  >
+                                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${summaryFilter.terms.length === 0 ? 'border-white bg-white' : 'border-slate-300'}`}>
+                                      {summaryFilter.terms.length === 0 && <div className="w-2 h-2 rounded-sm bg-emerald-600"></div>}
+                                    </div>
+                                    ทุกภาคเรียน
+                                  </button>
+                                  {termsOptions.map(t => (
+                                   <button 
+                                     key={t}
+                                     onClick={() => toggleSummaryTerm(t)}
+                                     className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase transition-all ${
+                                       summaryFilter.terms.includes(t) ? 'bg-emerald-600 text-white shadow-lg' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500'
+                                     }`}
+                                   >
+                                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${summaryFilter.terms.includes(t) ? 'border-white bg-white' : 'border-slate-300'}`}>
+                                       {summaryFilter.terms.includes(t) && <div className="w-2 h-2 rounded-sm bg-emerald-600"></div>}
+                                     </div>
+                                     ภาคเรียน {t}
+                                   </button>
+                                 ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                       </div>
+                    </div>
+ 
+                    <button 
+                      onClick={() => setIsSummaryConfigured(true)}
+                      className="w-full max-w-sm py-5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-[2rem] font-black uppercase shadow-3xl hover:scale-105 active:scale-95 transition-all text-base flex items-center justify-center gap-3 group"
+                    >
+                      ประมวลผลข้อมูลสรุป <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                    </button>
+                 </div>
+               )}
+            </div>
+            
+            <footer className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                แสดงข้อมูลนักศึกษาทั้งหมด {summaryStudents.length} คน (ตามเงื่อนไขตัวกรอง)
+              </p>
+              <button 
+                onClick={() => setShowSummaryModal(false)}
+                className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-black uppercase text-sm shadow-xl shadow-indigo-600/20 transition-all hover:bg-indigo-700"
+              >
+                เสร็จสิ้น
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
       {/* INTERNSHIP SITE MODAL */}
       {/* Floating Action Button for Mobile */}
       <button 
@@ -1626,6 +2007,54 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         </div>
       )}
+      {/* ADMIN PASSWORD MODAL */}
+      {showAdminPasswordModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowAdminPasswordModal(false)}>
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 sm:p-12 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowAdminPasswordModal(false)} className="absolute top-8 right-8 p-3 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><X size={24} className="text-slate-400" /></button>
+            <div className="flex flex-col items-center text-center mb-8">
+              <div className="p-4 bg-slate-100 dark:bg-slate-800 text-slate-700 rounded-3xl mb-4 shadow-inner">
+                <ShieldCheck size={40} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase leading-none">เพิ่มรหัสผ่านแอดมิน</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase mt-2 tracking-widest">Add New Admin Password</p>
+            </div>
+            <form onSubmit={handleSaveAdminPassword} className="space-y-6">
+              <div className="space-y-2 text-left">
+                <label className={labelClass}>รหัสผ่านใหม่ (New Password)</label>
+                <div className="relative">
+                   <Fingerprint size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
+                   <input 
+                     type="text" 
+                     value={newAdminPass}
+                     onChange={(e) => setNewAdminPass(e.target.value)}
+                     required 
+                     placeholder="ระบุรหัสผ่านแอดมิน" 
+                     className={`${inputClass} pl-14 font-mono`} 
+                   />
+                </div>
+              </div>
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-2xl border border-amber-100 dark:border-amber-900/20 flex gap-3 items-start">
+                 <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                 <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase leading-relaxed tracking-tight">
+                   รหัสนี้จะสามารถใช้เข้าสู่ระบบแอดมินได้ทันที โปรดใช้ความระมัดระวังในการมอบรหัสนี้ให้ผู้อื่น
+                 </p>
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => setShowAdminPasswordModal(false)} className="flex-1 py-5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 font-black uppercase text-xs">ยกเลิก</button>
+                <button type="submit" disabled={!newAdminPass.trim() || isSyncing} className="flex-1 py-5 rounded-2xl bg-slate-900 text-white font-black uppercase text-sm shadow-xl shadow-slate-900/20 disabled:opacity-50">ยืนยันเพิ่มรหัส</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      
+      <ShareLinkModal 
+        isOpen={isShareModalOpen} 
+        onClose={() => setIsShareModalOpen(false)} 
+        years={summaryFilter.years} 
+        terms={summaryFilter.terms} 
+      />
     </>
   );
 };

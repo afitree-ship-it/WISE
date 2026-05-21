@@ -16,6 +16,7 @@ import InternshipCard from './components/InternshipCard';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import LandingPage from './LandingPage';
 import AdminPanel from './AdminPanel';
+import SummaryPage from './SummaryPage';
 import { 
   LogOut, 
   Search, 
@@ -38,7 +39,7 @@ import {
 } from 'lucide-react';
 
 // Updated URL from User
-const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbxg8LaEOErVY44P3jAHcnfD726S_RA1fpa5ANEXpf-Cn4_gHB2f3c8shF4jgd3j8Iu-/exec"; 
+const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbycrXhJfdb5sp11tOGZZbM3Xx1DFqNwzyQ_VUVKeo2BJSMhO1GMxD73YXsKyDot_o3X/exec"; 
 const CACHE_KEY = "wise_portal_last_sync";
 const CACHE_EXPIRY = 30 * 60 * 1000; // 30 Minutes
 
@@ -65,7 +66,11 @@ const App: React.FC = () => {
     }
   });
 
-  const [viewState, setViewState] = useState<'landing' | 'dashboard'>('landing');
+  const [viewState, setViewState] = useState<'landing' | 'dashboard' | 'summary'>(() => {
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    if (params.get('view') === 'summary') return 'summary';
+    return 'landing';
+  });
   
   const [role, setRole] = useState<UserRole>(() => {
     const savedRole = sessionStorage.getItem('wise_role');
@@ -81,6 +86,10 @@ const App: React.FC = () => {
     const seen = new Set();
     return data.map((item, index) => {
       let id = item.id;
+      // If ID is missing, but we have studentId, use it (specifically for studentStatuses) to prevent duplicates
+      if (!id && prefix === 'st' && item.studentId) {
+        id = `st-${item.studentId}`;
+      }
       // If ID is missing, duplicate, or looks like a plain timestamp that might collide
       if (!id || seen.has(id)) {
         id = `${prefix}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`;
@@ -110,6 +119,7 @@ const App: React.FC = () => {
     const data = saved ? JSON.parse(saved) : INITIAL_FORMS;
     return sanitizeData(data, 'frm');
   });
+  const [adminPasswords, setAdminPasswords] = useState<string[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -162,6 +172,13 @@ const App: React.FC = () => {
       if (cloudData.schedules) setSchedules(sanitizeData(cloudData.schedules, 'sch'));
       if (cloudData.forms) setForms(sanitizeData(cloudData.forms, 'frm'));
       if (cloudData.studentStatuses) setStudentStatuses(sanitizeData(cloudData.studentStatuses, 'st'));
+      if (cloudData.admins && Array.isArray(cloudData.admins)) {
+        // Extract passwords from the admins array (assuming each item has a password field)
+        const passwords = cloudData.admins
+          .map((a: any) => String(a.password || '').trim())
+          .filter((p: string) => p.length > 0);
+        setAdminPasswords(passwords);
+      }
       
       const syncTime = Date.now();
       setLastSync(syncTime);
@@ -174,23 +191,61 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const syncToSheets = useCallback(async (type: string, data: any[]) => {
+  const formatStudentStatusForSync = (record: StudentStatusRecord) => {
+    // Defining key order precisely as requested (14 columns):
+    // id, studentId, name, status, major, internshipType, location, position, term, academicYear, startDate, endDate, lastUpdated, remarks
+    return {
+      id: record.id,
+      studentId: record.studentId,
+      name: record.name,
+      status: record.status,
+      major: record.major,
+      internshipType: record.internshipType,
+      location: record.location || '',
+      position: record.position || '',
+      term: record.term || '',
+      academicYear: record.academicYear || '',
+      startDate: record.startDate || '',
+      endDate: record.endDate || '',
+      lastUpdated: record.lastUpdated,
+      remarks: record.remarks || ''
+    };
+  };
+
+  const syncToSheets = useCallback(async (type: string, data: any[], action: 'all' | 'add' | 'update' | 'delete' = 'all', item?: any) => {
     if (!SHEET_API_URL) return;
     setIsSyncing(true);
     try {
+      let finalData = data;
+      let finalItem = item;
+
+      // Format data if it's studentStatuses to ensure column order
+      if (type === 'studentStatuses') {
+        if (action === 'all' && Array.isArray(data)) {
+          finalData = data.map(formatStudentStatusForSync);
+        } else if (item) {
+          finalItem = formatStudentStatusForSync(item as StudentStatusRecord);
+        }
+      }
+
+      // Create payload based on action type
+      const payload = action === 'all' 
+        ? { type, data: finalData } 
+        : { type, action, item: finalItem };
+
       // Use text/plain to avoid CORS preflight (OPTIONS request) which GAS doesn't handle well
       await fetchWithRetry(SHEET_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
         },
-        body: JSON.stringify({ type, data }),
+        body: JSON.stringify(payload),
       });
       const syncTime = Date.now();
       setLastSync(syncTime);
       localStorage.setItem(CACHE_KEY, syncTime.toString());
     } catch (error) {
-      console.error(`Failed to sync ${type} to Google Sheets:`, error);
+      console.error(`Failed to sync ${type} (${action}) to Google Sheets:`, error);
     } finally {
       setIsSyncing(false);
     }
@@ -241,12 +296,32 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    window.history.replaceState({ view: 'landing' }, '');
+    // Check initial search params/hash
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    if (params.get('view') === 'summary') {
+      setViewState('summary');
+    }
+    
+    window.history.replaceState({ view: window.history.state?.view || 'landing' }, '');
     const handlePopState = (event: PopStateEvent) => {
       setViewState(event.state?.view || 'landing');
     };
+    
+    const handleHashChange = () => {
+      const currentHashParams = new URLSearchParams(window.location.hash.slice(1));
+      if (currentHashParams.get('view') === 'summary') {
+        setViewState('summary');
+      } else if (window.location.hash === '' || window.location.hash === '#') {
+        setViewState('landing');
+      }
+    };
+
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handleHashChange);
+    };
   }, []);
 
   useEffect(() => { localStorage.setItem('wise_portal_lang', lang); }, [lang]);
@@ -271,56 +346,41 @@ const App: React.FC = () => {
   const isRtl = lang === Language.AR && role !== UserRole.ADMIN;
 
   const handleAdminLogin = async (password: string): Promise<boolean> => {
-    if (!SHEET_API_URL) return false;
+    if (!password) return false;
+    const normalizedPassword = password.trim();
     
-    setIsSyncing(true);
-    
-    // Start fetching data in parallel to authentication to save time
-    // We don't await it immediately so the auth request can also start
-    const dataFetchPromise = fetchFromSheets(true);
-    
-    try {
-      const response = await fetchWithRetry(SHEET_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8',
-        },
-        body: JSON.stringify({ type: 'auth', password })
-      });
-      
-      const contentType = response.headers.get("content-type");
-      let isAuthorized = false;
-
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        const result = await response.json();
-        if (result && result.success) {
-          isAuthorized = true;
+    // ✅ If adminPasswords is empty, fetch fresh data first
+    let passwords = adminPasswords;
+    if (passwords.length === 0) {
+      try {
+        setIsSyncing(true);
+        const now = Date.now();
+        const response = await fetchWithRetry(`${SHEET_API_URL}${SHEET_API_URL.includes('?') ? '&' : '?'}cache_bust=${now}`);
+        const cloudData = await response.json();
+        if (cloudData.admins && Array.isArray(cloudData.admins)) {
+          passwords = cloudData.admins
+            .map((a: any) => String(a.password || '').trim())
+            .filter((p: string) => p.length > 0);
+          setAdminPasswords(passwords);
         }
-      } else {
-        const text = await response.text();
-        if (text.includes("Success") || text.includes("Authorized")) {
-          isAuthorized = true;
-        }
+      } catch (e) {
+        console.error('Failed to fetch admin passwords:', e);
+      } finally {
+        setIsSyncing(false);
       }
-
-      if (isAuthorized) {
-        // We don't await dataFetchPromise here to make login instant.
-        // The data will continue loading in the background and update the UI when ready.
-        
-        setRole(UserRole.ADMIN);
-        sessionStorage.setItem('wise_role', UserRole.ADMIN);
-        setViewState('dashboard');
-        window.history.pushState({ view: 'dashboard' }, '');
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error("Auth failed:", error);
-      return false;
-    } finally {
-      setIsSyncing(false);
     }
+
+    // Check password against the freshly fetched passwords
+    const isAuthorized = passwords.includes(normalizedPassword);
+    if (isAuthorized) {
+      setRole(UserRole.ADMIN);
+      sessionStorage.setItem('wise_role', UserRole.ADMIN);
+      setViewState('dashboard');
+      window.history.pushState({ view: 'dashboard' }, '');
+      return true;
+    }
+
+    return false;
   };
 
   const handleEnterDashboard = () => {
@@ -355,6 +415,18 @@ const App: React.FC = () => {
   const sortedSchedules = useMemo(() => {
     return [...schedules].sort((a, b) => (a.rawStartDate || '').localeCompare(b.rawStartDate || ''));
   }, [schedules]);
+
+  if (viewState === 'summary') {
+    return (
+      <SummaryPage 
+        students={studentStatuses} 
+        onBack={() => {
+          setViewState('landing');
+          window.history.pushState({ view: 'landing' }, '', window.location.pathname);
+        }} 
+      />
+    );
+  }
 
   if (viewState === 'landing') {
     return (
@@ -473,12 +545,13 @@ const App: React.FC = () => {
 
       <div className={`container mx-auto px-2 sm:px-4 ${role === UserRole.ADMIN ? 'h-[calc(100dvh-100px)] md:h-[calc(100vh-100px)] pt-4 pb-4' : 'py-4'} flex flex-col md:flex-row gap-6 flex-grow relative`}>
         {role === UserRole.ADMIN ? (
-          <AdminPanel 
+        <AdminPanel 
             sites={sites} setSites={setSites}
             studentStatuses={studentStatuses} setStudentStatuses={setStudentStatuses}
             schedules={schedules} setSchedules={setSchedules}
             forms={forms} setForms={setForms}
             currentT={currentT} lang={lang}
+            adminPasswords={adminPasswords} setAdminPasswords={setAdminPasswords}
             fetchFromSheets={() => fetchFromSheets(true)}
             syncToSheets={syncToSheets}
             isLoading={isLoading}
