@@ -339,11 +339,11 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('wise_forms', JSON.stringify(forms)); }, [forms]);
 
   const currentT = useMemo(() => {
-    const t = role === UserRole.ADMIN ? TRANSLATIONS[Language.TH] : TRANSLATIONS[lang];
+    const t = TRANSLATIONS[lang];
     return t || TRANSLATIONS[Language.TH];
-  }, [lang, role]);
+  }, [lang]);
 
-  const isRtl = lang === Language.AR && role !== UserRole.ADMIN;
+  const isRtl = lang === Language.AR;
 
   const handleAdminLogin = async (password: string): Promise<boolean> => {
     if (!password) return false;
@@ -401,7 +401,6 @@ const App: React.FC = () => {
 
   const getLocalized = (localized: LocalizedString) => {
     if (!localized) return '';
-    if (role === UserRole.ADMIN) return localized.th || '';
     return (localized as any)[lang] || localized['en'] || localized['th'] || '';
   };
 
