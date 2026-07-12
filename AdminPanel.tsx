@@ -52,6 +52,7 @@ import {
   Database,
   Network,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   CalendarRange,
   GraduationCap as GraduationIcon,
@@ -103,16 +104,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   isLoading,
   isSyncing,
 }) => {
+  const currentYearBE = useMemo(() => (new Date().getFullYear() + 543).toString(), []);
   const [adminActiveTab, setAdminActiveTab] = useState<'students' | 'sites' | 'schedule' | 'forms' | 'admins'>('students');
   
   // Local UI States
   const [adminStudentSearch, setAdminStudentSearch] = useState('');
   const [adminStudentStatusFilter, setAdminStudentStatusFilter] = useState<ApplicationStatus | 'all'>('all');
   const [adminStudentMajorFilter, setAdminStudentMajorFilter] = useState<Major | 'all'>('all');
-  const [adminStudentYearFilter, setAdminStudentYearFilter] = useState<string | 'all'>('all');
+  const [adminStudentYearFilter, setAdminStudentYearFilter] = useState<string | 'all'>(currentYearBE);
   const [adminStudentTermFilter, setAdminStudentTermFilter] = useState<string | 'all'>('all');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+  const [isFilterPanelExpanded, setIsFilterPanelExpanded] = useState(false);
   
   const [adminSiteSearch, setAdminSiteSearch] = useState('');
   const [adminSiteMajorFilter, setAdminSiteMajorFilter] = useState<Major | 'all'>('all');
@@ -208,15 +211,77 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }));
   };
 
-  // Year range generation for filtering (2560 to current + 5)
+  // Year range generation for filtering (from 2560 or minimum year in data, up to current + 10 or maximum year in data)
   const academicYears = useMemo(() => {
     const currentBE = new Date().getFullYear() + 543;
+    
+    // Find min and max years from student statuses
+    const yearsInData = studentStatuses
+      .map(s => String(s.academicYear || '').trim())
+      .filter(y => /^\d+$/.test(y))
+      .map(Number);
+      
+    const minYear = Math.min(2560, ...yearsInData, currentBE);
+    const maxYear = Math.max(currentBE + 10, ...yearsInData); // Generates up to current + 10 or max in data, whichever is higher!
+    
     const years = [];
-    for (let y = 2560; y <= currentBE + 5; y++) {
+    for (let y = minYear; y <= maxYear; y++) {
       years.push(y.toString());
     }
     return years.reverse(); // Newest first
-  }, []);
+  }, [studentStatuses]);
+
+  const getStatusSelectClasses = (status: string) => {
+    switch (status) {
+      case ApplicationStatus.PENDING:
+        return 'border-amber-400/80 bg-amber-50/30 text-amber-800 dark:border-amber-600/60 dark:bg-amber-950/15 dark:text-amber-300 focus:ring-amber-500';
+      case ApplicationStatus.PREPARING:
+        return 'border-blue-400/80 bg-blue-50/30 text-blue-800 dark:border-blue-600/60 dark:bg-blue-950/15 dark:text-blue-300 focus:ring-blue-500';
+      case ApplicationStatus.ACCEPTED:
+        return 'border-emerald-400/80 bg-emerald-50/30 text-emerald-800 dark:border-emerald-600/60 dark:bg-emerald-950/15 dark:text-emerald-300 focus:ring-emerald-500';
+      case ApplicationStatus.REJECTED:
+        return 'border-rose-400/80 bg-rose-50/30 text-rose-800 dark:border-rose-600/60 dark:bg-rose-950/15 dark:text-rose-300 focus:ring-rose-500';
+      default:
+        return 'border-slate-200/80 bg-slate-50 dark:border-slate-800 dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-[#630330]';
+    }
+  };
+
+  const getMajorSelectClasses = (major: string) => {
+    switch (major) {
+      case Major.HALAL_FOOD:
+        return 'border-amber-500/80 bg-amber-50/30 text-amber-800 dark:border-amber-600/60 dark:bg-amber-950/15 dark:text-amber-300 focus:ring-amber-500';
+      case Major.DIGITAL_TECH:
+        return 'border-blue-500/80 bg-blue-50/30 text-blue-800 dark:border-blue-600/60 dark:bg-blue-950/15 dark:text-blue-300 focus:ring-blue-500';
+      case Major.INFO_TECH:
+        return 'border-indigo-400/80 bg-indigo-50/30 text-indigo-800 dark:border-indigo-600/60 dark:bg-indigo-950/15 dark:text-indigo-300 focus:ring-indigo-500';
+      case Major.DATA_SCIENCE:
+        return 'border-emerald-500/80 bg-emerald-50/30 text-emerald-800 dark:border-emerald-600/60 dark:bg-emerald-950/15 dark:text-emerald-300 focus:ring-emerald-500';
+      default:
+        return 'border-slate-200/80 bg-slate-50 dark:border-slate-800 dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-[#630330]';
+    }
+  };
+
+  const handlePrevYear = () => {
+    if (adminStudentYearFilter === 'all') {
+      setAdminStudentYearFilter(currentYearBE);
+      return;
+    }
+    const idx = academicYears.indexOf(adminStudentYearFilter);
+    if (idx !== -1 && idx < academicYears.length - 1) {
+      setAdminStudentYearFilter(academicYears[idx + 1]);
+    }
+  };
+
+  const handleNextYear = () => {
+    if (adminStudentYearFilter === 'all') {
+      setAdminStudentYearFilter(currentYearBE);
+      return;
+    }
+    const idx = academicYears.indexOf(adminStudentYearFilter);
+    if (idx !== -1 && idx > 0) {
+      setAdminStudentYearFilter(academicYears[idx - 1]);
+    }
+  };
 
   const getLocalized = (localized: LocalizedString) => {
     return localized.th || localized.en || '';
@@ -846,75 +911,174 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                </div>
              )}
-             <div className="sticky top-0 left-0 right-0 h-8 bg-gradient-to-b from-white dark:from-slate-900 to-transparent z-[40] pointer-events-none opacity-80" />
+             <div className="sticky top-0 left-0 right-0 h-1 bg-gradient-to-b from-white dark:from-slate-900 to-transparent z-[40] pointer-events-none opacity-80" />
              <div className="px-6 sm:px-8 pb-12">
               {adminActiveTab === 'students' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      {/* Status Filter */}
-                      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
-                        <button onClick={() => setAdminStudentStatusFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === 'all' ? 'bg-[#630330] text-white shadow-md' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>สถานะทั้งหมด</button>
-                        {[
-                          { id: ApplicationStatus.PENDING, label: 'รอตรวจสอบ', color: 'amber' },
-                          { id: ApplicationStatus.PREPARING, label: 'กำลังจัดเตรียม', color: 'blue' },
-                          { id: ApplicationStatus.ACCEPTED, label: 'ตอบรับแล้ว', color: 'emerald' },
-                          { id: ApplicationStatus.REJECTED, label: 'ปฏิเสธ', color: 'rose' }
-                        ].map(st => (
-                          <button key={st.id} onClick={() => setAdminStudentStatusFilter(st.id)} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase transition-all flex items-center gap-2 ${adminStudentStatusFilter === st.id ? `bg-${st.color}-500 text-white shadow-md` : `text-slate-500 hover:bg-${st.color}-50 dark:hover:bg-${st.color}-950/20`}`}><div className={`w-2 h-2 rounded-full ${adminStudentStatusFilter === st.id ? 'bg-white' : `bg-${st.color}-400`}`} />{st.label}</button>
-                        ))}
-                      </div>
-                    </div>
+                  <div className="flex flex-col gap-3">
+                    {/* Streamlined Compact Horizontal Filter Bar */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-wrap items-center gap-3 sm:gap-4 relative z-20">
+                       {/* Left label & Icon */}
+                       <div className="flex items-center gap-2 pr-3 border-r border-slate-200 dark:border-slate-800 shrink-0">
+                         <div className="p-1.5 bg-[#2A0114] dark:bg-[#630330] rounded-xl text-white">
+                           <Filter size={16} />
+                         </div>
+                         <span className="font-black text-xs text-slate-800 dark:text-slate-200">
+                           ตัวกรอง:
+                         </span>
+                       </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {/* Major Filter */}
-                        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
-                          <button onClick={() => setAdminStudentMajorFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${adminStudentMajorFilter === 'all' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-800'}`}>ทุกสาขาวิชา</button>
-                          <button onClick={() => setAdminStudentMajorFilter(Major.HALAL_FOOD)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.HALAL_FOOD ? 'bg-amber-500 text-white' : 'text-slate-500 hover:bg-amber-50'}`}><Salad size={14} /> R&D</button>
-                          <button onClick={() => setAdminStudentMajorFilter(Major.DIGITAL_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50'}`}><Cpu size={14} /> TDS</button>
-                          <button onClick={() => setAdminStudentMajorFilter(Major.INFO_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.INFO_TECH ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-indigo-50'}`}><Network size={14} /> IT</button>
-                          <button onClick={() => setAdminStudentMajorFilter(Major.DATA_SCIENCE)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${adminStudentMajorFilter === Major.DATA_SCIENCE ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-emerald-50'}`}><Database size={14} /> DSA</button>
-                        </div>
-                        {/* Year Filter (New) */}
-                        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
-                          <button onClick={() => setAdminStudentYearFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${adminStudentYearFilter === 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>ทุกปีการศึกษา</button>
-                          <div className="relative">
-                            <select 
-                              value={adminStudentYearFilter === 'all' ? '' : adminStudentYearFilter} 
-                              onChange={(e) => setAdminStudentYearFilter(e.target.value || 'all')}
-                              className={`pl-4 pr-10 py-2.5 rounded-xl text-xs font-black uppercase transition-all outline-none appearance-none cursor-pointer ${adminStudentYearFilter !== 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500'}`}
-                            >
-                              <option value="">-- เลือกปีการศึกษา --</option>
-                              {academicYears.map(year => (
-                                <option key={year} value={year}>{year}</option>
-                              ))}
-                            </select>
-                            <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${adminStudentYearFilter !== 'all' ? 'text-white' : 'text-slate-400'}`} />
-                          </div>
-                        </div>
-                        {/* Term Filter */}
-                        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl w-fit border border-slate-200/50 dark:border-slate-700 relative z-10">
-                          <button onClick={() => setAdminStudentTermFilter('all')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase transition-all ${adminStudentTermFilter === 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>ทุกเทอม</button>
-                          <div className="relative">
-                            <select 
-                              value={adminStudentTermFilter === 'all' ? '' : adminStudentTermFilter} 
-                              onChange={(e) => setAdminStudentTermFilter(e.target.value || 'all')}
-                              className={`pl-4 pr-10 py-2.5 rounded-xl text-xs font-black uppercase transition-all outline-none appearance-none cursor-pointer ${adminStudentTermFilter !== 'all' ? 'bg-[#2A0114] text-white shadow-md' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500'}`}
-                            >
-                              <option value="">-- เลือกเทอม --</option>
-                              {['1', '2', '3'].map(term => (
-                                <option key={term} value={term}>เทอม {term}</option>
-                              ))}
-                            </select>
-                            <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${adminStudentTermFilter !== 'all' ? 'text-white' : 'text-slate-400'}`} />
-                          </div>
-                        </div>
-                      </div>
+                       {/* Select Grid */}
+                       <div className="flex-grow grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 w-full sm:w-auto">
+                         {/* 1. Status Filter */}
+                           <div className="flex flex-col gap-1 relative animate-in fade-in duration-300">
+                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">สถานะการดำเนินการ</span>
+                             <div className="relative">
+                               <select
+                                 value={adminStudentStatusFilter}
+                                 onChange={(e) => setAdminStudentStatusFilter(e.target.value as any)}
+                                 className={`w-full h-[38px] pl-3 pr-8 border rounded-xl font-bold outline-none cursor-pointer appearance-none text-sm transition-all duration-300 shadow-sm ${getStatusSelectClasses(adminStudentStatusFilter)}`}
+                               >
+                                 <option value="all" className="text-slate-700 dark:text-slate-200 font-normal">ทั้งหมด</option>
+                                 <option value={ApplicationStatus.PENDING} className="text-amber-800 dark:text-amber-300 font-bold">รอตรวจสอบ</option>
+                                 <option value={ApplicationStatus.PREPARING} className="text-blue-800 dark:text-blue-300 font-bold">กำลังจัดเตรียม</option>
+                                 <option value={ApplicationStatus.ACCEPTED} className="text-emerald-800 dark:text-emerald-300 font-bold">ตอบรับแล้ว</option>
+                                 <option value={ApplicationStatus.REJECTED} className="text-rose-800 dark:text-rose-300 font-bold">ปฏิเสธ</option>
+                               </select>
+                               <ChevronDown size={14} className={`absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-300 ${
+                                 adminStudentStatusFilter === 'all' ? 'text-slate-400' :
+                                 adminStudentStatusFilter === ApplicationStatus.PENDING ? 'text-amber-500' :
+                                 adminStudentStatusFilter === ApplicationStatus.PREPARING ? 'text-blue-500' :
+                                 adminStudentStatusFilter === ApplicationStatus.ACCEPTED ? 'text-emerald-500' : 'text-rose-500'
+                               }`} />
+                             </div>
+                           </div>
 
+                           {/* 2. Major Filter */}
+                           <div className="flex flex-col gap-1 relative animate-in fade-in duration-300">
+                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">สาขาวิชาหลัก</span>
+                             <div className="relative">
+                               <select
+                                 value={adminStudentMajorFilter}
+                                 onChange={(e) => setAdminStudentMajorFilter(e.target.value as any)}
+                                 className={`w-full h-[38px] pl-3 pr-8 border rounded-xl font-bold outline-none cursor-pointer appearance-none text-sm transition-all duration-300 shadow-sm ${getMajorSelectClasses(adminStudentMajorFilter)}`}
+                               >
+                                 <option value="all" className="text-slate-700 dark:text-slate-200 font-normal">ทั้งหมด</option>
+                                 <option value={Major.HALAL_FOOD} className="text-amber-800 dark:text-amber-300 font-bold">R&D (เทคโนโลยีอาหารฮาลาล)</option>
+                                 <option value={Major.DIGITAL_TECH} className="text-blue-800 dark:text-blue-300 font-bold">TDS (เทคโนโลยีดิจิทัล)</option>
+                                 <option value={Major.INFO_TECH} className="text-indigo-800 dark:text-indigo-300 font-bold">IT (เทคโนโลยีสารสนเทศ)</option>
+                                 <option value={Major.DATA_SCIENCE} className="text-emerald-800 dark:text-emerald-300 font-bold">DSA (วิทยาการข้อมูลและการวิเคราะห์)</option>
+                               </select>
+                               <ChevronDown size={14} className={`absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-300 ${
+                                 adminStudentMajorFilter === 'all' ? 'text-slate-400' :
+                                 adminStudentMajorFilter === Major.HALAL_FOOD ? 'text-amber-500' :
+                                 adminStudentMajorFilter === Major.DIGITAL_TECH ? 'text-blue-500' :
+                                 adminStudentMajorFilter === Major.INFO_TECH ? 'text-indigo-500' : 'text-emerald-500'
+                               }`} />
+                             </div>
+                           </div>
+
+                           {/* 3. Year Filter (Interactive Slider Selector) */}
+                           <div className="flex flex-col gap-1 relative animate-in fade-in duration-300">
+                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ปีการศึกษา</span>
+                             <div className="relative flex items-center border border-slate-200/80 dark:border-slate-750 bg-slate-50 dark:bg-slate-800 rounded-xl h-[38px] px-1 shadow-sm">
+                               {/* Left arrow (Go to older/previous year) */}
+                               <button
+                                 type="button"
+                                 onClick={handlePrevYear}
+                                 disabled={adminStudentYearFilter !== 'all' && academicYears.indexOf(adminStudentYearFilter) === academicYears.length - 1}
+                                 className="p-1 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-30 disabled:hover:bg-transparent rounded-lg transition-colors cursor-pointer"
+                                 title="ปีก่อนหน้า"
+                               >
+                                 <ChevronLeft size={16} />
+                               </button>
+
+                               {/* Center Year Selector with Invisible select overlay */}
+                               <div className="relative flex-grow flex items-center justify-center h-full px-2 text-center">
+                                 <span className="font-bold text-sm text-slate-700 dark:text-slate-200 select-none pointer-events-none">
+                                   {adminStudentYearFilter === 'all' ? 'ทั้งหมด' : `ปี ${adminStudentYearFilter}`}
+                                 </span>
+                                 
+                                 {/* Overlay select to choose another year directly */}
+                                 <select
+                                   value={adminStudentYearFilter}
+                                   onChange={(e) => setAdminStudentYearFilter(e.target.value)}
+                                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                   title="คลิกเพื่อเลือกปีการศึกษาอื่น"
+                                 >
+                                   <option value="all">ทั้งหมด</option>
+                                   {academicYears.map(year => (
+                                     <option key={year} value={year}>
+                                       {year === currentYearBE ? `${year} (ปัจจุบัน)` : year}
+                                     </option>
+                                   ))}
+                                 </select>
+                               </div>
+
+                               {/* Right arrow (Go to newer/next year) */}
+                               <button
+                                 type="button"
+                                 onClick={handleNextYear}
+                                 disabled={adminStudentYearFilter !== 'all' && academicYears.indexOf(adminStudentYearFilter) === 0}
+                                 className="p-1 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-30 disabled:hover:bg-transparent rounded-lg transition-colors cursor-pointer"
+                                 title="ปีถัดไป"
+                               >
+                                 <ChevronRight size={16} />
+                               </button>
+                             </div>
+                           </div>
+
+                           {/* 4. Term Filter (Interactive Button Group) */}
+                           <div className="flex flex-col gap-1 relative animate-in fade-in duration-300">
+                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ภาคเรียน / เทอม</span>
+                             <div className="flex items-center bg-slate-100/90 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-750 rounded-xl h-[38px] p-0.5 gap-0.5 w-full shadow-sm">
+                               {[
+                                 { value: 'all', label: 'ทั้งหมด' },
+                                 { value: '1', label: 'เทอม 1' },
+                                 { value: '2', label: 'เทอม 2' },
+                                 { value: '3', label: 'เทอม 3' },
+                               ].map((opt) => {
+                                 const isActive = adminStudentTermFilter === opt.value;
+                                 return (
+                                   <button
+                                     key={opt.value}
+                                     type="button"
+                                     onClick={() => setAdminStudentTermFilter(opt.value)}
+                                     className={`flex-grow h-full px-1.5 rounded-lg font-black text-xs transition-all duration-200 cursor-pointer flex items-center justify-center ${
+                                       isActive 
+                                         ? 'bg-white dark:bg-slate-700 text-[#630330] dark:text-amber-400 shadow-sm scale-[1.02]' 
+                                         : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                                     }`}
+                                   >
+                                     {opt.value === 'all' ? 'ทั้งหมด' : opt.label}
+                                   </button>
+                                 );
+                               })}
+                             </div>
+                           </div>
+                        
+                       </div>
+
+                       {/* Reset button inside filter bar */}
+                       {(adminStudentStatusFilter !== 'all' || adminStudentMajorFilter !== 'all' || adminStudentYearFilter !== currentYearBE || adminStudentTermFilter !== 'all') && (
+                         <button
+                           onClick={() => {
+                             setAdminStudentStatusFilter('all');
+                             setAdminStudentMajorFilter('all');
+                             setAdminStudentYearFilter(currentYearBE);
+                             setAdminStudentTermFilter('all');
+                           }}
+                           className="self-end h-[34px] px-3.5 rounded-xl text-[10px] font-black uppercase bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-900/30 hover:border-rose-200 transition-all flex items-center gap-1.5 shadow-sm"
+                           title="ล้างตัวกรองทั้งหมด"
+                         >
+                           <X size={14} />
+                           <span>ล้างตัวกรอง</span>
+                         </button>
+                       )}
+                     </div>                    <div className="flex flex-wrap items-center justify-between gap-4 mt-2">
                       <button 
                         onClick={toggleSelectAllStudents}
-                        className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-all flex items-center gap-2"
+                        className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase rounded-xl border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-2 shadow-sm"
                       >
                         {selectedStudentIds.length === filteredAdminStudents.length ? <ShieldX size={14} /> : <ShieldCheck size={14} />}
                         {selectedStudentIds.length === filteredAdminStudents.length ? 'ยกเลิกเลือกทั้งหมด' : 'เลือกทั้งหมดในหน้านี้'}
