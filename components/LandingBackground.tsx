@@ -1,4 +1,3 @@
-
 import React, { useMemo, useEffect } from 'react';
 
 export const MouseGlow: React.FC = () => {
@@ -47,29 +46,45 @@ export const TechMeteorShower: React.FC = () => {
 export const ModernWaves: React.FC = () => {
   return (
     <div className="waves-container">
-      <div className="wave-layer animate-wave-slow bob-slow opacity-20">
+      <svg className="absolute w-0 h-0">
+        <defs>
+          <linearGradient id="waveGrad1" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#7A0B3D" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#7A0B3D" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="waveGrad2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#D4AF37" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="waveGrad3" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#630330" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#2A0114" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="wave-layer animate-wave-slow bob-slow opacity-25">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
           <path className="wave-line" stroke="#D4AF37" d="M0,160 C320,300 420,10 720,160 C1020,310 1120,20 1440,160 C1760,300 1860,10 2160,160 C2460,310 2560,20 2880,160"></path>
         </svg>
       </div>
-      <div className="wave-layer animate-wave-mid bob-mid opacity-10">
+      <div className="wave-layer animate-wave-mid bob-mid opacity-15">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
           <path className="wave-line" stroke="#FFFFFF" d="M0,192 C240,120 480,240 720,192 C960,144 1200,240 1440,192 C1680,120 1920,240 2160,192 C2400,144 2640,240 2880,192"></path>
         </svg>
       </div>
-      <div className="wave-layer animate-wave-slow bob-slow opacity-30">
+      <div className="wave-layer animate-wave-slow bob-slow opacity-40">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path fill="#7A0B3D" fillOpacity="1" d="M0,160 L120,170.7 C240,181,480,203,720,202.7 C960,203,1200,181,1320,170.7 L1440,160 L1560,170.7 C1680,181,1920,203,2160,202.7 C2400,203,2640,181,2760,170.7 L2880,160 V320 H0 Z"></path>
+          <path fill="url(#waveGrad1)" stroke="#7A0B3D" strokeWidth="1" d="M0,160 L120,170.7 C240,181,480,203,720,202.7 C960,203,1200,181,1320,170.7 L1440,160 L1560,170.7 C1680,181,1920,203,2160,202.7 C2400,203,2640,181,2760,170.7 L2880,160 V320 H0 Z"></path>
         </svg>
       </div>
-      <div className="wave-layer animate-wave-mid bob-mid opacity-20" style={{ marginBottom: '2px' }}>
+      <div className="wave-layer animate-wave-mid bob-mid opacity-30">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path fill="#D4AF37" fillOpacity="1" d="M0,224 L120,213.3 C240,203,480,181,720,181.3 C960,181,1200,203,1320,213.3 L1440,224 L1560,213.3 C1680,203,1920,181,2160,181.3 C2400,203,2640,181,2760,213.3 L2880,224 V320 H0 Z"></path>
+          <path fill="url(#waveGrad2)" stroke="#D4AF37" strokeWidth="1" d="M0,224 L120,213.3 C240,203,480,181,720,181.3 C960,181,1200,203,1320,213.3 L1440,224 L1560,213.3 C1680,203,1920,181,2160,213.3 L2880,224 V320 H0 Z"></path>
         </svg>
       </div>
       <div className="wave-layer animate-wave-fast bob-fast opacity-50">
         <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="wave-svg">
-          <path fill="#630330" fillOpacity="1" d="M0,288 L120,277.3 C240,267,480,245,720,245.3 C960,245,1200,267,1320,277.3 L1440,288 L1560,277.3 C1680,267,1920,245,2160,245.3 C2400,245,2640,267,2760,277.3 L2880,288 V320 H0 Z"></path>
+          <path fill="url(#waveGrad3)" stroke="#630330" strokeWidth="1" d="M0,288 L120,277.3 C240,267,480,245,720,245.3 C960,245,1200,267,1320,277.3 L1440,288 L1560,277.3 C1680,267,1920,245,2160,245.3 C2400,245,2640,267,2760,277.3 L2880,288 V320 H0 Z"></path>
         </svg>
       </div>
     </div>
