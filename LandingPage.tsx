@@ -10,7 +10,6 @@ import {
 } from './types';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { MouseGlow, TechMeteorShower, ModernWaves } from './components/LandingBackground';
-import Lightfall from './components/Lightfall';
 import { 
   X, 
   ChevronRight, 
@@ -270,45 +269,19 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className={`relative min-h-[100dvh] w-full flex flex-col items-center justify-center luxe-mangosteen-bg overflow-hidden desktop-zoom-70 touch-auto ${isRtl ? 'rtl' : ''}`}>
+    <div className={`fixed inset-0 w-full h-[100svh] flex flex-col items-center luxe-mangosteen-bg overflow-hidden desktop-zoom-70 touch-auto ${isRtl ? 'rtl' : ''}`}>
       <MouseGlow />
-      <div className="bg-video-wrap absolute inset-0 w-full h-full pointer-events-none z-0">
-        <video autoPlay loop muted playsInline className="w-full h-full object-cover opacity-12 filter saturate-[0.4] brightness-[0.3]">
+      <div className="bg-video-wrap">
+        <video autoPlay loop muted playsInline>
           <source src="https://assets.mixkit.co/videos/preview/kit-business-people-working-in-a-busy-office-33824-large.mp4" type="video/mp4" />
         </video>
       </div>
-      <div className="video-overlay absolute inset-0 w-full h-full pointer-events-none z-[1]"></div>
-      <div className="islamic-tech-watermark absolute inset-0 w-full h-full pointer-events-none z-[1]"></div>
-      
-      {/* Pink-Purple ambient glow at the top center */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[900px] h-[300px] sm:h-[400px] bg-gradient-to-b from-[#FF9FFC]/35 via-[#9333EA]/20 to-transparent blur-[110px] rounded-full pointer-events-none z-[2]" />
-
-      {/* Lightfall WebGL animation background covering entire screen */}
-      <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden opacity-80 w-full h-full">
-        <Lightfall
-          colors={['#FF9FFC', '#D4AF37', '#FFDF00', '#F59E0B', '#A6C8FF']}
-          backgroundColor="#2A0114"
-          speed={0.5}
-          streakCount={2}
-          streakWidth={1.2}
-          streakLength={1.2}
-          glow={1.2}
-          density={0.35}
-          twinkle={1}
-          zoom={3}
-          backgroundGlow={0.6}
-          opacity={0.8}
-          mouseInteraction={true}
-          mouseStrength={1.2}
-          mouseRadius={0.8}
-          mixBlendMode="screen"
-        />
-      </div>
-
+      <div className="video-overlay"></div>
+      <div className="islamic-tech-watermark"></div>
       <TechMeteorShower />
       <ModernWaves />
       
-      <div className="relative z-20 flex flex-col items-center justify-center w-full max-w-4xl px-6 py-6 my-auto reveal-anim pointer-events-none">
+      <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-6 reveal-anim h-full pointer-events-none">
         <div className="flex flex-col items-center space-y-4 sm:space-y-6 pointer-events-auto">
            <div className="px-4 sm:px-8 py-2 sm:py-3 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
              <div className="flex flex-row items-center gap-2 sm:gap-6 whitespace-nowrap overflow-hidden">
@@ -340,7 +313,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
            </div>
         </div>
 
-        <div className="mt-5 sm:mt-8 space-y-5 sm:space-y-8 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 flex flex-col items-center pointer-events-auto">
+        <div className="mt-6 sm:mt-10 space-y-6 sm:space-y-10 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 flex flex-col items-center pointer-events-auto">
           <h1 className={`text-center text-[11px] min-[360px]:text-[13px] min-[400px]:text-[15px] min-[480px]:text-base sm:text-4xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight lg:whitespace-nowrap mx-auto w-full ${
             lang === Language.MS ? 'lg:text-4xl' : 
             lang === Language.EN ? 'lg:text-5xl' : 
@@ -350,7 +323,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
             {currentT.landingHeading}
           </h1>
 
-          <div className="flex flex-col items-center w-full gap-5 sm:gap-8">
+          <div className="flex flex-col items-center w-full gap-6 sm:gap-10">
             <div className="transform transition-all duration-500 hover:scale-105 scale-90 sm:scale-100">
               <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} />
             </div>
@@ -391,7 +364,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   setLoginSuccess(false);
                   setShowAdminLogin(true);
                 }}
-                className="flex items-center gap-2 mt-4 sm:mt-5 opacity-40 hover:opacity-100 transition-all duration-500 group touch-auto"
+                className="flex items-center gap-2 mt-8 opacity-30 hover:opacity-100 transition-all duration-500 group touch-auto"
                 title="Staff Access"
               >
                 <LockKeyhole size={12} className="text-[#D4AF37] group-hover:scale-110 transition-transform" />
