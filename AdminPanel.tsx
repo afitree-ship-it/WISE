@@ -177,7 +177,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const termsOptions = useMemo(() => {
     const vals = Array.from(new Set(studentStatuses.map(s => String(s.term || '').trim()).filter(Boolean)))
-      .filter(t => /^\d+$/.test(t)); // Ensure only numeric values are treated as semesters
+      .filter(t => /^\d+$/.test(t) && t !== '3'); // Ensure only numeric values are treated as semesters, excluding term 3
     return vals.sort();
   }, [studentStatuses]);
 
@@ -1036,7 +1036,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                  { value: 'all', label: 'ทั้งหมด' },
                                  { value: '1', label: 'เทอม 1' },
                                  { value: '2', label: 'เทอม 2' },
-                                 { value: '3', label: 'เทอม 3' },
                                ].map((opt) => {
                                  const isActive = adminStudentTermFilter === opt.value;
                                  return (
@@ -1379,7 +1378,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                      <option value="all">ทั้งหมด</option>
                      <option value="1">1</option>
                      <option value="2">2</option>
-                     <option value="3">3</option>
                    </select>
                 </div>
                 <div className="space-y-2">
@@ -1575,7 +1573,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             <option value="">ทั้งหมด</option>
                             <option value="1">1</option>
                             <option value="2">2</option>
-                            <option value="3">3</option>
                           </select>
                        </div>
                        <div className="space-y-2">
@@ -1670,7 +1667,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <option value="">- เลือกเทอม -</option>
                     <option value="1">1</option>
                     <option value="2">2</option>
-                    <option value="3">3</option>
                   </select>
                 </div>
                 <div className="space-y-2">

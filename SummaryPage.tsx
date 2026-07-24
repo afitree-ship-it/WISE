@@ -21,7 +21,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack }) => {
 
   const terms = useMemo(() => {
     const uniqueTerms = Array.from(new Set(students.map(s => String(s.term || '').trim()).filter(Boolean)))
-      .filter(t => /^\d+$/.test(t)); // Ensure only numeric values are treated as term numbers
+      .filter(t => /^\d+$/.test(t) && t !== '3'); // Ensure only numeric values are treated as term numbers, excluding term 3
     return uniqueTerms.sort();
   }, [students]);
 

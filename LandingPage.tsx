@@ -10,6 +10,7 @@ import {
 } from './types';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { MouseGlow, TechMeteorShower, ModernWaves } from './components/LandingBackground';
+import Lightfall from './components/Lightfall';
 import { 
   X, 
   ChevronRight, 
@@ -278,6 +279,29 @@ const LandingPage: React.FC<LandingPageProps> = ({
       </div>
       <div className="video-overlay"></div>
       <div className="islamic-tech-watermark"></div>
+      
+      {/* Lightfall WebGL animation background from React Bits */}
+      <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden opacity-70">
+        <Lightfall
+          colors={['#D4AF37', '#FFDF00', '#F59E0B', '#A6C8FF', '#FF9FFC']}
+          backgroundColor="#2A0114"
+          speed={0.5}
+          streakCount={2}
+          streakWidth={1.2}
+          streakLength={1.2}
+          glow={1.2}
+          density={0.35}
+          twinkle={1}
+          zoom={3}
+          backgroundGlow={0.6}
+          opacity={0.8}
+          mouseInteraction={true}
+          mouseStrength={1.2}
+          mouseRadius={0.8}
+          mixBlendMode="screen"
+        />
+      </div>
+
       <TechMeteorShower />
       <ModernWaves />
       
