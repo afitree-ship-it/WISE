@@ -119,7 +119,10 @@ const App: React.FC = () => {
     const data = saved ? JSON.parse(saved) : INITIAL_FORMS;
     return sanitizeData(data, 'frm');
   });
-  const [adminPasswords, setAdminPasswords] = useState<string[]>([]);
+  const [adminPasswords, setAdminPasswords] = useState<string[]>(() => {
+    const saved = localStorage.getItem('wise_admin_passwords');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -337,6 +340,7 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('wise_sites', JSON.stringify(sites)); }, [sites]);
   useEffect(() => { localStorage.setItem('wise_schedules', JSON.stringify(schedules)); }, [schedules]);
   useEffect(() => { localStorage.setItem('wise_forms', JSON.stringify(forms)); }, [forms]);
+  useEffect(() => { localStorage.setItem('wise_admin_passwords', JSON.stringify(adminPasswords)); }, [adminPasswords]);
 
   const currentT = useMemo(() => {
     const t = TRANSLATIONS[lang];
