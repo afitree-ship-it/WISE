@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useMemo, useRef } from 'react';
 import { 
   Language, 
@@ -123,14 +123,35 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isFilterPanelExpanded, setIsFilterPanelExpanded] = useState(false);
   const [studentViewMode, setStudentViewMode] = useState<'table' | 'cards'>('table');
 
+  // Calculate stats scoped to active Year, Term, and Major filters to guarantee exact count match
+  const scopedStudentsForStats = useMemo(() => {
+    let result = studentStatuses;
+    if (adminStudentYearFilter !== 'all') {
+      result = result.filter(s => String(s.academicYear || '').trim() === adminStudentYearFilter);
+    }
+    if (adminStudentTermFilter !== 'all') {
+      result = result.filter(s => String(s.term || '').trim() === adminStudentTermFilter);
+    }
+    if (adminStudentMajorFilter !== 'all') {
+      result = result.filter(s => s.major === adminStudentMajorFilter);
+    }
+    return result;
+  }, [studentStatuses, adminStudentYearFilter, adminStudentTermFilter, adminStudentMajorFilter]);
+
   const studentStats = useMemo(() => {
-    const total = studentStatuses.length;
-    const accepted = studentStatuses.filter(s => s.status === ApplicationStatus.ACCEPTED).length;
-    const preparing = studentStatuses.filter(s => s.status === ApplicationStatus.PREPARING).length;
-    const pending = studentStatuses.filter(s => s.status === ApplicationStatus.PENDING).length;
-    const rejected = studentStatuses.filter(s => s.status === ApplicationStatus.REJECTED).length;
+    const total = scopedStudentsForStats.length;
+    const accepted = scopedStudentsForStats.filter(s => s.status === ApplicationStatus.ACCEPTED).length;
+    const preparing = scopedStudentsForStats.filter(s => s.status === ApplicationStatus.PREPARING).length;
+    const pending = scopedStudentsForStats.filter(s => s.status === ApplicationStatus.PENDING || !s.status).length;
+    const rejected = scopedStudentsForStats.filter(s => s.status === ApplicationStatus.REJECTED).length;
     return { total, accepted, preparing, pending, rejected };
-  }, [studentStatuses]);
+  }, [scopedStudentsForStats]);
+
+  // Modal local state for easy date picking & presets
+  const [modalStartDate, setModalStartDate] = useState('');
+  const [modalEndDate, setModalEndDate] = useState('');
+  const [modalInternshipType, setModalInternshipType] = useState<InternshipType>(InternshipType.INTERNSHIP);
+  const [modalStatus, setModalStatus] = useState<ApplicationStatus>(ApplicationStatus.PENDING);
   
   const [adminSiteSearch, setAdminSiteSearch] = useState('');
   const [adminSiteMajorFilter, setAdminSiteMajorFilter] = useState<Major | 'all'>('all');
@@ -391,7 +412,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       );
     }
     if (adminStudentStatusFilter !== 'all') {
-      result = result.filter(s => s.status === adminStudentStatusFilter);
+      if (adminStudentStatusFilter === ApplicationStatus.PENDING) {
+        result = result.filter(s => s.status === ApplicationStatus.PENDING || !s.status);
+      } else {
+        result = result.filter(s => s.status === adminStudentStatusFilter);
+      }
     }
     if (adminStudentMajorFilter !== 'all') {
       result = result.filter(s => s.major === adminStudentMajorFilter);
@@ -605,16 +630,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       term: rawTerm.trim() || "",
       academicYear: rawYear.trim() || "",
       supervisor: formData.get('supervisor') as string || "",
-      status: formData.get('status') as ApplicationStatus,
+      status: (formData.get('status') as ApplicationStatus) || modalStatus,
       major: formData.get('major') as Major,
-      internshipType: formData.get('internship_type') as InternshipType,
-      startDate: formData.get('start_date') as string || "",
-      endDate: formData.get('end_date') as string || "",
+      internshipType: (formData.get('internship_type') as InternshipType) || modalInternshipType,
+      startDate: (formData.get('start_date') as string) || modalStartDate || "",
+      endDate: (formData.get('end_date') as string) || modalEndDate || "",
       lastUpdated: Date.now()
     };
     
     setStudentStatuses(prev => {
       const updated = editingStatusRecord ? prev.map(s => s.id === editingStatusRecord.id ? newRecord : s) : [newRecord, ...prev];
+      try {
+        localStorage.setItem('wise_student_statuses', JSON.stringify(updated));
+      } catch (err) { console.warn(err); }
       syncToSheets('studentStatuses', updated, editingStatusRecord ? 'update' : 'add', newRecord);
       return updated;
     });
@@ -814,6 +842,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleAddData = () => {
     if (adminActiveTab === 'students') { 
       setEditingStatusRecord(null); 
+      setModalStartDate('');
+      setModalEndDate('');
+      setModalInternshipType(InternshipType.INTERNSHIP);
+      setModalStatus(ApplicationStatus.PENDING);
       setStatusError(null); 
       setIsForceSaveVisible(false); 
       setShowAdminStatusModal(true); 
@@ -827,62 +859,93 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     else { setEditingForm(null); setSelectedFile(null); setUploadMethod('url'); setShowFormModal(true); }
   };
 
+  const handleEditStudent = (record: StudentStatusRecord) => {
+    setEditingStatusRecord(record);
+    setModalStartDate(formatDateForInput(record.startDate) || '');
+    setModalEndDate(formatDateForInput(record.endDate) || '');
+    setModalInternshipType(record.internshipType || InternshipType.INTERNSHIP);
+    setModalStatus(record.status || ApplicationStatus.PENDING);
+    setStatusError(null);
+    setIsForceSaveVisible(false);
+    setShowAdminStatusModal(true);
+  };
+
+  const applyPresetTerm1 = () => {
+    const curYear = new Date().getFullYear();
+    setModalStartDate(`${curYear}-06-01`);
+    setModalEndDate(`${curYear}-10-31`);
+  };
+
+  const applyPresetTerm2 = () => {
+    const curYear = new Date().getFullYear();
+    setModalStartDate(`${curYear}-11-01`);
+    setModalEndDate(`${curYear + 1}-03-31`);
+  };
+
+  const applyPresetDuration = (months: number) => {
+    const base = modalStartDate ? new Date(modalStartDate) : new Date();
+    if (isNaN(base.getTime())) return;
+    const startStr = base.toISOString().split('T')[0];
+    const end = new Date(base);
+    end.setMonth(end.getMonth() + months);
+    setModalStartDate(startStr);
+    setModalEndDate(end.toISOString().split('T')[0]);
+  };
+
   return (
     <>
-      <aside className="w-full md:w-52 lg:w-60 flex-shrink-0 flex flex-col h-fit md:h-full overflow-x-auto md:overflow-y-auto hide-scrollbar z-[60]">
-         <div className="flex flex-row md:flex-col gap-1.5 p-1.5 md:p-0 bg-[#e4d4bc]/80 dark:bg-slate-950/80 backdrop-blur-md md:bg-transparent rounded-2xl h-full">
-            <div className="flex flex-row md:flex-col gap-1.5">
+      <aside className="w-full md:w-44 lg:w-48 flex-shrink-0 flex flex-col h-fit md:h-full overflow-x-auto md:overflow-y-auto hide-scrollbar z-[60]">
+         <div className="flex flex-row md:flex-col gap-1 p-1 md:p-0 bg-[#e4d4bc]/80 dark:bg-slate-950/80 backdrop-blur-md md:bg-transparent rounded-2xl h-full">
+            <div className="flex flex-row md:flex-col gap-1">
               {adminMenu.map(item => (
                 <button
                   key={item.id}
                   onClick={() => setAdminActiveTab(item.id as any)}
                   className={`
-                    flex items-center gap-2.5 px-4 py-3 rounded-xl font-black uppercase text-[10px] min-[400px]:text-xs transition-all whitespace-nowrap md:w-full
+                    flex items-center gap-2 px-3 py-2.5 rounded-xl font-bold uppercase text-[10px] min-[400px]:text-xs transition-all whitespace-nowrap md:w-full
                     ${adminActiveTab === item.id 
-                      ? `bg-[#630330] text-white shadow-lg shadow-[#630330]/20` 
-                      : 'bg-white/90 dark:bg-slate-900 text-slate-600 dark:text-slate-500 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-800'
+                      ? `bg-[#630330] text-white shadow-md shadow-[#630330]/20` 
+                      : 'bg-white/90 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-800'
                     }
                   `}
                 >
-                  <span className={`shrink-0 ${adminActiveTab === item.id ? 'text-[#D4AF37]' : ''}`}>{React.cloneElement(item.icon as React.ReactElement<any>, { size: 18 })}</span>
+                  <span className={`shrink-0 ${adminActiveTab === item.id ? 'text-[#D4AF37]' : ''}`}>{React.cloneElement(item.icon as React.ReactElement<any>, { size: 16 })}</span>
                   <span className="truncate">{item.label}</span>
                 </button>
               ))}
             </div>
             
-            <div className="hidden md:block mt-3 p-4 rounded-xl bg-gradient-to-br from-[#2A0114] to-[#630330] text-white shadow-xl shadow-[#2A0114]/20 border border-white/5">
-              <p className="text-[8px] font-black uppercase tracking-widest text-[#D4AF37] mb-1">WISE Portal</p>
-              <h4 className="font-bold text-[10px] leading-tight opacity-90">ระบบจัดการหลังบ้าน <br /> คณะวิทยาศาสตร์ฯ มฟน.</h4>
-              <button onClick={fetchFromSheets} disabled={isLoading} className={`mt-2.5 flex items-center gap-2 text-[8px] font-black uppercase text-[#D4AF37] hover:text-white transition-all ${isLoading ? 'opacity-50' : ''}`}>
-                <RefreshCw size={10} className={isLoading ? 'animate-spin' : ''} /> {isLoading ? 'กำลังโหลดข้อมูล...' : 'รีเฟรชข้อมูล'}
+            <div className="hidden md:block mt-2 p-3 rounded-xl bg-gradient-to-br from-[#2A0114] to-[#630330] text-white shadow-md border border-white/5">
+              <p className="text-[8px] font-black uppercase tracking-widest text-[#D4AF37] mb-0.5">WISE Portal</p>
+              <h4 className="font-bold text-[9px] leading-tight opacity-90">ระบบจัดการหลังบ้าน</h4>
+              <button onClick={fetchFromSheets} disabled={isLoading} className={`mt-2 flex items-center gap-1.5 text-[8px] font-black uppercase text-[#D4AF37] hover:text-white transition-all ${isLoading ? 'opacity-50' : ''}`}>
+                <RefreshCw size={9} className={isLoading ? 'animate-spin' : ''} /> {isLoading ? 'กำลังโหลด...' : 'รีเฟรชข้อมูล'}
               </button>
             </div>
 
             {/* Bulk Action Area (Sidebar Bottom) */}
             {adminActiveTab === 'students' && selectedStudentIds.length > 0 && (
-              <div className="hidden md:flex flex-col mt-auto pt-6 pb-2 animate-in slide-in-from-bottom-10 duration-500">
-                <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border-2 border-indigo-500/40 flex flex-col gap-4 shadow-2xl shadow-indigo-500/10 ring-4 ring-indigo-500/5">
-                  <div className="flex items-center justify-between px-1">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">เลือกแล้ว</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-3xl font-black text-slate-900 dark:text-white leading-none">{selectedStudentIds.length}</span>
-                        <span className="text-xs font-black text-slate-400 uppercase">คน</span>
-                      </div>
+              <div className="hidden md:flex flex-col mt-auto pt-3 pb-1 animate-in slide-in-from-bottom-5 duration-300">
+                <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-400/50 flex flex-col gap-2.5 shadow-lg shadow-indigo-500/10">
+                  <div className="flex items-center justify-between px-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase">เลือก</span>
+                      <span className="text-sm font-black text-slate-900 dark:text-white leading-none">{selectedStudentIds.length}</span>
+                      <span className="text-[10px] font-bold text-slate-400">คน</span>
                     </div>
                     <button 
                       onClick={() => setSelectedStudentIds([])}
-                      className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center shadow-sm"
+                      className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center shadow-sm"
                       title="ยกเลิกการเลือก"
                     >
-                      <X size={18} />
+                      <X size={12} />
                     </button>
                   </div>
                   <button 
                     onClick={() => setShowBulkStatusModal(true)}
-                    className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-black uppercase rounded-2xl shadow-2xl shadow-indigo-500/40 transition-all hover:scale-[1.03] active:scale-[0.97] flex items-center justify-center gap-3 tracking-wider ring-2 ring-white/10"
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black uppercase rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5"
                   >
-                    <Layers size={24} strokeWidth={3} /> แก้ไขสถานะกลุ่ม
+                    <Layers size={14} /> แก้ไขกลุ่ม
                   </button>
                 </div>
               </div>
@@ -935,21 +998,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </button>
                   </div>
                 )}
-                <div className="relative w-full sm:w-64 group">
-                   <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors" />
+                <div className="relative w-full sm:w-60 md:w-72">
+                   <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#630330] dark:group-focus-within:text-amber-400 transition-colors pointer-events-none" />
                    <input 
                      type="text" 
-                     placeholder="ค้นหา..." 
+                     placeholder={adminActiveTab === 'students' ? "ค้นหารหัส, ชื่อ, สถานที่..." : "ค้นหาสถานที่, ตำแหน่ง..."} 
                      value={adminActiveTab === 'students' ? adminStudentSearch : adminSiteSearch}
                      onChange={(e) => adminActiveTab === 'students' ? setAdminStudentSearch(e.target.value) : setAdminSiteSearch(e.target.value)}
-                     className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-slate-50/50 dark:bg-slate-800 dark:text-white border border-slate-200/50 dark:border-slate-700 rounded-xl outline-none font-bold text-xs sm:text-base focus:ring-2 focus:ring-[#D4AF37]/20 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-inner"
+                     className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-xs font-semibold focus:ring-2 focus:ring-[#630330]/20 focus:border-[#630330] transition-all shadow-sm"
                    />
+                   {(adminActiveTab === 'students' ? adminStudentSearch : adminSiteSearch) && (
+                     <button
+                       type="button"
+                       onClick={() => adminActiveTab === 'students' ? setAdminStudentSearch('') : setAdminSiteSearch('')}
+                       className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                       title="ล้างคำค้นหา"
+                     >
+                       <X size={13} />
+                     </button>
+                   )}
                 </div>
                 <button 
                   onClick={handleAddData}
-                  className={`hidden sm:flex w-full sm:w-auto px-8 py-3 rounded-xl bg-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600 text-white font-black uppercase text-sm sm:text-base items-center justify-center gap-3 shadow-lg shadow-${adminMenu.find(m => m.id === adminActiveTab)?.color}-600/20 transition-all hover:scale-105 active:scale-95`}
+                  className="px-4 py-2 rounded-xl bg-[#630330] hover:bg-[#7a0b3d] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-[#630330]/20 transition-all hover:scale-[1.02] active:scale-95 shrink-0"
                 >
-                  <Plus size={22} /> เพิ่มข้อมูล
+                  <Plus size={16} /> เพิ่มข้อมูล
                 </button>
              </div>
           </header>
@@ -1270,6 +1343,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             <th className="px-3 py-2.5 w-24">สาขาวิชา</th>
                             <th className="px-3 py-2.5 w-20">ประเภท</th>
                             <th className="px-3 py-2.5 min-w-[180px]">สถานที่ฝึกงาน / ตำแหน่ง</th>
+                            <th className="px-3 py-2.5 min-w-[160px]">ระยะเวลาฝึก (เริ่ม-สิ้นสุด)</th>
                             <th className="px-3 py-2.5 w-20 text-center">เทอม/ปี</th>
                             <th className="px-3 py-2.5 w-28">สถานะ</th>
                             <th className="px-3 py-2.5 min-w-[160px]">อาจารย์นิเทศ</th>
@@ -1329,6 +1403,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                     </span>
                                   </div>
                                 </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-slate-600 dark:text-slate-300">
+                                  {record.startDate && record.endDate ? (
+                                    <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                                      <Calendar size={12} className="text-indigo-500 shrink-0" />
+                                      <span>{formatDateBE(record.startDate)} - {formatDateBE(record.endDate)}</span>
+                                    </div>
+                                  ) : record.startDate ? (
+                                    <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+                                      <Calendar size={12} className="text-slate-400 shrink-0" />
+                                      <span>{formatDateBE(record.startDate)} - ไม่ระบุ</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-[11px] text-slate-400 italic">ยังไม่ระบุ</span>
+                                  )}
+                                </td>
                                 <td className="px-3 py-2 text-center text-slate-600 dark:text-slate-400 font-mono text-[11px]">
                                   {record.term || '-'}/{record.academicYear || '-'}
                                 </td>
@@ -1346,7 +1435,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                   ) : (
                                     <button
                                       type="button"
-                                      onClick={() => { setEditingStatusRecord(record); setShowAdminStatusModal(true); }}
+                                      onClick={() => handleEditStudent(record)}
                                       className="text-[10px] text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold underline"
                                     >
                                       + ระบุอาจารย์
@@ -1357,7 +1446,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                   <div className="flex items-center justify-end gap-1">
                                     <button
                                       type="button"
-                                      onClick={() => { setEditingStatusRecord(record); setStatusError(null); setIsForceSaveVisible(false); setShowAdminStatusModal(true); }}
+                                      onClick={() => handleEditStudent(record)}
                                       className="p-1.5 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-400 hover:text-amber-600 rounded-lg transition-colors"
                                       title="แก้ไขข้อมูล"
                                     >
@@ -1411,6 +1500,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                <span className="text-[10px] font-bold text-slate-400">สถานที่:</span>
                                <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{record.location || '-'} {record.position ? `(${record.position})` : ''}</span>
                              </div>
+                             <div className="flex items-center gap-1.5 col-span-2 text-[11px] text-slate-600 dark:text-slate-300">
+                               <Calendar size={12} className="text-indigo-500 shrink-0" />
+                               <span>{record.startDate && record.endDate ? `${formatDateBE(record.startDate)} - ${formatDateBE(record.endDate)}` : record.startDate ? `${formatDateBE(record.startDate)} - ไม่ระบุ` : 'ยังไม่ระบุระยะเวลา'}</span>
+                             </div>
                              {record.supervisor && (
                                <div className="flex items-center gap-1 col-span-2 px-2 py-1 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg text-emerald-800 dark:text-emerald-300 text-xs font-bold">
                                  <Lock size={12} className="text-emerald-600" /> อ.นิเทศ: {record.supervisor}
@@ -1421,7 +1514,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                             <span className="text-[10px] text-slate-400 font-mono">เทอม {record.term || '-'}/{record.academicYear || '-'}</span>
                             <div className="flex gap-1">
-                              <button onClick={() => { setEditingStatusRecord(record); setStatusError(null); setIsForceSaveVisible(false); setShowAdminStatusModal(true); }} className="p-1.5 hover:bg-amber-50 text-slate-400 hover:text-amber-600 rounded-lg"><Pencil size={14} /></button>
+                              <button onClick={() => handleEditStudent(record)} className="p-1.5 hover:bg-amber-50 text-slate-400 hover:text-amber-600 rounded-lg"><Pencil size={14} /></button>
                               <button onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }} className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg"><Trash size={14} /></button>
                             </div>
                           </div>
@@ -1888,147 +1981,337 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
-      {/* STUDENT STATUS MODAL */}
+      {/* STUDENT STATUS MODAL - MINIMALIST HIGH USABILITY */}
       {showAdminStatusModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim touch-auto" onClick={() => { setShowAdminStatusModal(false); setStatusError(null); setIsForceSaveVisible(false); }}>
-          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 sm:p-12 shadow-2xl overflow-y-auto max-h-[90svh] relative custom-scrollbar" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => { setShowAdminStatusModal(false); setStatusError(null); setIsForceSaveVisible(false); }} className="absolute top-8 right-8 p-3 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-              <X size={24} className="text-slate-400" />
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md reveal-anim touch-auto" onClick={() => { setShowAdminStatusModal(false); setStatusError(null); setIsForceSaveVisible(false); }}>
+          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-8 shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-y-auto max-h-[92svh] relative custom-scrollbar" onClick={(e) => e.stopPropagation()}>
+            <button 
+              type="button"
+              onClick={() => { setShowAdminStatusModal(false); setStatusError(null); setIsForceSaveVisible(false); }} 
+              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <X size={20} />
             </button>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-10 uppercase flex items-center gap-4"><Timer size={32} className="text-amber-500" />{editingStatusRecord ? 'แก้ไขข้อมูลนักศึกษา' : 'เพิ่มข้อมูลนักศึกษาใหม่'}</h3>
-            <form ref={studentStatusFormRef} onSubmit={(e) => handleSaveStatus(e)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className={labelClass}>รหัสนักศึกษา</label>
-                  <input name="student_id" defaultValue={editingStatusRecord?.studentId} required placeholder="6XXXXXXXX" className={inputClass} />
-                </div>
-                <div className="space-y-2">
-                  <label className={labelClass}>ชื่อ-นามสกุล</label>
-                  <input name="student_name" defaultValue={editingStatusRecord?.name} required placeholder="ระบุชื่อจริง-นามสกุล" className={inputClass} />
-                </div>
+
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <Users size={20} />
               </div>
-              
-              <div className="space-y-2">
-                <label className={labelClass}>เลือกสาขาวิชาเอก</label>
-                <div className="relative">
-                  <select 
-                    name="major" 
-                    defaultValue={editingStatusRecord?.major || Major.HALAL_FOOD}
-                    className={`${inputClass} appearance-none`}
-                  >
-                    <option value={Major.HALAL_FOOD}>R&D</option>
-                    <option value={Major.DIGITAL_TECH}>TDS</option>
-                    <option value={Major.INFO_TECH}>IT</option>
-                    <option value={Major.DATA_SCIENCE}>DSA</option>
-                  </select>
-                  <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={24} />
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase leading-none">
+                  {editingStatusRecord ? 'แก้ไขข้อมูลนักศึกษา' : 'เพิ่มข้อมูลนักศึกษาใหม่'}
+                </h3>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-1">
+                  {editingStatusRecord ? `รหัส: ${editingStatusRecord.studentId}` : 'กรอกรายละเอียดเพื่อบันทึกสถานะการฝึกงานหรือสหกิจศึกษา'}
+                </p>
+              </div>
+            </div>
+
+            <form ref={studentStatusFormRef} onSubmit={(e) => handleSaveStatus(e)} className="space-y-5">
+              {/* Section 1: ข้อมูลนักศึกษา */}
+              <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-850/50 border border-slate-200/70 dark:border-slate-800 space-y-3.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  <span className="text-[11px] font-black uppercase text-slate-600 dark:text-slate-300 tracking-wider">1. ข้อมูลนักศึกษา</span>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">รหัสนักศึกษา *</label>
+                    <input 
+                      name="student_id" 
+                      defaultValue={editingStatusRecord?.studentId} 
+                      required 
+                      placeholder="เช่น 406559001" 
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-[#630330]/20 focus:border-[#630330] transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">ชื่อ-นามสกุล *</label>
+                    <input 
+                      name="student_name" 
+                      defaultValue={editingStatusRecord?.name} 
+                      required 
+                      placeholder="เช่น นายฮาซัน ดือราแม" 
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-[#630330]/20 focus:border-[#630330] transition-all" 
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">สาขาวิชาเอก</label>
+                    <div className="relative">
+                      <select 
+                        name="major" 
+                        defaultValue={editingStatusRecord?.major || Major.HALAL_FOOD}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-[#630330]/20 focus:border-[#630330] transition-all appearance-none cursor-pointer"
+                      >
+                        <option value={Major.HALAL_FOOD}>R&D (อาหารฮาลาล)</option>
+                        <option value={Major.DIGITAL_TECH}>TDS (เทคโนโลยีดิจิทัล)</option>
+                        <option value={Major.INFO_TECH}>IT (เทคโนโลยีสารสนเทศ)</option>
+                        <option value={Major.DATA_SCIENCE}>DSA (วิทยาการข้อมูล)</option>
+                      </select>
+                      <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">รูปแบบการฝึก</label>
+                    <div className="grid grid-cols-2 gap-2 h-[42px]">
+                      <button
+                        type="button"
+                        onClick={() => setModalInternshipType(InternshipType.INTERNSHIP)}
+                        className={`h-full rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          modalInternshipType === InternshipType.INTERNSHIP
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Briefcase size={14} /> ฝึกงาน
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModalInternshipType(InternshipType.COOP)}
+                        className={`h-full rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          modalInternshipType === InternshipType.COOP
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <GraduationCap size={14} /> สหกิจ
+                      </button>
+                    </div>
+                    <input type="hidden" name="internship_type" value={modalInternshipType} />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className={labelClass}>เทอม (Semester)</label>
-                  <select name="term" defaultValue={editingStatusRecord?.term} className={`${inputClass} shadow-inner cursor-pointer`}>
-                    <option value="">- เลือกเทอม -</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                  </select>
+              {/* Section 2: สถานที่และอาจารย์นิเทศ */}
+              <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-850/50 border border-slate-200/70 dark:border-slate-800 space-y-3.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  <span className="text-[11px] font-black uppercase text-slate-600 dark:text-slate-300 tracking-wider">2. สถานที่ฝึกงานและอาจารย์นิเทศ</span>
                 </div>
-                <div className="space-y-2">
-                  <label className={labelClass}>ปีการศึกษา</label>
-                  <select name="academic_year" defaultValue={editingStatusRecord?.academicYear} className={`${inputClass} shadow-inner cursor-pointer`}>
-                    <option value="">- เลือกปีการศึกษา -</option>
-                    {academicYears.map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">สถานที่ฝึกงาน / หน่วยงาน</label>
+                    <div className="relative">
+                      <Building2 size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                        name="location" 
+                        defaultValue={editingStatusRecord?.location} 
+                        placeholder="ชื่อบริษัท หรือ องค์กร" 
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-[#630330]/20 focus:border-[#630330] transition-all" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">ตำแหน่งงาน</label>
+                    <div className="relative">
+                      <Briefcase size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                        name="position" 
+                        defaultValue={editingStatusRecord?.position} 
+                        placeholder="เช่น Web Developer, QA" 
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-[#630330]/20 focus:border-[#630330] transition-all" 
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className={labelClass}>สถานที่ฝึกงาน / สหกิจศึกษา</label>
+
+                <div className="space-y-1 pt-1">
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">อาจารย์นิเทศ (Supervisor)</label>
                   <div className="relative">
-                    <Building2 size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
-                    <input name="location" defaultValue={editingStatusRecord?.location} placeholder="ชื่อบริษัท หรือ หน่วยงาน" className={`${inputClass} pl-14`} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className={labelClass}>ตำแหน่งงาน</label>
-                  <div className="relative">
-                    <Briefcase size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
-                    <input name="position" defaultValue={editingStatusRecord?.position} placeholder="ระบุตำแหน่งที่ได้รับมอบหมาย" className={`${inputClass} pl-14`} />
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className={labelClass}>วันที่เริ่มฝึก</label>
-                  <input type="date" name="start_date" defaultValue={formatDateForInput(editingStatusRecord?.startDate)} className={`${inputClass} border-emerald-100 focus:border-emerald-500`} />
-                </div>
-                <div className="space-y-2">
-                  <label className={labelClass}>วันที่สิ้นสุด</label>
-                  <input type="date" name="end_date" defaultValue={formatDateForInput(editingStatusRecord?.endDate)} className={`${inputClass} border-rose-100 focus:border-rose-500`} />
-                </div>
-              </div>
-                <div className="space-y-2">
-                  <label className={labelClass}>อาจารย์นิเทศ (Supervisor)</label>
-                  <div className="relative">
-                    <UserCheck size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
-                    <input name="supervisor" defaultValue={editingStatusRecord?.supervisor} placeholder="ระบุชื่ออาจารย์นิเทศ" className={`${inputClass} pl-14`} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <label className={labelClass}>ประเภทการจัดการ</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    {[
-                      { id: InternshipType.INTERNSHIP, label: 'ฝึกงาน', icon: <Briefcase size={22} />, color: 'emerald', bg: 'bg-emerald-50/50' }, 
-                      { id: InternshipType.COOP, label: 'สหกิจศึกษา', icon: <GraduationCap size={22} />, color: 'indigo', bg: 'bg-indigo-50/50' }
-                    ].map((it) => (
-                      <label key={it.id} className="relative cursor-pointer group">
-                        <input type="radio" name="internship_type" value={it.id} defaultChecked={editingStatusRecord?.internshipType === it.id || (!editingStatusRecord && it.id === InternshipType.INTERNSHIP)} className="peer hidden" />
-                        <div className={`flex flex-col items-center justify-center py-6 rounded-2xl border-2 transition-all duration-300 text-center ${it.bg} dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 peer-checked:border-${it.color}-500 peer-checked:bg-${it.color}-500 peer-checked:text-white shadow-sm`}>
-                          <div className={`text-${it.color}-500/60 peer-checked:text-white mb-2 group-hover:scale-110 transition-transform`}>{it.icon}</div>
-                          <span className={`text-xs font-black leading-tight text-${it.color}-700/70 peer-checked:text-white uppercase`}>{it.label}</span>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <label className={labelClass}>สถานะปัจจุบัน</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { id: ApplicationStatus.PENDING, label: 'รอตรวจสอบ', color: 'amber' }, 
-                      { id: ApplicationStatus.PREPARING, label: 'จัดเตรียม', color: 'blue' }, 
-                      { id: ApplicationStatus.ACCEPTED, label: 'ตอบรับแล้ว', color: 'emerald' }, 
-                      { id: ApplicationStatus.REJECTED, label: 'ปฏิเสธ', color: 'rose' }
-                    ].map((st) => (
-                      <label key={st.id} className="relative cursor-pointer group">
-                        <input type="radio" name="status" value={st.id} defaultChecked={editingStatusRecord?.status === st.id || (!editingStatusRecord && st.id === ApplicationStatus.PENDING)} className="peer hidden" />
-                        <div className={`flex items-center justify-center py-3.5 rounded-xl border-2 transition-all duration-300 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 peer-checked:border-${st.color}-500 peer-checked:bg-${st.color}-500 peer-checked:text-white shadow-sm`}>
-                          <span className={`text-[11px] font-black uppercase text-slate-500 peer-checked:text-white`}>{st.label}</span>
-                        </div>
-                      </label>
-                    ))}
+                    <UserCheck size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                      name="supervisor" 
+                      defaultValue={editingStatusRecord?.supervisor} 
+                      placeholder="ระบุชื่ออาจารย์นิเทศประจำตัวนักศึกษา (ถ้ามี)" 
+                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-[#630330]/20 focus:border-[#630330] transition-all" 
+                    />
                   </div>
                 </div>
               </div>
+
+              {/* Section 3: ระยะเวลาและภาคการศึกษา (Easy Date Picker) */}
+              <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-850/50 border border-slate-200/70 dark:border-slate-800 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                    <span className="text-[11px] font-black uppercase text-slate-600 dark:text-slate-300 tracking-wider">3. ภาคการศึกษาและระยะเวลาฝึก</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-bold">ปุ่มลัดเลือกช่วงเวลาได้เร็ว</span>
+                </div>
+
+                {/* Term & Year */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">ภาคเรียน (Semester)</label>
+                    <select 
+                      name="term" 
+                      defaultValue={editingStatusRecord?.term || '1'} 
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-[#630330]/20 focus:border-[#630330] cursor-pointer"
+                    >
+                      <option value="1">ภาคเรียนที่ 1</option>
+                      <option value="2">ภาคเรียนที่ 2</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">ปีการศึกษา</label>
+                    <select 
+                      name="academic_year" 
+                      defaultValue={editingStatusRecord?.academicYear || currentYearBE} 
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-[#630330]/20 focus:border-[#630330] cursor-pointer"
+                    >
+                      {academicYears.map(year => (
+                        <option key={year} value={year}>ปี {year}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Date Quick Presets */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] font-bold text-slate-400 mr-1">กำหนดเร็ว:</span>
+                  <button
+                    type="button"
+                    onClick={applyPresetTerm1}
+                    className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 hover:border-indigo-200 transition-all cursor-pointer"
+                  >
+                    🗓️ เทอม 1 (มิ.ย.-ต.ค.)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={applyPresetTerm2}
+                    className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 hover:border-indigo-200 transition-all cursor-pointer"
+                  >
+                    🗓️ เทอม 2 (พ.ย.-มี.ค.)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetDuration(2)}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer"
+                  >
+                    +2 เดือน (ฝึกงาน)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetDuration(4)}
+                    className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800 text-[10px] font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition-all cursor-pointer"
+                  >
+                    +4 เดือน (สหกิจ)
+                  </button>
+                </div>
+
+                {/* Date Inputs */}
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">วันที่เริ่มฝึก</label>
+                    <input 
+                      type="date" 
+                      name="start_date" 
+                      value={modalStartDate}
+                      onChange={(e) => setModalStartDate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-[#630330]/20 focus:border-[#630330] transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">วันที่สิ้นสุด</label>
+                    <input 
+                      type="date" 
+                      name="end_date" 
+                      value={modalEndDate}
+                      onChange={(e) => setModalEndDate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-[#630330]/20 focus:border-[#630330] transition-all" 
+                    />
+                  </div>
+                </div>
+
+                {/* Thai Date Preview */}
+                {modalStartDate && modalEndDate ? (
+                  <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                    <Calendar size={14} className="text-emerald-600 shrink-0" />
+                    <span>ระยะเวลา: {formatDateBE(modalStartDate)} ถึง {formatDateBE(modalEndDate)}</span>
+                  </div>
+                ) : modalStartDate ? (
+                  <div className="text-[11px] text-slate-500 font-medium">
+                    เริ่ม: {formatDateBE(modalStartDate)} (ยังไม่ระบุวันสิ้นสุด)
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Section 4: สถานะปัจจุบัน */}
+              <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-850/50 border border-slate-200/70 dark:border-slate-800 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span className="text-[11px] font-black uppercase text-slate-600 dark:text-slate-300 tracking-wider">4. สถานะปัจจุบัน</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: ApplicationStatus.ACCEPTED, label: 'ตอบรับแล้ว', activeClass: 'bg-emerald-600 text-white border-emerald-600 shadow-sm' },
+                    { id: ApplicationStatus.PREPARING, label: 'กำลังจัดเตรียม', activeClass: 'bg-blue-600 text-white border-blue-600 shadow-sm' },
+                    { id: ApplicationStatus.PENDING, label: 'รอตรวจสอบ', activeClass: 'bg-amber-600 text-white border-amber-600 shadow-sm' },
+                    { id: ApplicationStatus.REJECTED, label: 'ปฏิเสธ', activeClass: 'bg-rose-600 text-white border-rose-600 shadow-sm' },
+                  ].map((st) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => setModalStatus(st.id)}
+                      className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer text-center ${
+                        modalStatus === st.id
+                          ? st.activeClass
+                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
+                <input type="hidden" name="status" value={modalStatus} />
+              </div>
+
               {statusError && (
-                <div className="mt-8 p-6 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-2xl flex flex-col gap-4 reveal-anim shadow-sm">
-                  <div className="flex gap-4 items-start"><AlertTriangle className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" size={24} /><p className="text-xs sm:text-sm font-black text-rose-700 dark:text-rose-300 leading-tight uppercase tracking-tight">{statusError}</p></div>
-                  {isForceSaveVisible && <button type="button" onClick={() => handleSaveStatus(undefined, true)} className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-black uppercase text-xs rounded-xl shadow-lg transition-all animate-pulse">ฉันแน่ใจ ต้องการบันทึกข้อมูลซ้ำ</button>}
+                <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-2xl space-y-2">
+                  <div className="flex gap-2.5 items-start">
+                    <AlertTriangle className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" size={18} />
+                    <p className="text-xs font-bold text-rose-700 dark:text-rose-300">{statusError}</p>
+                  </div>
+                  {isForceSaveVisible && (
+                    <button 
+                      type="button" 
+                      onClick={() => handleSaveStatus(undefined, true)} 
+                      className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow transition-all"
+                    >
+                      ยืนยันบันทึกข้อมูลซ้ำ
+                    </button>
+                  )}
                 </div>
               )}
-              <div className="flex gap-4 pt-8 border-t border-slate-50 dark:border-slate-800">
-                <button type="button" onClick={() => { setShowAdminStatusModal(false); setStatusError(null); setIsForceSaveVisible(false); }} className="flex-1 py-5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 font-black uppercase text-xs">ยกเลิก</button>
-                <button type="submit" disabled={isSyncing} className="flex-1 py-5 rounded-2xl bg-[#630330] text-white font-black uppercase text-sm shadow-xl shadow-[#630330]/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50">{isSyncing ? 'SAVING...' : 'บันทึกข้อมูล'}</button>
+
+              {/* Form Action Buttons */}
+              <div className="flex items-center gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button 
+                  type="button" 
+                  onClick={() => { setShowAdminStatusModal(false); setStatusError(null); setIsForceSaveVisible(false); }} 
+                  className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isSyncing} 
+                  className="flex-1 py-3 rounded-xl bg-[#630330] hover:bg-[#7a0b3d] text-white font-bold text-xs shadow-md shadow-[#630330]/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {isSyncing ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
       {/* SCHEDULE MODAL */}
       {showScheduleModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm reveal-anim" onClick={() => setShowScheduleModal(false)}>

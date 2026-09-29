@@ -199,9 +199,19 @@ const App: React.FC = () => {
       if (cloudData.sites) setSites(sanitizeData(cloudData.sites, 'site'));
       if (cloudData.schedules) setSchedules(sanitizeData(cloudData.schedules, 'sch'));
       if (cloudData.forms) setForms(sanitizeData(cloudData.forms, 'frm'));
-      if (cloudData.studentStatuses) setStudentStatuses(sanitizeData(cloudData.studentStatuses, 'st'));
+      if (cloudData.studentStatuses) {
+        const newStatuses = sanitizeData(cloudData.studentStatuses, 'st');
+        setStudentStatuses(prev => {
+          return newStatuses.map(incoming => {
+            const existing = prev.find(p => p.id === incoming.id || (p.studentId && incoming.studentId && p.studentId === incoming.studentId));
+            if (existing && existing.supervisor && (!incoming.supervisor || (existing.lastUpdated || 0) > (incoming.lastUpdated || 0))) {
+              return { ...incoming, supervisor: existing.supervisor, lastUpdated: existing.lastUpdated };
+            }
+            return incoming;
+          });
+        });
+      }
       if (cloudData.admins && Array.isArray(cloudData.admins)) {
-        // Extract passwords from the admins array (assuming each item has a password field)
         const passwords = cloudData.admins
           .map((a: any) => String(a.password || '').trim())
           .filter((p: string) => p.length > 0);
@@ -456,10 +466,15 @@ const App: React.FC = () => {
           window.history.pushState({ view: 'landing' }, '', window.location.pathname);
         }} 
         onSupervisorChange={(id: string, name: string) => {
-          const updated = studentStatuses.map(s => s.id === id ? { ...s, supervisor: name, lastUpdated: Date.now() } : s);
+          const updated = studentStatuses.map(s => (s.id === id || s.studentId === id) ? { ...s, supervisor: name, lastUpdated: Date.now() } : s);
           setStudentStatuses(updated);
-          const target = updated.find(s => s.id === id);
-          syncToSheets('studentStatuses', updated, 'update', target);
+          try {
+            localStorage.setItem('wise_student_statuses', JSON.stringify(updated));
+          } catch (e) { console.warn(e); }
+          const target = updated.find(s => s.id === id || s.studentId === id);
+          if (target) {
+            syncToSheets('studentStatuses', updated, 'update', target);
+          }
         }}
         fetchFromSheets={() => fetchFromSheets(true)}
         isLoading={isLoading}

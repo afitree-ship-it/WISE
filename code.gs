@@ -105,11 +105,26 @@ function doPost(e) {
     var searchKey = (type === "admins") ? "password" : "id";
     var colIndex = headers.indexOf(searchKey);
     
-    if (colIndex !== -1) {
+    if (colIndex !== -1 && item[searchKey]) {
+      var targetVal = String(item[searchKey]).trim();
       for (var i = 1; i < data.length; i++) {
-        if (data[i][colIndex] == item[searchKey]) {
+        if (String(data[i][colIndex]).trim() === targetVal) {
           rowIndex = i + 1;
           break;
+        }
+      }
+    }
+    
+    // Fallback for studentStatuses: search by studentId (รหัสนักศึกษา)
+    if (rowIndex === -1 && type === "studentStatuses" && item.studentId) {
+      var studentIdCol = headers.indexOf("studentId");
+      if (studentIdCol !== -1) {
+        var targetStudentId = String(item.studentId).trim();
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][studentIdCol]).trim() === targetStudentId) {
+            rowIndex = i + 1;
+            break;
+          }
         }
       }
     }

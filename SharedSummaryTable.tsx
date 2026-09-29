@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect } from 'react';
 import { Search, Check, Loader2, UserCheck, Lock, Pencil } from 'lucide-react';
 import { StudentStatusRecord, Major, InternshipType, ApplicationStatus } from './types';
@@ -21,12 +21,16 @@ const SupervisorInput: React.FC<SupervisorInputProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  // Keep local state updated with prop changes when user is NOT actively typing
+  // Keep local state updated with prop changes when user is NOT actively typing or saving
   useEffect(() => {
-    if (!isFocused && !isEditing) {
-      setVal(initialValue || '');
+    if (!isFocused && !isEditing && saveStatus !== 'saving') {
+      if (initialValue) {
+        setVal(initialValue);
+      } else if (!val) {
+        setVal('');
+      }
     }
-  }, [initialValue, isFocused, isEditing]);
+  }, [initialValue, isFocused, isEditing, saveStatus]);
 
   const commitChange = async () => {
     const trimmed = val.trim();
@@ -196,7 +200,7 @@ const SharedSummaryTable: React.FC<SharedSummaryTableProps> = ({
               <td className="px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-300 align-top">{student.location || '-'}</td>
               <td className="px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-300 align-top">{student.position || '-'}</td>
               <td className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap align-top">
-                 {student.startDate && student.endDate ? `${formatDateBE(student.startDate)} - ${formatDateBE(student.endDate)}` : '-'}
+                  {student.startDate && student.endDate ? `${formatDateBE(student.startDate)} - ${formatDateBE(student.endDate)}` : student.startDate ? `${formatDateBE(student.startDate)} - ไม่ระบุ` : '-'}
               </td>
               {showSupervisor && (
                 <td className="px-4 py-2 align-top">
@@ -204,7 +208,7 @@ const SharedSummaryTable: React.FC<SharedSummaryTableProps> = ({
                     <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{student.supervisor || '-'}</span>
                   ) : (
                     <SupervisorInput
-                      studentId={student.id}
+                      studentId={student.id || student.studentId}
                       initialValue={student.supervisor}
                       onSave={onSupervisorChange}
                     />
