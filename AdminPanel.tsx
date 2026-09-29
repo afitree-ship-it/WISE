@@ -333,8 +333,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const performBatchTranslation = async (items: { key: string, value: string, isDate?: boolean }[]) => {
     if (items.length === 0) return {};
+    const apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+    if (!apiKey) {
+      return items.reduce((acc, curr) => ({ ...acc, [curr.key]: { th: curr.value, en: curr.value, ar: curr.value, ms: curr.value } }), {});
+    }
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+      const ai = new GoogleGenAI({ apiKey });
       const prompt = `Translate to EN, AR, MS: ${items.map(i => `${i.key}:"${i.value}"${i.isDate ? '(date-standard)' : ''}`).join('|')}`;
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -1778,11 +1782,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className={labelClass}>วันที่เริ่มต้น</label>
-                  <input type="date" name="start_th" defaultValue={editingSchedule?.rawStartDate} required className={`${inputClass} border-emerald-100 focus:border-emerald-500`} />
+                  <input type="date" name="start_th" defaultValue={formatDateForInput(editingSchedule?.rawStartDate)} required className={`${inputClass} border-emerald-100 focus:border-emerald-500`} />
                 </div>
                 <div className="space-y-2">
                   <label className={labelClass}>วันที่สิ้นสุด</label>
-                  <input type="date" name="end_th" defaultValue={editingSchedule?.rawEndDate} required className={`${inputClass} border-rose-100 focus:border-rose-500`} />
+                  <input type="date" name="end_th" defaultValue={formatDateForInput(editingSchedule?.rawEndDate)} required className={`${inputClass} border-rose-100 focus:border-rose-500`} />
                 </div>
               </div>
               <div className="flex gap-4 pt-8">

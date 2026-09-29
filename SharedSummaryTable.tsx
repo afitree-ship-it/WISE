@@ -1,7 +1,89 @@
 
-import React from 'react';
-import { ClipboardList, Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Check, Loader2, UserCheck } from 'lucide-react';
 import { StudentStatusRecord, Major, InternshipType, ApplicationStatus } from './types';
+
+interface SupervisorInputProps {
+  studentId: string;
+  initialValue?: string;
+  onSave?: (id: string, name: string) => void;
+  disabled?: boolean;
+}
+
+const SupervisorInput: React.FC<SupervisorInputProps> = ({
+  studentId,
+  initialValue = '',
+  onSave,
+  disabled = false
+}) => {
+  const [val, setVal] = useState(initialValue);
+  const [isFocused, setIsFocused] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  // Keep local state updated with prop changes when user is NOT actively typing
+  useEffect(() => {
+    if (!isFocused) {
+      setVal(initialValue || '');
+    }
+  }, [initialValue, isFocused]);
+
+  const commitChange = async () => {
+    const trimmed = val.trim();
+    if (trimmed !== (initialValue || '').trim()) {
+      setSaveStatus('saving');
+      try {
+        if (onSave) {
+          await onSave(studentId, trimmed);
+        }
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      } catch (err) {
+        console.error('Failed to save supervisor:', err);
+        setSaveStatus('idle');
+      }
+    }
+  };
+
+  return (
+    <div className="relative flex items-center min-w-[190px]">
+      <input
+        type="text"
+        disabled={disabled}
+        placeholder="ระบุอาจารย์นิเทศ..."
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => {
+          setIsFocused(false);
+          commitChange();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        className={`w-full pr-8 pl-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border rounded-lg text-sm font-bold transition-all shadow-sm outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600 ${
+          saveStatus === 'saved'
+            ? 'border-emerald-500 bg-emerald-50/40 text-emerald-800 dark:text-emerald-300'
+            : saveStatus === 'saving'
+            ? 'border-indigo-400 bg-indigo-50/30'
+            : 'border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+        }`}
+      />
+      <div className="absolute right-2.5 pointer-events-none flex items-center justify-center">
+        {saveStatus === 'saving' && (
+          <Loader2 size={14} className="text-indigo-500 animate-spin" />
+        )}
+        {saveStatus === 'saved' && (
+          <Check size={14} className="text-emerald-500 animate-in zoom-in-75 duration-200" />
+        )}
+        {saveStatus === 'idle' && (
+          <UserCheck size={14} className="text-slate-300 dark:text-slate-600 opacity-60" />
+        )}
+      </div>
+    </div>
+  );
+};
 
 interface SharedSummaryTableProps {
   students: StudentStatusRecord[];
@@ -40,16 +122,16 @@ const SharedSummaryTable: React.FC<SharedSummaryTableProps> = ({
             <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors print:break-inside-avoid">
               <td className="px-4 py-2 align-top">
                  <div className="flex flex-col">
-                   <span className="text-xs font-black text-slate-900 leading-tight">ปี {student.academicYear || '-'}</span>
+                   <span className="text-xs font-black text-slate-900 dark:text-slate-100 leading-tight">ปี {student.academicYear || '-'}</span>
                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">เทอม {student.term || '-'}</span>
                  </div>
               </td>
               <td className="px-4 py-2 align-top">
                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border whitespace-nowrap ${
-                   student.status === ApplicationStatus.ACCEPTED ? 'bg-emerald-50 border-emerald-100 text-emerald-600' :
-                   student.status === ApplicationStatus.REJECTED ? 'bg-rose-50 border-rose-100 text-rose-600' :
-                   student.status === ApplicationStatus.PREPARING ? 'bg-blue-50 border-blue-100 text-blue-600' :
-                   'bg-amber-50 border-amber-100 text-amber-600'
+                   student.status === ApplicationStatus.ACCEPTED ? 'bg-emerald-50 border-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400' :
+                   student.status === ApplicationStatus.REJECTED ? 'bg-rose-50 border-rose-100 text-rose-600 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-400' :
+                   student.status === ApplicationStatus.PREPARING ? 'bg-blue-50 border-blue-100 text-blue-600 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400' :
+                   'bg-amber-50 border-amber-100 text-amber-600 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400'
                  }`}>
                    {student.status === ApplicationStatus.ACCEPTED ? 'ตอบรับแล้ว' : 
                     student.status === ApplicationStatus.REJECTED ? 'ปฏิเสธ' :
@@ -60,10 +142,10 @@ const SharedSummaryTable: React.FC<SharedSummaryTableProps> = ({
               <td className="px-4 py-2 text-sm sm:text-base font-bold text-slate-900 dark:text-white w-[180px] min-w-[180px] leading-tight align-top break-words">{student.name}</td>
               <td className="px-4 py-2 align-top">
                  <span className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-md border whitespace-nowrap ${
-                    student.major === Major.HALAL_FOOD ? 'bg-amber-50 border-amber-100 text-amber-600' : 
-                    student.major === Major.DIGITAL_TECH ? 'bg-blue-50 border-blue-100 text-blue-600' :
-                    student.major === Major.INFO_TECH ? 'bg-indigo-50 border-indigo-100 text-indigo-600' :
-                    'bg-emerald-50 border-emerald-100 text-emerald-600'
+                    student.major === Major.HALAL_FOOD ? 'bg-amber-50 border-amber-100 text-amber-600 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400' : 
+                    student.major === Major.DIGITAL_TECH ? 'bg-blue-50 border-blue-100 text-blue-600 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400' :
+                    student.major === Major.INFO_TECH ? 'bg-indigo-50 border-indigo-100 text-indigo-600 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-400' :
+                    'bg-emerald-50 border-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400'
                  }`}>
                    {student.major === Major.HALAL_FOOD ? 'R&D (อาหารฮาลาล)' : 
                     student.major === Major.DIGITAL_TECH ? 'TDS (ดิจิทัล)' : 
@@ -74,15 +156,15 @@ const SharedSummaryTable: React.FC<SharedSummaryTableProps> = ({
               <td className="px-4 py-2 align-top">
                  <span className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-md border ${
                     student.internshipType === InternshipType.INTERNSHIP 
-                      ? 'bg-emerald-50 border-emerald-100 text-emerald-600' 
-                      : 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                      ? 'bg-emerald-50 border-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400' 
+                      : 'bg-indigo-50 border-indigo-100 text-indigo-600 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-400'
                  }`}>
                    {student.internshipType === InternshipType.INTERNSHIP ? 'ฝึกงาน' : 'สหกิจ'}
                  </span>
               </td>
-              <td className="px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-400 align-top">{student.location || '-'}</td>
-              <td className="px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-400 align-top">{student.position || '-'}</td>
-              <td className="px-4 py-2 text-sm font-bold text-slate-600 whitespace-nowrap align-top">
+              <td className="px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-300 align-top">{student.location || '-'}</td>
+              <td className="px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-300 align-top">{student.position || '-'}</td>
+              <td className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap align-top">
                  {student.startDate && student.endDate ? `${formatDateBE(student.startDate)} - ${formatDateBE(student.endDate)}` : '-'}
               </td>
               {showSupervisor && (
@@ -90,16 +172,10 @@ const SharedSummaryTable: React.FC<SharedSummaryTableProps> = ({
                   {isReadOnly ? (
                     <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{student.supervisor || '-'}</span>
                   ) : (
-                    <input 
-                      type="text" 
-                      placeholder="ชื่ออาจารย์..." 
-                      defaultValue={student.supervisor}
-                      onBlur={(e) => {
-                        if (onSupervisorChange && e.target.value !== student.supervisor) {
-                          onSupervisorChange(student.id, e.target.value);
-                        }
-                      }}
-                      className="w-full min-w-[180px] px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all placeholder:text-slate-300 shadow-sm"
+                    <SupervisorInput
+                      studentId={student.id}
+                      initialValue={student.supervisor}
+                      onSave={onSupervisorChange}
                     />
                   )}
                 </td>
@@ -108,9 +184,9 @@ const SharedSummaryTable: React.FC<SharedSummaryTableProps> = ({
           ))}
           {students.length === 0 && (
             <tr>
-              <td colSpan={showSupervisor ? 8 : 7} className="py-20 text-center">
-                <Search size={48} className="mx-auto text-slate-200 mb-4" />
-                <p className="text-base font-black uppercase text-slate-300">ไม่พบรายชื่อนักศึกษาในหมวดนี้</p>
+              <td colSpan={showSupervisor ? 10 : 9} className="py-20 text-center">
+                <Search size={48} className="mx-auto text-slate-200 dark:text-slate-700 mb-4" />
+                <p className="text-base font-black uppercase text-slate-300 dark:text-slate-600">ไม่พบรายชื่อนักศึกษาในหมวดนี้</p>
               </td>
             </tr>
           )}

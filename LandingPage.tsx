@@ -89,7 +89,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
     
     // Pre-warm the Google Apps Script to reduce cold start delay
     const preWarm = () => {
-      const url = "https://script.google.com/macros/s/AKfycbxg8LaEOErVY44P3jAHcnfD726S_RA1fpa5ANEXpf-Cn4_gHB2f3c8shF4jgd3j8Iu-/exec";
+      const url = "https://script.google.com/macros/s/AKfycbycrXhJfdb5sp11tOGZZbM3Xx1DFqNwzyQ_VUVKeo2BJSMhO1GMxD73YXsKyDot_o3X/exec";
       fetch(url, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
     };
     preWarm();

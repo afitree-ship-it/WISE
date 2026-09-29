@@ -20,7 +20,8 @@ export const ShareLinkModal: React.FC<ShareLinkModalProps> = ({ isOpen, onClose,
       if (years.length > 0) params.set('years', years.join(','));
       if (terms.length > 0) params.set('terms', terms.join(','));
       
-      const url = `${window.location.origin}/#?${params.toString()}`;
+      const pathname = window.location.pathname.endsWith('/') ? window.location.pathname : `${window.location.pathname}/`;
+      const url = `${window.location.origin}${pathname}#?${params.toString()}`;
       setShareUrl(url);
       setCopied(false);
     }

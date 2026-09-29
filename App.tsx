@@ -100,28 +100,53 @@ const App: React.FC = () => {
   }, []);
 
   const [sites, setSites] = useState<InternshipSite[]>(() => {
-    const saved = localStorage.getItem('wise_sites');
-    const data = saved ? JSON.parse(saved) : INITIAL_SITES;
-    return sanitizeData(data, 'site');
+    try {
+      const saved = localStorage.getItem('wise_sites');
+      const data = saved ? JSON.parse(saved) : INITIAL_SITES;
+      return sanitizeData(data, 'site');
+    } catch (e) {
+      console.warn("Failed to parse saved sites:", e);
+      return sanitizeData(INITIAL_SITES, 'site');
+    }
   });
   const [studentStatuses, setStudentStatuses] = useState<StudentStatusRecord[]>(() => {
-    const saved = localStorage.getItem('wise_student_statuses');
-    const data = saved ? JSON.parse(saved) : INITIAL_STUDENT_STATUSES;
-    return sanitizeData(data, 'st');
+    try {
+      const saved = localStorage.getItem('wise_student_statuses');
+      const data = saved ? JSON.parse(saved) : INITIAL_STUDENT_STATUSES;
+      return sanitizeData(data, 'st');
+    } catch (e) {
+      console.warn("Failed to parse saved student statuses:", e);
+      return sanitizeData(INITIAL_STUDENT_STATUSES, 'st');
+    }
   });
   const [schedules, setSchedules] = useState<ScheduleEvent[]>(() => {
-    const saved = localStorage.getItem('wise_schedules');
-    const data = saved ? JSON.parse(saved) : INITIAL_SCHEDULE;
-    return sanitizeData(data, 'sch');
+    try {
+      const saved = localStorage.getItem('wise_schedules');
+      const data = saved ? JSON.parse(saved) : INITIAL_SCHEDULE;
+      return sanitizeData(data, 'sch');
+    } catch (e) {
+      console.warn("Failed to parse saved schedules:", e);
+      return sanitizeData(INITIAL_SCHEDULE, 'sch');
+    }
   });
   const [forms, setForms] = useState<DocumentForm[]>(() => {
-    const saved = localStorage.getItem('wise_forms');
-    const data = saved ? JSON.parse(saved) : INITIAL_FORMS;
-    return sanitizeData(data, 'frm');
+    try {
+      const saved = localStorage.getItem('wise_forms');
+      const data = saved ? JSON.parse(saved) : INITIAL_FORMS;
+      return sanitizeData(data, 'frm');
+    } catch (e) {
+      console.warn("Failed to parse saved forms:", e);
+      return sanitizeData(INITIAL_FORMS, 'frm');
+    }
   });
   const [adminPasswords, setAdminPasswords] = useState<string[]>(() => {
-    const saved = localStorage.getItem('wise_admin_passwords');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('wise_admin_passwords');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.warn("Failed to parse saved admin passwords:", e);
+      return [];
+    }
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -195,8 +220,8 @@ const App: React.FC = () => {
   }, []);
 
   const formatStudentStatusForSync = (record: StudentStatusRecord) => {
-    // Defining key order precisely as requested (14 columns):
-    // id, studentId, name, status, major, internshipType, location, position, term, academicYear, startDate, endDate, lastUpdated, remarks
+    // Key order mapped to Google Sheets columns:
+    // id, studentId, name, status, major, internshipType, location, position, term, academicYear, startDate, endDate, lastUpdated, remarks, supervisor
     return {
       id: record.id,
       studentId: record.studentId,
@@ -211,7 +236,8 @@ const App: React.FC = () => {
       startDate: record.startDate || '',
       endDate: record.endDate || '',
       lastUpdated: record.lastUpdated,
-      remarks: record.remarks || ''
+      remarks: record.remarks || '',
+      supervisor: record.supervisor || ''
     };
   };
 
@@ -379,8 +405,10 @@ const App: React.FC = () => {
     if (isAuthorized) {
       setRole(UserRole.ADMIN);
       sessionStorage.setItem('wise_role', UserRole.ADMIN);
-      setViewState('dashboard');
-      window.history.pushState({ view: 'dashboard' }, '');
+      setTimeout(() => {
+        setViewState('dashboard');
+        window.history.pushState({ view: 'dashboard' }, '');
+      }, 400);
       return true;
     }
 
@@ -427,6 +455,15 @@ const App: React.FC = () => {
           setViewState('landing');
           window.history.pushState({ view: 'landing' }, '', window.location.pathname);
         }} 
+        onSupervisorChange={(id: string, name: string) => {
+          const updated = studentStatuses.map(s => s.id === id ? { ...s, supervisor: name, lastUpdated: Date.now() } : s);
+          setStudentStatuses(updated);
+          const target = updated.find(s => s.id === id);
+          syncToSheets('studentStatuses', updated, 'update', target);
+        }}
+        fetchFromSheets={() => fetchFromSheets(true)}
+        isLoading={isLoading}
+        isSyncing={isSyncing}
       />
     );
   }
@@ -530,11 +567,9 @@ const App: React.FC = () => {
             )}
             
             <div className="flex items-center gap-1.5 sm:gap-3">
-              {role === UserRole.STUDENT && (
-                <div className="mr-1">
-                  <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" />
-                </div>
-              )}
+              <div className="mr-1">
+                <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" />
+              </div>
               <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-white/10 backdrop-blur-xl text-white/80 rounded-2xl border border-white/20 hover:bg-white/25 hover:scale-105 active:scale-95 transition-all shadow-lg">
                 {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
               </button>

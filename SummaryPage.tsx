@@ -1,6 +1,6 @@
 
-import React, { useMemo, useState } from 'react';
-import { ClipboardList, ArrowLeft, Share2, Calendar, BookOpen, Printer } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { ClipboardList, ArrowLeft, Share2, Calendar, BookOpen, Printer, RefreshCw, Radio } from 'lucide-react';
 import { StudentStatusRecord, ApplicationStatus } from './types';
 import SharedSummaryTable from './SharedSummaryTable';
 import { formatDateBE } from './dateUtils';
@@ -9,10 +9,33 @@ import { ShareLinkModal } from './components/ShareLinkModal';
 interface SummaryPageProps {
   students: StudentStatusRecord[];
   onBack: () => void;
+  onSupervisorChange?: (id: string, name: string) => void;
+  fetchFromSheets?: () => Promise<void>;
+  isLoading?: boolean;
+  isSyncing?: boolean;
 }
 
-const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack }) => {
+const SummaryPage: React.FC<SummaryPageProps> = ({ 
+  students, 
+  onBack,
+  onSupervisorChange,
+  fetchFromSheets,
+  isLoading = false,
+  isSyncing = false
+}) => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
+
+  // Auto-polling for real-time updates every 6 seconds
+  useEffect(() => {
+    if (!fetchFromSheets) return;
+    const interval = setInterval(() => {
+      fetchFromSheets();
+      setLastRefreshedAt(new Date());
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [fetchFromSheets]);
+
   const years = useMemo(() => {
     const uniqueYears = Array.from(new Set(students.map(s => String(s.academicYear || '').trim()).filter(Boolean)))
       .filter(y => /^\d+$/.test(y)); // Ensure only numeric values are treated as academic years to prevent UI issues from old/shifted columns
@@ -70,6 +93,13 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack }) => {
     window.print();
   };
 
+  const handleManualRefresh = async () => {
+    if (fetchFromSheets) {
+      await fetchFromSheets();
+      setLastRefreshedAt(new Date());
+    }
+  };
+
   return (
     <>
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-3 sm:p-8 flex flex-col items-center">
@@ -117,11 +147,12 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack }) => {
         }
       `}} />
       <div className="w-full max-w-[98%] xl:max-w-[99%] px-1 sm:px-4">
-        <header className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4 no-print">
+        <header className="flex flex-col md:flex-row items-center justify-between mb-4 gap-4 no-print">
           <div className="flex items-center gap-4 w-full md:w-auto">
             <button 
               onClick={onBack}
               className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-500 hover:text-indigo-600 transition-all shadow-sm"
+              title="กลับหน้าหลัก"
             >
               <ArrowLeft size={24} />
             </button>
@@ -130,8 +161,15 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack }) => {
                 <ClipboardList size={28} />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-black uppercase text-slate-900 dark:text-white leading-none">สรุปภาพรวมการฝึกงาน</h1>
-                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Full Internship Summary View</p>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-xl sm:text-2xl font-black uppercase text-slate-900 dark:text-white leading-none">สรุปภาพรวมการฝึกงาน</h1>
+                  {/* Live Real-time Status Badge */}
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded-full">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+                    <span className="text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-400 tracking-wider">Real-time Live</span>
+                  </div>
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Full Internship Summary & Supervisor Assignment View</p>
               </div>
             </div>
           </div>
@@ -175,6 +213,15 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack }) => {
 
              <div className="flex items-center gap-2 ml-auto md:ml-2">
                 <button 
+                  onClick={handleManualRefresh}
+                  disabled={isLoading || isSyncing}
+                  className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black uppercase text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all disabled:opacity-50 shadow-sm"
+                  title="รีเฟรชข้อมูลล่าสุด"
+                >
+                  <RefreshCw size={14} className={isLoading || isSyncing ? 'animate-spin text-indigo-600' : ''} />
+                  <span>{isLoading || isSyncing ? 'กำลังซิงค์...' : 'รีเฟรช'}</span>
+                </button>
+                <button 
                   onClick={handlePrint}
                   className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black uppercase text-xs hover:bg-slate-50 transition-all"
                 >
@@ -190,6 +237,19 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack }) => {
           </div>
         </header>
 
+        {/* Guidance Banner for Teachers */}
+        <div className="mb-3 px-4 py-2.5 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl flex flex-wrap items-center justify-between text-xs text-indigo-900 dark:text-indigo-200 no-print gap-2 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="font-black text-indigo-600 dark:text-indigo-400">💡 การระบุอาจารย์นิเทศ:</span>
+            <span className="font-medium text-slate-700 dark:text-slate-300">
+              พิมพ์ชื่อในช่อง "อาจารย์นิเทศ" แล้วกด Enter หรือคลิกออก ระบบจะบันทึกและอัปเดตแบบเรียลไทม์ให้อาจารย์และหัวหน้าท่านอื่นเห็นพร้อมกันทันที
+            </span>
+          </div>
+          <div className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400">
+            {isSyncing ? '⚡ กำลังบันทึกข้อมูลขึ้นระบบ...' : '🟢 เชื่อมต่อสดแบบ Real-Time'}
+          </div>
+        </div>
+
         {/* Print Header */}
         <div className="hidden print:block mb-6 text-center">
             <h1 className="text-2xl font-black uppercase text-slate-900 leading-none">สรุปภาพรวมการฝึกงาน</h1>
@@ -198,22 +258,23 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ students, onBack }) => {
             </p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-3 sm:p-5 shadow-2xl shadow-indigo-100/20 dark:shadow-none border border-slate-100 dark:border-slate-800 flex flex-col h-[84vh] sm:h-[88vh] max-h-[88vh] print-content min-h-0 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-3 sm:p-5 shadow-2xl shadow-indigo-100/20 dark:shadow-none border border-slate-100 dark:border-slate-800 flex flex-col h-[78vh] sm:h-[82vh] max-h-[84vh] print-content min-h-0 overflow-hidden">
            <SharedSummaryTable 
              students={summaryStudents} 
              formatDateBE={formatDateBE} 
-             isReadOnly={true} 
+             isReadOnly={false} 
              showSupervisor={true}
+             onSupervisorChange={onSupervisorChange}
            />
            <footer className="mt-3 pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-50 dark:border-slate-800 no-print">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Live View Only • {summaryStudents.length} Students Listed
+                  Live View & Editing • {summaryStudents.length} Students Listed
                 </p>
               </div>
-              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
-                Last Refresh: {new Date().toLocaleTimeString('th-TH')}
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Last Refresh: {lastRefreshedAt.toLocaleTimeString('th-TH')}
               </p>
            </footer>
            <div className="hidden print:block mt-4 text-[10px] text-slate-400 font-bold text-right italic">
