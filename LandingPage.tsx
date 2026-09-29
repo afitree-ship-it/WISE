@@ -269,7 +269,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className={`fixed inset-0 w-full h-[100svh] flex flex-col items-center justify-center luxe-mangosteen-bg overflow-hidden desktop-auto-fit touch-auto ${isRtl ? 'rtl' : ''}`}>
+    <div className={`fixed inset-0 w-full h-full min-h-[100svh] flex flex-col items-center justify-center luxe-mangosteen-bg overflow-hidden touch-auto ${isRtl ? 'rtl' : ''}`}>
       <MouseGlow />
       <div className="bg-video-wrap">
         <video autoPlay loop muted playsInline>
@@ -281,7 +281,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
       <TechMeteorShower />
       <ModernWaves />
       
-      <div className="flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-4 sm:px-6 reveal-anim h-full pointer-events-none py-2 sm:py-4">
+      <div className="landing-content-wrapper flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-4 sm:px-6 reveal-anim h-full pointer-events-none py-2 sm:py-4">
         <div className="flex flex-col items-center space-y-2.5 sm:space-y-4 pointer-events-auto">
            <div className="px-4 sm:px-7 py-1.5 sm:py-2.5 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
              <div className="flex flex-row items-center gap-2 sm:gap-6 whitespace-nowrap overflow-hidden">
