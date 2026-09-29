@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, Check, Loader2, UserCheck } from 'lucide-react';
+import { Search, Check, Loader2, UserCheck, Lock, Pencil } from 'lucide-react';
 import { StudentStatusRecord, Major, InternshipType, ApplicationStatus } from './types';
 
 interface SupervisorInputProps {
@@ -18,17 +18,19 @@ const SupervisorInput: React.FC<SupervisorInputProps> = ({
 }) => {
   const [val, setVal] = useState(initialValue);
   const [isFocused, setIsFocused] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   // Keep local state updated with prop changes when user is NOT actively typing
   useEffect(() => {
-    if (!isFocused) {
+    if (!isFocused && !isEditing) {
       setVal(initialValue || '');
     }
-  }, [initialValue, isFocused]);
+  }, [initialValue, isFocused, isEditing]);
 
   const commitChange = async () => {
     const trimmed = val.trim();
+    setIsEditing(false);
     if (trimmed !== (initialValue || '').trim()) {
       setSaveStatus('saving');
       try {
@@ -44,12 +46,38 @@ const SupervisorInput: React.FC<SupervisorInputProps> = ({
     }
   };
 
+  // If a supervisor is already filled and user is not actively editing it, display the locked state
+  const hasSupervisor = Boolean(val && val.trim());
+  if (hasSupervisor && !isEditing) {
+    return (
+      <div className="relative flex items-center justify-between min-w-[190px] max-w-[240px] px-2.5 py-1.5 bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-lg shadow-sm group transition-all">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          <Lock size={12} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 truncate" title={val}>
+            {val}
+          </span>
+        </div>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className="p-1 ml-1 rounded-md text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-200 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/60 opacity-60 group-hover:opacity-100 transition-all shrink-0"
+            title="คลิกเพื่อแก้ไขอาจารย์นิเทศ"
+          >
+            <Pencil size={11} />
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="relative flex items-center min-w-[190px]">
       <input
         type="text"
         disabled={disabled}
-        placeholder="ระบุอาจารย์นิเทศ..."
+        autoFocus={isEditing}
+        placeholder="พิมพ์ชื่ออาจารย์นิเทศ..."
         value={val}
         onChange={(e) => setVal(e.target.value)}
         onFocus={() => setIsFocused(true)}
@@ -60,9 +88,12 @@ const SupervisorInput: React.FC<SupervisorInputProps> = ({
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             (e.target as HTMLInputElement).blur();
+          } else if (e.key === 'Escape') {
+            setVal(initialValue || '');
+            setIsEditing(false);
           }
         }}
-        className={`w-full pr-8 pl-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border rounded-lg text-sm font-bold transition-all shadow-sm outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600 ${
+        className={`w-full pr-8 pl-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border rounded-lg text-xs font-bold transition-all shadow-sm outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
           saveStatus === 'saved'
             ? 'border-emerald-500 bg-emerald-50/40 text-emerald-800 dark:text-emerald-300'
             : saveStatus === 'saving'
@@ -72,13 +103,13 @@ const SupervisorInput: React.FC<SupervisorInputProps> = ({
       />
       <div className="absolute right-2.5 pointer-events-none flex items-center justify-center">
         {saveStatus === 'saving' && (
-          <Loader2 size={14} className="text-indigo-500 animate-spin" />
+          <Loader2 size={13} className="text-indigo-500 animate-spin" />
         )}
         {saveStatus === 'saved' && (
-          <Check size={14} className="text-emerald-500 animate-in zoom-in-75 duration-200" />
+          <Check size={13} className="text-emerald-500 animate-in zoom-in-75 duration-200" />
         )}
         {saveStatus === 'idle' && (
-          <UserCheck size={14} className="text-slate-300 dark:text-slate-600 opacity-60" />
+          <UserCheck size={13} className="text-slate-400 dark:text-slate-500 opacity-60" />
         )}
       </div>
     </div>

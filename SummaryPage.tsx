@@ -1,10 +1,11 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { ClipboardList, ArrowLeft, Share2, Calendar, BookOpen, Printer, RefreshCw, Radio } from 'lucide-react';
-import { StudentStatusRecord, ApplicationStatus } from './types';
+import { ClipboardList, ArrowLeft, Share2, Calendar, BookOpen, Printer, RefreshCw, Radio, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { StudentStatusRecord, ApplicationStatus, Major } from './types';
 import SharedSummaryTable from './SharedSummaryTable';
 import { formatDateBE } from './dateUtils';
 import { ShareLinkModal } from './components/ShareLinkModal';
+import { exportToExcel, exportToWord, exportToPDF } from './exportUtils';
 
 interface SummaryPageProps {
   students: StudentStatusRecord[];
@@ -49,33 +50,44 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
   }, [students]);
 
   const [selectedYears, setSelectedYears] = useState<string[]>(() => {
-    const params = new URLSearchParams(window.location.hash.slice(1));
+    const hash = window.location.hash.replace(/^#\??/, '');
+    const params = new URLSearchParams(hash);
     const y = params.get('years');
     return y ? y.split(',') : []; // Default to empty (shows all)
   });
   
   const [selectedTerms, setSelectedTerms] = useState<string[]>(() => {
-    const params = new URLSearchParams(window.location.hash.slice(1));
+    const hash = window.location.hash.replace(/^#\??/, '');
+    const params = new URLSearchParams(hash);
     const t = params.get('terms');
     return t ? t.split(',') : []; // Default to empty (shows all)
+  });
+
+  const [selectedMajors, setSelectedMajors] = useState<string[]>(() => {
+    const hash = window.location.hash.replace(/^#\??/, '');
+    const params = new URLSearchParams(hash);
+    const m = params.get('majors');
+    return m ? m.split(',') : []; // Default to empty (shows all)
   });
 
   const summaryStudents = useMemo(() => {
     return students.filter(s => {
       const studentYear = String(s.academicYear || '').trim();
       const studentTerm = String(s.term || '').trim();
+      const studentMajor = String(s.major || '').trim();
       
       const matchesYear = selectedYears.length === 0 || selectedYears.includes(studentYear);
       const matchesTerm = selectedTerms.length === 0 || selectedTerms.includes(studentTerm);
+      const matchesMajor = selectedMajors.length === 0 || selectedMajors.includes(studentMajor);
       
-      return matchesYear && matchesTerm;
+      return matchesYear && matchesTerm && matchesMajor;
     }).sort((a, b) => {
       // Sort Accepted first, then by last updated
       if (a.status === ApplicationStatus.ACCEPTED && b.status !== ApplicationStatus.ACCEPTED) return -1;
       if (a.status !== ApplicationStatus.ACCEPTED && b.status === ApplicationStatus.ACCEPTED) return 1;
       return b.lastUpdated - a.lastUpdated;
     });
-  }, [students, selectedYears, selectedTerms]);
+  }, [students, selectedYears, selectedTerms, selectedMajors]);
 
   const handleShare = () => {
     setIsShareModalOpen(true);
@@ -215,23 +227,43 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
                 <button 
                   onClick={handleManualRefresh}
                   disabled={isLoading || isSyncing}
-                  className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black uppercase text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all disabled:opacity-50 shadow-sm"
+                  className="flex items-center gap-1.5 px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black uppercase text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all disabled:opacity-50 shadow-sm"
                   title="รีเฟรชข้อมูลล่าสุด"
                 >
-                  <RefreshCw size={14} className={isLoading || isSyncing ? 'animate-spin text-indigo-600' : ''} />
+                  <RefreshCw size={13} className={isLoading || isSyncing ? 'animate-spin text-indigo-600' : ''} />
                   <span>{isLoading || isSyncing ? 'กำลังซิงค์...' : 'รีเฟรช'}</span>
                 </button>
-                <button 
-                  onClick={handlePrint}
-                  className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black uppercase text-xs hover:bg-slate-50 transition-all"
-                >
-                  <Printer size={16} /> พิมพ์
-                </button>
+
+                {/* Export Dropdown / Buttons */}
+                <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-0.5 shadow-sm">
+                  <button 
+                    onClick={() => exportToExcel(summaryStudents, 'สรุปรายชื่อนักศึกษาฝึกงานและสหกิจศึกษา')}
+                    className="flex items-center gap-1 px-2.5 py-2 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-black transition-all"
+                    title="ดาวน์โหลดเป็นไฟล์ Excel (.xls)"
+                  >
+                    <FileSpreadsheet size={14} /> Excel
+                  </button>
+                  <button 
+                    onClick={() => exportToWord(summaryStudents, 'สรุปรายชื่อนักศึกษาฝึกงานและสหกิจศึกษา')}
+                    className="flex items-center gap-1 px-2.5 py-2 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-black transition-all"
+                    title="ดาวน์โหลดเป็นไฟล์ Word (.doc)"
+                  >
+                    <FileText size={14} /> Word
+                  </button>
+                  <button 
+                    onClick={() => exportToPDF(summaryStudents, 'สรุปรายชื่อนักศึกษาฝึกงานและสหกิจศึกษา')}
+                    className="flex items-center gap-1 px-2.5 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-400 rounded-lg text-xs font-black transition-all"
+                    title="พิมพ์หรือบันทึกเป็น PDF"
+                  >
+                    <Printer size={14} /> PDF
+                  </button>
+                </div>
+
                 <button 
                   onClick={handleShare}
-                  className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase text-xs shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
+                  className="flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-black uppercase text-xs shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all active:scale-95"
                 >
-                  <Share2 size={16} /> แชร์ลิงก์
+                  <Share2 size={14} /> แชร์รายชื่อ
                 </button>
              </div>
           </div>
@@ -287,7 +319,9 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
         isOpen={isShareModalOpen} 
         onClose={() => setIsShareModalOpen(false)} 
         years={selectedYears} 
-        terms={selectedTerms} 
+        terms={selectedTerms}
+        availableYears={years}
+        availableTerms={terms}
       />
     </>
   );

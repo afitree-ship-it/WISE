@@ -581,7 +581,7 @@ const App: React.FC = () => {
         </nav>
       </div>
 
-      <div className={`container mx-auto px-2 sm:px-4 ${role === UserRole.ADMIN ? 'h-[calc(100dvh-100px)] md:h-[calc(100vh-100px)] pt-4 pb-4' : 'py-4'} flex flex-col md:flex-row gap-6 flex-grow relative`}>
+      <div className={`${role === UserRole.ADMIN ? 'w-full max-w-[1720px] mx-auto px-2 sm:px-4 h-[calc(100dvh-78px)] py-2 gap-3' : 'container mx-auto px-2 sm:px-4 py-4 gap-6'} flex flex-col md:flex-row flex-grow relative`}>
         {role === UserRole.ADMIN ? (
         <AdminPanel 
             sites={sites} setSites={setSites}

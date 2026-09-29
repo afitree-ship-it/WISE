@@ -61,10 +61,15 @@ import {
   PieChart,
   TrendingUp,
   UserCheck,
-  Share2
+  Share2,
+  Table,
+  LayoutGrid,
+  Lock,
+  Printer
 } from 'lucide-react';
 import SharedSummaryTable from './SharedSummaryTable';
 import { formatDateBE } from './dateUtils';
+import { exportToExcel, exportToWord, exportToPDF } from './exportUtils';
 
 interface AdminPanelProps {
   sites: InternshipSite[];
@@ -116,6 +121,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
   const [isFilterPanelExpanded, setIsFilterPanelExpanded] = useState(false);
+  const [studentViewMode, setStudentViewMode] = useState<'table' | 'cards'>('table');
+
+  const studentStats = useMemo(() => {
+    const total = studentStatuses.length;
+    const accepted = studentStatuses.filter(s => s.status === ApplicationStatus.ACCEPTED).length;
+    const preparing = studentStatuses.filter(s => s.status === ApplicationStatus.PREPARING).length;
+    const pending = studentStatuses.filter(s => s.status === ApplicationStatus.PENDING).length;
+    const rejected = studentStatuses.filter(s => s.status === ApplicationStatus.REJECTED).length;
+    return { total, accepted, preparing, pending, rejected };
+  }, [studentStatuses]);
   
   const [adminSiteSearch, setAdminSiteSearch] = useState('');
   const [adminSiteMajorFilter, setAdminSiteMajorFilter] = useState<Major | 'all'>('all');
@@ -666,7 +681,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setItemToDelete(null);
   };
 
-  const handleDownloadReport = () => {
+  const getFilteredReportStudents = () => {
     let filtered = [...studentStatuses];
     
     // 1. Filter by Major First
@@ -690,15 +705,50 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       }
     }
 
+    return filtered;
+  };
+
+  const handleExportExcel = () => {
+    const filtered = getFilteredReportStudents();
+    if (filtered.length === 0) {
+      alert("ไม่พบข้อมูลตามเงื่อนไขที่ระบุ กรุณาตรวจสอบข้อมูลหรือตัวเลือกการกรองอีกครั้ง");
+      return;
+    }
+    exportToExcel(filtered, 'รายงานรายชื่อนักศึกษาฝึกงานและสหกิจศึกษา');
+    setShowReportModal(false);
+  };
+
+  const handleExportWord = () => {
+    const filtered = getFilteredReportStudents();
+    if (filtered.length === 0) {
+      alert("ไม่พบข้อมูลตามเงื่อนไขที่ระบุ กรุณาตรวจสอบข้อมูลหรือตัวเลือกการกรองอีกครั้ง");
+      return;
+    }
+    exportToWord(filtered, 'รายงานรายชื่อนักศึกษาฝึกงานและสหกิจศึกษา');
+    setShowReportModal(false);
+  };
+
+  const handleExportPDF = () => {
+    const filtered = getFilteredReportStudents();
+    if (filtered.length === 0) {
+      alert("ไม่พบข้อมูลตามเงื่อนไขที่ระบุ กรุณาตรวจสอบข้อมูลหรือตัวเลือกการกรองอีกครั้ง");
+      return;
+    }
+    exportToPDF(filtered, 'รายงานรายชื่อนักศึกษาฝึกงานและสหกิจศึกษา');
+    setShowReportModal(false);
+  };
+
+  const handleDownloadReport = () => {
+    const filtered = getFilteredReportStudents();
     if (filtered.length === 0) { 
       alert("ไม่พบข้อมูลตามเงื่อนไขที่ระบุ กรุณาตรวจสอบข้อมูลหรือตัวเลือกการกรองอีกครั้ง"); 
       return; 
     }
     
-    const headers = ["ID", "Student Name", "Major", "Type", "Location", "Position", "Term", "Year", "Start Date", "End Date", "Status"];
+    const headers = ["ID", "Student Name", "Major", "Type", "Location", "Position", "Term", "Year", "Start Date", "End Date", "Status", "Supervisor"];
     const rows = filtered.map(s => [
       `"${s.studentId}"`, `"${s.name}"`, `"${getMajorLabel(s.major)}"`, `"${s.internshipType === InternshipType.INTERNSHIP ? 'Internship' : 'Co-op'}"`,
-      `"${s.location || '-'}"`, `"${s.position || '-'}"`, `"${s.term || '-'}"`, `"${s.academicYear || '-'}"`, `"${formatDateBE(s.startDate)}"`, `"${formatDateBE(s.endDate)}"`, `"${getStatusLabel(s.status)}"`
+      `"${s.location || '-'}"`, `"${s.position || '-'}"`, `"${s.term || '-'}"`, `"${s.academicYear || '-'}"`, `"${formatDateBE(s.startDate)}"`, `"${formatDateBE(s.endDate)}"`, `"${getStatusLabel(s.status)}"`, `"${s.supervisor || '-'}"`
     ]);
     const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -852,26 +902,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <p className="hidden sm:block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Management Suite</p>
                 </div>
              </div>
-             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-2.5">
                 {adminActiveTab === 'students' && (
-                  <div className="flex gap-2 w-full sm:w-auto">
+                  <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
                     <button 
                       onClick={() => setShowStatsModal(true)}
-                      className="flex-1 sm:flex-none px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-black uppercase text-[10px] sm:text-xs flex items-center justify-center gap-2 border border-blue-200 dark:border-blue-800/50 hover:bg-blue-200 transition-all shadow-sm"
+                      className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-black uppercase text-[11px] flex items-center justify-center gap-1.5 border border-blue-200 dark:border-blue-800/50 hover:bg-blue-100 transition-all shadow-sm"
+                      title="ดูสถิติสรุปยอดนักศึกษา"
                     >
-                      <BarChart3 size={16} /> สถิติ
+                      <BarChart3 size={15} /> สถิติ
                     </button>
                     <button 
                       onClick={() => setShowReportModal(true)}
-                      className="flex-1 sm:flex-none px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-black uppercase text-[10px] sm:text-xs flex items-center justify-center gap-2 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 transition-all shadow-sm"
+                      className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-black uppercase text-[11px] flex items-center justify-center gap-1.5 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-100 transition-all shadow-sm"
+                      title="ส่งออกรายงานเป็น PDF, Excel, Word หรือ CSV"
                     >
-                      <FileSpreadsheet size={16} /> ส่งออกรายงาน
+                      <Download size={15} /> ส่งออกรายงาน
+                    </button>
+                    <button 
+                      onClick={() => setIsShareModalOpen(true)}
+                      className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 font-black uppercase text-[11px] flex items-center justify-center gap-1.5 border border-indigo-200 dark:border-indigo-800/50 hover:bg-indigo-100 transition-all shadow-sm"
+                      title="แชร์รายชื่อให้อาจารย์เพื่อระบุอาจารย์นิเทศ"
+                    >
+                      <Share2 size={15} /> แชร์รายชื่อ
                     </button>
                     <button 
                       onClick={() => setShowSummaryModal(true)}
-                      className="flex-1 sm:flex-none px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 font-black uppercase text-[10px] sm:text-xs flex items-center justify-center gap-2 border border-indigo-200 dark:border-indigo-800/50 hover:bg-indigo-200 transition-all shadow-sm"
+                      className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 font-black uppercase text-[11px] flex items-center justify-center gap-1.5 border border-purple-200 dark:border-purple-800/50 hover:bg-purple-100 transition-all shadow-sm"
+                      title="ดูสรุปภาพรวมรายชื่อทั้งหมด"
                     >
-                      <ClipboardList size={16} /> สรุปภาพรวม
+                      <ClipboardList size={15} /> สรุปภาพรวม
                     </button>
                   </div>
                 )}
@@ -918,287 +978,456 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
              <div className="sticky top-0 left-0 right-0 h-1 bg-gradient-to-b from-white dark:from-slate-900 to-transparent z-[40] pointer-events-none opacity-80" />
              <div className="px-6 sm:px-8 pb-12">
               {adminActiveTab === 'students' && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <div className="flex flex-col gap-3">
-                    {/* Streamlined Compact Horizontal Filter Bar */}
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-wrap items-center gap-3 sm:gap-4 relative z-20">
-                       {/* Left label & Icon */}
-                       <div className="flex items-center gap-2 pr-3 border-r border-slate-200 dark:border-slate-800 shrink-0">
-                         <div className="p-1.5 bg-[#2A0114] dark:bg-[#630330] rounded-xl text-white">
-                           <Filter size={16} />
-                         </div>
-                         <span className="font-black text-xs text-slate-800 dark:text-slate-200">
-                           ตัวกรอง:
-                         </span>
-                       </div>
-
-                       {/* Select Grid */}
-                       <div className="flex-grow grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 w-full sm:w-auto">
-                         {/* 1. Status Filter */}
-                           <div className="flex flex-col gap-1 relative animate-in fade-in duration-300">
-                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">สถานะการดำเนินการ</span>
-                             <div className="relative">
-                               <select
-                                 value={adminStudentStatusFilter}
-                                 onChange={(e) => setAdminStudentStatusFilter(e.target.value as any)}
-                                 className={`w-full h-[38px] pl-3 pr-8 border rounded-xl font-bold outline-none cursor-pointer appearance-none text-sm transition-all duration-300 shadow-sm ${getStatusSelectClasses(adminStudentStatusFilter)}`}
-                               >
-                                 <option value="all" className="text-slate-700 dark:text-slate-200 font-normal">ทั้งหมด</option>
-                                 <option value={ApplicationStatus.PENDING} className="text-amber-800 dark:text-amber-300 font-bold">รอตรวจสอบ</option>
-                                 <option value={ApplicationStatus.PREPARING} className="text-blue-800 dark:text-blue-300 font-bold">กำลังจัดเตรียม</option>
-                                 <option value={ApplicationStatus.ACCEPTED} className="text-emerald-800 dark:text-emerald-300 font-bold">ตอบรับแล้ว</option>
-                                 <option value={ApplicationStatus.REJECTED} className="text-rose-800 dark:text-rose-300 font-bold">ปฏิเสธ</option>
-                               </select>
-                               <ChevronDown size={14} className={`absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-300 ${
-                                 adminStudentStatusFilter === 'all' ? 'text-slate-400' :
-                                 adminStudentStatusFilter === ApplicationStatus.PENDING ? 'text-amber-500' :
-                                 adminStudentStatusFilter === ApplicationStatus.PREPARING ? 'text-blue-500' :
-                                 adminStudentStatusFilter === ApplicationStatus.ACCEPTED ? 'text-emerald-500' : 'text-rose-500'
-                               }`} />
-                             </div>
-                           </div>
-
-                           {/* 2. Major Filter */}
-                           <div className="flex flex-col gap-1 relative animate-in fade-in duration-300">
-                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">สาขาวิชาหลัก</span>
-                             <div className="relative">
-                               <select
-                                 value={adminStudentMajorFilter}
-                                 onChange={(e) => setAdminStudentMajorFilter(e.target.value as any)}
-                                 className={`w-full h-[38px] pl-3 pr-8 border rounded-xl font-bold outline-none cursor-pointer appearance-none text-sm transition-all duration-300 shadow-sm ${getMajorSelectClasses(adminStudentMajorFilter)}`}
-                               >
-                                 <option value="all" className="text-slate-700 dark:text-slate-200 font-normal">ทั้งหมด</option>
-                                 <option value={Major.HALAL_FOOD} className="text-amber-800 dark:text-amber-300 font-bold">R&D (เทคโนโลยีอาหารฮาลาล)</option>
-                                 <option value={Major.DIGITAL_TECH} className="text-blue-800 dark:text-blue-300 font-bold">TDS (เทคโนโลยีดิจิทัล)</option>
-                                 <option value={Major.INFO_TECH} className="text-indigo-800 dark:text-indigo-300 font-bold">IT (เทคโนโลยีสารสนเทศ)</option>
-                                 <option value={Major.DATA_SCIENCE} className="text-emerald-800 dark:text-emerald-300 font-bold">DSA (วิทยาการข้อมูลและการวิเคราะห์)</option>
-                               </select>
-                               <ChevronDown size={14} className={`absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-300 ${
-                                 adminStudentMajorFilter === 'all' ? 'text-slate-400' :
-                                 adminStudentMajorFilter === Major.HALAL_FOOD ? 'text-amber-500' :
-                                 adminStudentMajorFilter === Major.DIGITAL_TECH ? 'text-blue-500' :
-                                 adminStudentMajorFilter === Major.INFO_TECH ? 'text-indigo-500' : 'text-emerald-500'
-                               }`} />
-                             </div>
-                           </div>
-
-                           {/* 3. Year Filter (Interactive Slider Selector) */}
-                           <div className="flex flex-col gap-1 relative animate-in fade-in duration-300">
-                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ปีการศึกษา</span>
-                             <div className="relative flex items-center border border-slate-200/80 dark:border-slate-750 bg-slate-50 dark:bg-slate-800 rounded-xl h-[38px] px-1 shadow-sm">
-                               {/* Left arrow (Go to older/previous year) */}
-                               <button
-                                 type="button"
-                                 onClick={handlePrevYear}
-                                 disabled={adminStudentYearFilter !== 'all' && academicYears.indexOf(adminStudentYearFilter) === academicYears.length - 1}
-                                 className="p-1 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-30 disabled:hover:bg-transparent rounded-lg transition-colors cursor-pointer"
-                                 title="ปีก่อนหน้า"
-                               >
-                                 <ChevronLeft size={16} />
-                               </button>
-
-                               {/* Center Year Selector with Invisible select overlay */}
-                               <div className="relative flex-grow flex items-center justify-center h-full px-2 text-center">
-                                 <span className="font-bold text-sm text-slate-700 dark:text-slate-200 select-none pointer-events-none">
-                                   {adminStudentYearFilter === 'all' ? 'ทั้งหมด' : `ปี ${adminStudentYearFilter}`}
-                                 </span>
-                                 
-                                 {/* Overlay select to choose another year directly */}
-                                 <select
-                                   value={adminStudentYearFilter}
-                                   onChange={(e) => setAdminStudentYearFilter(e.target.value)}
-                                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                   title="คลิกเพื่อเลือกปีการศึกษาอื่น"
-                                 >
-                                   <option value="all">ทั้งหมด</option>
-                                   {academicYears.map(year => (
-                                     <option key={year} value={year}>
-                                       {year === currentYearBE ? `${year} (ปัจจุบัน)` : year}
-                                     </option>
-                                   ))}
-                                 </select>
-                               </div>
-
-                               {/* Right arrow (Go to newer/next year) */}
-                               <button
-                                 type="button"
-                                 onClick={handleNextYear}
-                                 disabled={adminStudentYearFilter !== 'all' && academicYears.indexOf(adminStudentYearFilter) === 0}
-                                 className="p-1 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-30 disabled:hover:bg-transparent rounded-lg transition-colors cursor-pointer"
-                                 title="ปีถัดไป"
-                               >
-                                 <ChevronRight size={16} />
-                               </button>
-                             </div>
-                           </div>
-
-                           {/* 4. Term Filter (Interactive Button Group) */}
-                           <div className="flex flex-col gap-1 relative animate-in fade-in duration-300">
-                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ภาคเรียน / เทอม</span>
-                             <div className="flex items-center bg-slate-100/90 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-750 rounded-xl h-[38px] p-0.5 gap-0.5 w-full shadow-sm">
-                               {[
-                                 { value: 'all', label: 'ทั้งหมด' },
-                                 { value: '1', label: 'เทอม 1' },
-                                 { value: '2', label: 'เทอม 2' },
-                               ].map((opt) => {
-                                 const isActive = adminStudentTermFilter === opt.value;
-                                 return (
-                                   <button
-                                     key={opt.value}
-                                     type="button"
-                                     onClick={() => setAdminStudentTermFilter(opt.value)}
-                                     className={`flex-grow h-full px-1.5 rounded-lg font-black text-xs transition-all duration-200 cursor-pointer flex items-center justify-center ${
-                                       isActive 
-                                         ? 'bg-white dark:bg-slate-700 text-[#630330] dark:text-amber-400 shadow-sm scale-[1.02]' 
-                                         : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                                     }`}
-                                   >
-                                     {opt.value === 'all' ? 'ทั้งหมด' : opt.label}
-                                   </button>
-                                 );
-                               })}
-                             </div>
-                           </div>
-                        
-                       </div>
-
-                       {/* Reset button inside filter bar */}
-                       {(adminStudentStatusFilter !== 'all' || adminStudentMajorFilter !== 'all' || adminStudentYearFilter !== currentYearBE || adminStudentTermFilter !== 'all') && (
-                         <button
-                           onClick={() => {
-                             setAdminStudentStatusFilter('all');
-                             setAdminStudentMajorFilter('all');
-                             setAdminStudentYearFilter(currentYearBE);
-                             setAdminStudentTermFilter('all');
-                           }}
-                           className="self-end h-[34px] px-3.5 rounded-xl text-[10px] font-black uppercase bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-900/30 hover:border-rose-200 transition-all flex items-center gap-1.5 shadow-sm"
-                           title="ล้างตัวกรองทั้งหมด"
-                         >
-                           <X size={14} />
-                           <span>ล้างตัวกรอง</span>
-                         </button>
-                       )}
-                     </div>                    <div className="flex flex-wrap items-center justify-between gap-4 mt-2">
-                      <button 
-                        onClick={toggleSelectAllStudents}
-                        className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase rounded-xl border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-2 shadow-sm"
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  {/* 1. Minimalist Interactive Stats Strip & View Toggle */}
+                  <div className="flex flex-wrap items-center justify-between gap-2.5 p-2 bg-slate-50 dark:bg-slate-850/60 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => setAdminStudentStatusFilter('all')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          adminStudentStatusFilter === 'all'
+                            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-slate-700'
+                        }`}
                       >
-                        {selectedStudentIds.length === filteredAdminStudents.length ? <ShieldX size={14} /> : <ShieldCheck size={14} />}
-                        {selectedStudentIds.length === filteredAdminStudents.length ? 'ยกเลิกเลือกทั้งหมด' : 'เลือกทั้งหมดในหน้านี้'}
+                        <Users size={13} /> ทั้งหมด <span className="px-1.5 py-0.2 rounded-md text-[10px] bg-black/10 dark:bg-white/20 font-mono font-bold">{studentStats.total}</span>
+                      </button>
+                      <button
+                        onClick={() => setAdminStudentStatusFilter(ApplicationStatus.ACCEPTED)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          adminStudentStatusFilter === ApplicationStatus.ACCEPTED
+                            ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/30'
+                            : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-200/60 dark:border-emerald-800/40'
+                        }`}
+                      >
+                        <Check size={13} /> ตอบรับแล้ว <span className="px-1.5 py-0.2 rounded-md text-[10px] bg-emerald-200/60 dark:bg-emerald-800/40 font-mono font-bold">{studentStats.accepted}</span>
+                      </button>
+                      <button
+                        onClick={() => setAdminStudentStatusFilter(ApplicationStatus.PREPARING)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          adminStudentStatusFilter === ApplicationStatus.PREPARING
+                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
+                            : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 border border-blue-200/60 dark:border-blue-800/40'
+                        }`}
+                      >
+                        <Clock size={13} /> กำลังจัดเตรียม <span className="px-1.5 py-0.2 rounded-md text-[10px] bg-blue-200/60 dark:bg-blue-800/40 font-mono font-bold">{studentStats.preparing}</span>
+                      </button>
+                      <button
+                        onClick={() => setAdminStudentStatusFilter(ApplicationStatus.PENDING)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          adminStudentStatusFilter === ApplicationStatus.PENDING
+                            ? 'bg-amber-600 text-white shadow-sm shadow-amber-500/30'
+                            : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 border border-amber-200/60 dark:border-amber-800/40'
+                        }`}
+                      >
+                        <Timer size={13} /> รอตรวจสอบ <span className="px-1.5 py-0.2 rounded-md text-[10px] bg-amber-200/60 dark:bg-amber-800/40 font-mono font-bold">{studentStats.pending}</span>
+                      </button>
+                      <button
+                        onClick={() => setAdminStudentStatusFilter(ApplicationStatus.REJECTED)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          adminStudentStatusFilter === ApplicationStatus.REJECTED
+                            ? 'bg-rose-600 text-white shadow-sm shadow-rose-500/30'
+                            : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 border border-rose-200/60 dark:border-rose-800/40'
+                        }`}
+                      >
+                        <X size={13} /> ปฏิเสธ <span className="px-1.5 py-0.2 rounded-md text-[10px] bg-rose-200/60 dark:bg-rose-800/40 font-mono font-bold">{studentStats.rejected}</span>
+                      </button>
+                    </div>
+
+                    {/* View Switcher: Table vs Cards */}
+                    <div className="flex items-center bg-white dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setStudentViewMode('table')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          studentViewMode === 'table'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                        }`}
+                        title="มุมมองตาราง (กระชับ ดูง่าย มีระเบียบ)"
+                      >
+                        <Table size={14} /> <span className="text-[11px]">ตาราง</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStudentViewMode('cards')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          studentViewMode === 'cards'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                        }`}
+                        title="มุมมองการ์ด"
+                      >
+                        <LayoutGrid size={14} /> <span className="text-[11px]">การ์ด</span>
                       </button>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between px-2">
-                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <Users size={14} className="text-amber-500" />
-                      พบนักศึกษา{adminStudentStatusFilter === 'all' ? 'ทั้งหมด' : getStatusLabel(adminStudentStatusFilter)} {filteredAdminStudents.length} คน
-                    </p>
+
+                  {/* 2. Streamlined Filter Bar */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-2.5 sm:p-3 shadow-sm flex flex-wrap items-center gap-2.5 relative z-20">
+                     <div className="flex items-center gap-1.5 pr-2.5 border-r border-slate-200 dark:border-slate-800 shrink-0">
+                       <div className="p-1 bg-[#2A0114] dark:bg-[#630330] rounded-lg text-white">
+                         <Filter size={14} />
+                       </div>
+                       <span className="font-black text-xs text-slate-700 dark:text-slate-300">
+                         ตัวกรอง:
+                       </span>
+                     </div>
+
+                     <div className="flex-grow grid grid-cols-2 lg:grid-cols-4 gap-2 w-full sm:w-auto">
+                         {/* Status Filter */}
+                         <div className="relative">
+                           <select
+                             value={adminStudentStatusFilter}
+                             onChange={(e) => setAdminStudentStatusFilter(e.target.value as any)}
+                             className={`w-full h-[36px] pl-2.5 pr-7 border rounded-xl font-bold outline-none cursor-pointer appearance-none text-xs transition-all shadow-sm ${getStatusSelectClasses(adminStudentStatusFilter)}`}
+                           >
+                             <option value="all">สถานะ: ทั้งหมด</option>
+                             <option value={ApplicationStatus.PENDING}>รอตรวจสอบ</option>
+                             <option value={ApplicationStatus.PREPARING}>กำลังจัดเตรียม</option>
+                             <option value={ApplicationStatus.ACCEPTED}>ตอบรับแล้ว</option>
+                             <option value={ApplicationStatus.REJECTED}>ปฏิเสธ</option>
+                           </select>
+                           <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                         </div>
+
+                         {/* Major Filter */}
+                         <div className="relative">
+                           <select
+                             value={adminStudentMajorFilter}
+                             onChange={(e) => setAdminStudentMajorFilter(e.target.value as any)}
+                             className={`w-full h-[36px] pl-2.5 pr-7 border rounded-xl font-bold outline-none cursor-pointer appearance-none text-xs transition-all shadow-sm ${getMajorSelectClasses(adminStudentMajorFilter)}`}
+                           >
+                             <option value="all">สาขาวิชา: ทั้งหมด</option>
+                             <option value={Major.HALAL_FOOD}>R&D (อาหารฮาลาล)</option>
+                             <option value={Major.DIGITAL_TECH}>TDS (ดิจิทัล)</option>
+                             <option value={Major.INFO_TECH}>IT (เทคโนโลยีฯ)</option>
+                             <option value={Major.DATA_SCIENCE}>DSA (วิทยาการข้อมูล)</option>
+                           </select>
+                           <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                         </div>
+
+                         {/* Year Filter */}
+                         <div className="relative flex items-center border border-slate-200/80 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl h-[36px] px-1 shadow-sm">
+                           <button
+                             type="button"
+                             onClick={handlePrevYear}
+                             disabled={adminStudentYearFilter !== 'all' && academicYears.indexOf(adminStudentYearFilter) === academicYears.length - 1}
+                             className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 rounded-lg transition-colors cursor-pointer disabled:opacity-30"
+                             title="ปีก่อนหน้า"
+                           >
+                             <ChevronLeft size={14} />
+                           </button>
+                           <div className="relative flex-grow flex items-center justify-center h-full px-1 text-center">
+                             <span className="font-bold text-xs text-slate-700 dark:text-slate-200 select-none pointer-events-none">
+                               {adminStudentYearFilter === 'all' ? 'ปี: ทั้งหมด' : `ปี ${adminStudentYearFilter}`}
+                             </span>
+                             <select
+                               value={adminStudentYearFilter}
+                               onChange={(e) => setAdminStudentYearFilter(e.target.value)}
+                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                             >
+                               <option value="all">ปี: ทั้งหมด</option>
+                               {academicYears.map(year => (
+                                 <option key={year} value={year}>{year === currentYearBE ? `${year} (ปัจจุบัน)` : year}</option>
+                               ))}
+                             </select>
+                           </div>
+                           <button
+                             type="button"
+                             onClick={handleNextYear}
+                             disabled={adminStudentYearFilter !== 'all' && academicYears.indexOf(adminStudentYearFilter) === 0}
+                             className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 rounded-lg transition-colors cursor-pointer disabled:opacity-30"
+                             title="ปีถัดไป"
+                           >
+                             <ChevronRight size={14} />
+                           </button>
+                         </div>
+
+                         {/* Term Filter */}
+                         <div className="flex items-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl h-[36px] p-0.5 gap-0.5 w-full shadow-sm">
+                           {[
+                             { value: 'all', label: 'ทุกเทอม' },
+                             { value: '1', label: 'เทอม 1' },
+                             { value: '2', label: 'เทอม 2' },
+                           ].map((opt) => (
+                             <button
+                               key={opt.value}
+                               type="button"
+                               onClick={() => setAdminStudentTermFilter(opt.value)}
+                               className={`flex-grow h-full px-1 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center justify-center ${
+                                 adminStudentTermFilter === opt.value 
+                                   ? 'bg-white dark:bg-slate-700 text-[#630330] dark:text-amber-400 shadow-sm' 
+                                   : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                               }`}
+                             >
+                               {opt.label}
+                             </button>
+                           ))}
+                         </div>
+                     </div>
+
+                     {/* Reset button */}
+                     {(adminStudentStatusFilter !== 'all' || adminStudentMajorFilter !== 'all' || adminStudentYearFilter !== currentYearBE || adminStudentTermFilter !== 'all') && (
+                       <button
+                         onClick={() => {
+                           setAdminStudentStatusFilter('all');
+                           setAdminStudentMajorFilter('all');
+                           setAdminStudentYearFilter(currentYearBE);
+                           setAdminStudentTermFilter('all');
+                         }}
+                         className="h-[34px] px-2.5 rounded-xl text-[10px] font-black uppercase bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/60 transition-all flex items-center gap-1 shadow-sm shrink-0"
+                         title="ล้างตัวกรองทั้งหมด"
+                       >
+                         <X size={13} />
+                         <span>ล้าง</span>
+                       </button>
+                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                    {filteredAdminStudents.map(record => (
-                      <div key={record.id} className={`p-6 rounded-[2rem] border ${selectedStudentIds.includes(record.id) ? 'border-indigo-500 bg-indigo-50/40 dark:bg-indigo-900/20 ring-2 ring-indigo-500/20' : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800'} flex flex-col gap-4 group hover:border-amber-200 hover:shadow-xl transition-all shadow-sm relative`}>
-                        <div className="absolute top-5 right-5 z-10">
-                          <button 
-                            onClick={() => toggleStudentSelection(record.id)}
-                            className={`w-12 h-12 rounded-2xl border-2 flex flex-col items-center justify-center transition-all shadow-md ${selectedStudentIds.includes(record.id) ? 'bg-indigo-600 border-indigo-600 text-white scale-110 shadow-indigo-500/40' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:scale-105'}`}
-                          >
-                            {selectedStudentIds.includes(record.id) ? (
-                              <Check size={24} strokeWidth={4} />
-                            ) : (
-                              <>
-                                <div className="w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-600 mb-0.5 group-hover:border-indigo-400 transition-colors"></div>
-                                <span className="text-[8px] font-black uppercase text-slate-400 group-hover:text-indigo-500">เลือก</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                        <div className="flex items-start justify-between gap-4 pr-14">
-                          <div className="space-y-1 min-w-0 flex-1">
-                            <h4 className="font-black text-slate-900 dark:text-white text-lg leading-tight break-words">{record.name}</h4>
-                            <p className="text-xs font-bold text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5"><Fingerprint size={12} /> ID: {record.studentId}</p>
+                  {/* 3. Toolbar: Selection, Count, and Quick Export Buttons */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={toggleSelectAllStudents}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-black uppercase rounded-xl border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1.5 shadow-sm"
+                      >
+                        {selectedStudentIds.length === filteredAdminStudents.length && filteredAdminStudents.length > 0 ? <ShieldX size={13} /> : <ShieldCheck size={13} />}
+                        {selectedStudentIds.length === filteredAdminStudents.length && filteredAdminStudents.length > 0 ? 'ยกเลิกเลือก' : 'เลือกทั้งหมด'}
+                      </button>
+
+                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 ml-1">
+                        พบ <span className="font-black text-slate-900 dark:text-white font-mono">{filteredAdminStudents.length}</span> คน
+                        {selectedStudentIds.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-bold text-[11px]">
+                            เลือกแล้ว {selectedStudentIds.length} คน
+                          </span>
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Quick Export format buttons right above the table */}
+                    <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl p-0.5 shadow-sm">
+                      <button
+                        onClick={() => exportToExcel(filteredAdminStudents, 'รายชื่อนักศึกษา')}
+                        className="flex items-center gap-1 px-2.5 py-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-black transition-all"
+                        title="ส่งออกหน้านี้เป็น Excel (.xls)"
+                      >
+                        <FileSpreadsheet size={13} /> Excel
+                      </button>
+                      <button
+                        onClick={() => exportToWord(filteredAdminStudents, 'รายชื่อนักศึกษา')}
+                        className="flex items-center gap-1 px-2.5 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-black transition-all"
+                        title="ส่งออกหน้านี้เป็น Word (.doc)"
+                      >
+                        <FileText size={13} /> Word
+                      </button>
+                      <button
+                        onClick={() => exportToPDF(filteredAdminStudents, 'รายชื่อนักศึกษา')}
+                        className="flex items-center gap-1 px-2.5 py-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-700 dark:text-rose-400 rounded-lg text-xs font-black transition-all"
+                        title="พิมพ์หรือบันทึกหน้านี้เป็น PDF"
+                      >
+                        <Printer size={13} /> PDF
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4. MAIN DATA VIEW: HIGH-DENSITY TABLE OR CARDS */}
+                  {filteredAdminStudents.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700 text-center p-6">
+                      <Users size={40} className="text-slate-300 dark:text-slate-600 mb-3" />
+                      <h4 className="text-base font-black text-slate-700 dark:text-slate-300 uppercase">ไม่พบข้อมูลนักศึกษา</h4>
+                      <p className="text-xs text-slate-400 mt-1 max-w-sm">ไม่พบรายชื่อนักศึกษาตามเงื่อนไขตัวกรองที่คุณกำหนด ลองปรับเปลี่ยนตัวกรองหรือคำค้นหา</p>
+                      <button
+                        onClick={() => {
+                          setAdminStudentStatusFilter('all');
+                          setAdminStudentMajorFilter('all');
+                          setAdminStudentYearFilter('all');
+                          setAdminStudentTermFilter('all');
+                          setAdminStudentSearch('');
+                        }}
+                        className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+                      >
+                        แสดงนักศึกษาทั้งหมด
+                      </button>
+                    </div>
+                  ) : studentViewMode === 'table' ? (
+                    /* Minimalist High-Density Table View */
+                    <div className="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm custom-scrollbar">
+                      <table className="w-full text-left border-collapse min-w-[1100px]">
+                        <thead className="bg-slate-50/90 dark:bg-slate-800/90 text-[11px] font-black uppercase text-slate-600 dark:text-slate-300 tracking-wider border-b border-slate-200/80 dark:border-slate-800 sticky top-0 z-10 backdrop-blur-sm">
+                          <tr>
+                            <th className="px-3 py-2.5 w-10 text-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedStudentIds.length === filteredAdminStudents.length && filteredAdminStudents.length > 0}
+                                onChange={toggleSelectAllStudents}
+                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                              />
+                            </th>
+                            <th className="px-3 py-2.5 w-24">รหัส</th>
+                            <th className="px-3 py-2.5 min-w-[150px]">ชื่อ-นามสกุล</th>
+                            <th className="px-3 py-2.5 w-24">สาขาวิชา</th>
+                            <th className="px-3 py-2.5 w-20">ประเภท</th>
+                            <th className="px-3 py-2.5 min-w-[180px]">สถานที่ฝึกงาน / ตำแหน่ง</th>
+                            <th className="px-3 py-2.5 w-20 text-center">เทอม/ปี</th>
+                            <th className="px-3 py-2.5 w-28">สถานะ</th>
+                            <th className="px-3 py-2.5 min-w-[160px]">อาจารย์นิเทศ</th>
+                            <th className="px-3 py-2.5 w-20 text-right">จัดการ</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                          {filteredAdminStudents.map((record) => {
+                            const isSelected = selectedStudentIds.includes(record.id);
+                            return (
+                              <tr
+                                key={record.id}
+                                className={`hover:bg-indigo-50/40 dark:hover:bg-slate-800/60 transition-colors ${
+                                  isSelected ? 'bg-indigo-50/60 dark:bg-indigo-950/20' : ''
+                                }`}
+                              >
+                                <td className="px-3 py-2 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleStudentSelection(record.id)}
+                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                  />
+                                </td>
+                                <td className="px-3 py-2 font-mono font-bold text-slate-600 dark:text-slate-400">
+                                  {record.studentId}
+                                </td>
+                                <td className="px-3 py-2 font-bold text-slate-900 dark:text-white">
+                                  {record.name}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase border whitespace-nowrap ${
+                                    record.major === Major.HALAL_FOOD ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                                    record.major === Major.DIGITAL_TECH ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                                    record.major === Major.INFO_TECH ? 'bg-indigo-50 border-indigo-200 text-indigo-700' :
+                                    'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                  }`}>
+                                    {getMajorLabel(record.major)}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2">
+                                  <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                                    record.internshipType === InternshipType.INTERNSHIP
+                                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                      : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300'
+                                  }`}>
+                                    {record.internshipType === InternshipType.INTERNSHIP ? 'ฝึกงาน' : 'สหกิจ'}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2">
+                                  <div className="flex flex-col">
+                                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[220px]" title={record.location}>
+                                      {record.location || '-'}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 truncate max-w-[220px]" title={record.position}>
+                                      {record.position || '-'}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-center text-slate-600 dark:text-slate-400 font-mono text-[11px]">
+                                  {record.term || '-'}/{record.academicYear || '-'}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase border whitespace-nowrap ${getStatusColor(record.status)}`}>
+                                    {getStatusLabel(record.status)}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2">
+                                  {record.supervisor ? (
+                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-lg text-emerald-800 dark:text-emerald-200 text-xs font-bold truncate max-w-[180px]">
+                                      <Lock size={11} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                      <span className="truncate">{record.supervisor}</span>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => { setEditingStatusRecord(record); setShowAdminStatusModal(true); }}
+                                      className="text-[10px] text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold underline"
+                                    >
+                                      + ระบุอาจารย์
+                                    </button>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 text-right whitespace-nowrap">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => { setEditingStatusRecord(record); setStatusError(null); setIsForceSaveVisible(false); setShowAdminStatusModal(true); }}
+                                      className="p-1.5 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-400 hover:text-amber-600 rounded-lg transition-colors"
+                                      title="แก้ไขข้อมูล"
+                                    >
+                                      <Pencil size={14} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }}
+                                      className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
+                                      title="ลบข้อมูล"
+                                    >
+                                      <Trash size={14} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    /* Responsive Card Grid View (Alternative) */
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+                      {filteredAdminStudents.map(record => (
+                        <div key={record.id} className={`p-4 rounded-2xl border ${selectedStudentIds.includes(record.id) ? 'border-indigo-500 bg-indigo-50/40 dark:bg-indigo-900/20 ring-1 ring-indigo-500/20' : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-850'} flex flex-col gap-3 group hover:border-indigo-200 dark:hover:border-slate-700 hover:shadow-md transition-all relative`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-black text-slate-900 dark:text-white text-base leading-tight break-words">{record.name}</h4>
+                              <p className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1 mt-0.5"><Fingerprint size={12} /> ID: {record.studentId}</p>
+                            </div>
+                            <button 
+                              type="button"
+                              onClick={() => toggleStudentSelection(record.id)}
+                              className={`p-1.5 rounded-lg border flex items-center justify-center transition-all ${selectedStudentIds.includes(record.id) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 dark:border-slate-700 text-slate-300 hover:border-indigo-400'}`}
+                            >
+                              <Check size={14} strokeWidth={selectedStudentIds.includes(record.id) ? 3 : 1.5} />
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                             <div className="flex flex-col">
+                               <span className="text-[10px] font-bold text-slate-400">สถานะ:</span>
+                               <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase border mt-0.5 w-fit ${getStatusColor(record.status)}`}>{getStatusLabel(record.status)}</span>
+                             </div>
+                             <div className="flex flex-col">
+                               <span className="text-[10px] font-bold text-slate-400">สาขา:</span>
+                               <span className="font-bold text-slate-700 dark:text-slate-300 mt-0.5">{getMajorLabel(record.major)}</span>
+                             </div>
+                             <div className="flex flex-col col-span-2">
+                               <span className="text-[10px] font-bold text-slate-400">สถานที่:</span>
+                               <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{record.location || '-'} {record.position ? `(${record.position})` : ''}</span>
+                             </div>
+                             {record.supervisor && (
+                               <div className="flex items-center gap-1 col-span-2 px-2 py-1 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg text-emerald-800 dark:text-emerald-300 text-xs font-bold">
+                                 <Lock size={12} className="text-emerald-600" /> อ.นิเทศ: {record.supervisor}
+                                </div>
+                             )}
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                            <span className="text-[10px] text-slate-400 font-mono">เทอม {record.term || '-'}/{record.academicYear || '-'}</span>
+                            <div className="flex gap-1">
+                              <button onClick={() => { setEditingStatusRecord(record); setStatusError(null); setIsForceSaveVisible(false); setShowAdminStatusModal(true); }} className="p-1.5 hover:bg-amber-50 text-slate-400 hover:text-amber-600 rounded-lg"><Pencil size={14} /></button>
+                              <button onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }} className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg"><Trash size={14} /></button>
+                            </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 gap-3">
-                           <div className="flex items-center gap-2">
-                             <span className="text-xs font-black text-slate-400 uppercase w-20">กระบวนการ:</span>
-                             <div className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase border ${getStatusColor(record.status)}`}>{getStatusLabel(record.status)}</div>
-                           </div>
-                           <div className="flex items-center gap-2">
-                             <span className="text-xs font-black text-slate-400 uppercase w-20">สถานที่:</span>
-                             <div className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate max-w-[200px] flex items-center gap-1">
-                               <MapPin size={12} className="text-rose-400" />
-                               {record.location || '-'}
-                             </div>
-                           </div>
-                           <div className="flex items-center gap-2">
-                             <span className="text-xs font-black text-slate-400 uppercase w-20">ตำแหน่ง:</span>
-                             <div className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate max-w-[200px] flex items-center gap-1">
-                               <Briefcase size={12} className="text-emerald-400" />
-                               {record.position || '-'}
-                             </div>
-                           </div>
-                           <div className="flex items-center gap-2">
-                             <span className="text-xs font-black text-slate-400 uppercase w-20">เทอม/ปี:</span>
-                             <div className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-tight">
-                               {record.term ? `เทอม ${record.term}` : '-'} / {record.academicYear || '-'}
-                             </div>
-                           </div>
-                           <div className="flex items-center gap-2">
-                             <span className="text-xs font-black text-slate-400 uppercase w-20">รูปแบบ:</span>
-                             <div className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase border flex items-center gap-1.5 ${
-                                record.internshipType === InternshipType.INTERNSHIP 
-                                  ? 'bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400' 
-                                  : 'bg-indigo-50 border-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:border-indigo-800 dark:text-indigo-400'
-                              }`}>
-                               {record.internshipType === InternshipType.INTERNSHIP ? <Briefcase size={14} /> : <GraduationCap size={14} />}
-                               {record.internshipType === InternshipType.INTERNSHIP ? 'ฝึกงาน' : 'สหกิจศึกษา'}
-                             </div>
-                           </div>
-                           <div className="flex items-center gap-2">
-                             <span className="text-xs font-black text-slate-400 uppercase w-20 shrink-0">สาขา:</span>
-                             <div className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase border ${
-                                record.major === Major.HALAL_FOOD ? 'bg-amber-50 border-amber-100 text-amber-600' : 
-                                record.major === Major.DIGITAL_TECH ? 'bg-blue-50 border-blue-100 text-blue-600' :
-                                record.major === Major.INFO_TECH ? 'bg-indigo-50 border-indigo-100 text-indigo-600' :
-                                'bg-emerald-50 border-emerald-100 text-emerald-600'
-                             } flex items-center gap-1.5`}>
-                               {record.major === Major.HALAL_FOOD ? <Salad size={14} /> : record.major === Major.DIGITAL_TECH ? <Cpu size={14} /> : record.major === Major.INFO_TECH ? <Network size={14} /> : <Database size={14} />}
-                               {getMajorLabel(record.major)}
-                             </div>
-                           </div>
-                        </div>
-                        <div className="pt-3 border-t border-slate-50 dark:border-slate-700/50 flex flex-col gap-2">
-                           <div className="flex items-center justify-between gap-2">
-                             <div className="flex flex-col gap-1">
-                               <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
-                                 <Calendar size={14} className="text-slate-400" />
-                                 {record.startDate && record.endDate ? (
-                                   <span>{formatDateForDisplay(record.startDate)} - {formatDateForDisplay(record.endDate)}</span>
-                                 ) : (
-                                   <span className="italic text-slate-300">ไม่ได้ระบุวันที่</span>
-                                 )}
-                               </div>
-                               {record.supervisor && (
-                                 <div className="flex items-center gap-2 text-[10px] font-black text-indigo-600 dark:text-indigo-400">
-                                   <UserCheck size={14} className="text-indigo-400" />
-                                   <span>อ.นิเทศ: {record.supervisor}</span>
-                                 </div>
-                               )}
-                             </div>
-                             <div className="flex gap-1.5 shrink-0">
-                               <button onClick={() => { setEditingStatusRecord(record); setStatusError(null); setIsForceSaveVisible(false); setShowAdminStatusModal(true); }} className="p-2 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-amber-500 rounded-lg transition-all"><Pencil size={16} /></button>
-                               <button onClick={() => { setItemToDelete({ id: record.id, type: 'student' }); setShowDeleteModal(true); }} className="p-2 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-lg transition-all"><Trash size={16} /></button>
-                             </div>
-                           </div>
-                           <div className="flex items-center gap-2 text-[9px] font-black text-slate-300 uppercase tracking-tighter">
-                             <RefreshCw size={10} /> อัปเดตล่าสุด: {new Date(record.lastUpdated).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
-                           </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                  )}
                 </div>
               )}
               {adminActiveTab === 'sites' && (
@@ -1592,16 +1821,47 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   )}
                </div>
 
-                <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex gap-4 items-center">
-                   <Info size={22} className="text-slate-400 shrink-0" />
-                   <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase leading-relaxed tracking-tight">
-                     ระบบจะส่งออกข้อมูลตามสาขาและเงื่อนไขช่วงเวลาที่เลือก <br /> ข้อมูลจะถูกจัดเก็บในรูปแบบไฟล์ .CSV (รองรับ Excel)
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex gap-3 items-center">
+                   <Info size={20} className="text-slate-400 shrink-0" />
+                   <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed">
+                     เลือกรูปแบบไฟล์ที่ต้องการส่งออก ระบบจะจัดรูปแบบตาราง หัวกระดาษ และข้อมูลนักศึกษาตามเงื่อนไขที่เลือกให้อัตโนมัติ
                    </p>
                 </div>
                 
-                <button onClick={handleDownloadReport} className="w-full py-5 rounded-2xl bg-emerald-600 text-white font-black uppercase text-base shadow-xl shadow-emerald-600/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
-                  <Download size={22} /> ดาวน์โหลดรายงาน (.CSV)
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <button 
+                    onClick={handleExportExcel} 
+                    className="py-4 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-xs shadow-lg shadow-emerald-600/20 hover:scale-[1.02] active:scale-95 transition-all flex flex-col items-center justify-center gap-1.5"
+                  >
+                    <FileSpreadsheet size={22} />
+                    <span>ส่งออกเป็น Excel (.xls)</span>
+                  </button>
+
+                  <button 
+                    onClick={handleExportWord} 
+                    className="py-4 px-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-xs shadow-lg shadow-blue-600/20 hover:scale-[1.02] active:scale-95 transition-all flex flex-col items-center justify-center gap-1.5"
+                  >
+                    <FileText size={22} />
+                    <span>ส่งออกเป็น Word (.doc)</span>
+                  </button>
+
+                  <button 
+                    onClick={handleExportPDF} 
+                    className="py-4 px-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black uppercase text-xs shadow-lg shadow-rose-600/20 hover:scale-[1.02] active:scale-95 transition-all flex flex-col items-center justify-center gap-1.5"
+                  >
+                    <Printer size={22} />
+                    <span>พิมพ์ / บันทึก PDF</span>
+                  </button>
+                </div>
+
+                <div className="text-center pt-1">
+                  <button 
+                    onClick={handleDownloadReport} 
+                    className="text-[11px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 underline"
+                  >
+                    ดาวน์โหลดเป็นไฟล์ .CSV ดิบ (Raw CSV)
+                  </button>
+                </div>
              </div>
           </div>
         </div>
@@ -2218,6 +2478,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         onClose={() => setIsShareModalOpen(false)} 
         years={summaryFilter.years} 
         terms={summaryFilter.terms} 
+        availableYears={yearsOptions}
+        availableTerms={['1', '2']}
       />
     </>
   );
