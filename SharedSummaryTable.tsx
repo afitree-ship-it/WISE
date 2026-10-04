@@ -1,72 +1,171 @@
-﻿
-import React, { useState, useEffect } from 'react';
-import { Search, Check, Loader2, UserCheck, Lock, Pencil } from 'lucide-react';
-import { StudentStatusRecord, Major, InternshipType, ApplicationStatus } from './types';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Check, Loader2, UserCheck, Lock, Pencil, PenLine } from 'lucide-react';
+import { StudentStatusRecord, InternshipType } from './types';
+import { StatusBadge, MajorBadge } from './components/admin/ui';
+import { FieldLock, LockMap, acquireLock, releaseLock } from './liveSync';
+
+export type SupervisorSaveOutcome = { ok: boolean; lock?: FieldLock } | void;
+export type SupervisorSaveFn = (id: string, name: string, studentCode?: string) => Promise<SupervisorSaveOutcome> | SupervisorSaveOutcome;
 
 interface SupervisorInputProps {
-  studentId: string;
+  rowId: string;
+  studentCode?: string;
   initialValue?: string;
-  onSave?: (id: string, name: string) => void;
+  onSave?: SupervisorSaveFn;
   disabled?: boolean;
+  lock?: FieldLock;          // held by someone else
+  live?: boolean;            // backend supports locking
+  onLockDenied?: (lock: FieldLock) => void;
 }
 
+const HEARTBEAT_MS = 15000;
+
 const SupervisorInput: React.FC<SupervisorInputProps> = ({
-  studentId,
+  rowId,
+  studentCode,
   initialValue = '',
   onSave,
-  disabled = false
+  disabled = false,
+  lock,
+  live = false,
+  onLockDenied
 }) => {
   const [val, setVal] = useState(initialValue);
-  const [isFocused, setIsFocused] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [acquiring, setAcquiring] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [flash, setFlash] = useState(false);
+  const holding = useRef(false);
+  const heartbeat = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevInitial = useRef(initialValue);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Keep local state updated with prop changes when user is NOT actively typing or saving
+  const stopHolding = () => {
+    if (heartbeat.current) clearInterval(heartbeat.current);
+    heartbeat.current = null;
+    const was = holding.current;
+    holding.current = false;
+    return was;
+  };
+
+  // Release a held lock if the row unmounts mid-edit
+  useEffect(() => () => { if (stopHolding()) releaseLock(rowId); }, [rowId]);
+
+  // Follow remote changes when not editing; flash when someone else changed it
   useEffect(() => {
-    if (!isFocused && !isEditing && saveStatus !== 'saving') {
-      if (initialValue) {
-        setVal(initialValue);
-      } else if (!val) {
-        setVal('');
+    if (!editing && saveStatus !== 'saving') {
+      setVal(initialValue || '');
+      if ((prevInitial.current || '') !== (initialValue || '') && saveStatus === 'idle') {
+        setFlash(true);
+        const t = setTimeout(() => setFlash(false), 2200);
+        prevInitial.current = initialValue;
+        return () => clearTimeout(t);
       }
     }
-  }, [initialValue, isFocused, isEditing, saveStatus]);
+    prevInitial.current = initialValue;
+  }, [initialValue, editing, saveStatus]);
 
-  const commitChange = async () => {
-    const trimmed = val.trim();
-    setIsEditing(false);
-    if (trimmed !== (initialValue || '').trim()) {
-      setSaveStatus('saving');
-      try {
-        if (onSave) {
-          await onSave(studentId, trimmed);
-        }
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2500);
-      } catch (err) {
-        console.error('Failed to save supervisor:', err);
-        setSaveStatus('idle');
+  const startEdit = async () => {
+    if (disabled || editing) return;
+    if (lock) { onLockDenied?.(lock); return; }
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+    if (!live) return;
+    setAcquiring(true);
+    try {
+      const r = await acquireLock(rowId);
+      if (!r.ok && 'lock' in r && r.lock) {
+        setEditing(false);
+        setVal(initialValue || '');
+        onLockDenied?.(r.lock);
+        return;
       }
+      if (r.ok) {
+        holding.current = true;
+        heartbeat.current = setInterval(() => { acquireLock(rowId).catch(() => undefined); }, HEARTBEAT_MS);
+      }
+    } catch (err) {
+      console.warn('acquire lock failed', err);
+    } finally {
+      setAcquiring(false);
     }
   };
 
-  // If a supervisor is already filled and user is not actively editing it, display the locked state
-  const hasSupervisor = Boolean(val && val.trim());
-  if (hasSupervisor && !isEditing) {
+  const commit = async () => {
+    const trimmed = val.trim();
+    setEditing(false);
+    const wasHolding = stopHolding();
+    if (trimmed === (initialValue || '').trim()) {
+      if (wasHolding) releaseLock(rowId);
+      return;
+    }
+    setSaveStatus('saving');
+    try {
+      const res = onSave ? await onSave(rowId, trimmed, studentCode) : undefined;
+      if (res && res.ok === false) {
+        setVal(initialValue || '');
+        setSaveStatus('idle');
+        if (res.lock) onLockDenied?.(res.lock);
+        return;
+      }
+      prevInitial.current = trimmed;
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch (err) {
+      console.error('Failed to save supervisor:', err);
+      setVal(initialValue || '');
+      setSaveStatus('idle');
+    }
+  };
+
+  const cancel = () => {
+    setVal(initialValue || '');
+    setEditing(false);
+    if (stopHolding()) releaseLock(rowId);
+  };
+
+  // Someone else is typing in this field
+  if (lock && !editing) {
     return (
-      <div className="relative flex items-center justify-between min-w-[190px] max-w-[240px] px-2.5 py-1.5 bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-lg shadow-sm group transition-all">
+      <div
+        className="flex items-center gap-2 min-w-[200px] max-w-[260px] px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 cursor-not-allowed"
+        title="มีผู้กำลังกรอกช่องนี้ ช่องจะเปิดให้แก้ไขเมื่อบันทึกเสร็จ"
+      >
+        <span className="relative flex w-2 h-2 shrink-0">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-ping" />
+          <span className="relative inline-flex rounded-full w-2 h-2 bg-amber-500" />
+        </span>
+        <span className="text-xs font-medium text-amber-800 dark:text-amber-200 truncate">
+          {lock.name ? `${lock.name} กำลังกรอก…` : 'มีผู้กำลังกรอก…'}
+        </span>
+        <PenLine size={12} className="ml-auto text-amber-500 shrink-0 animate-pulse" />
+      </div>
+    );
+  }
+
+  const hasSupervisor = Boolean(val && val.trim());
+  if (hasSupervisor && !editing) {
+    return (
+      <div className={`relative flex items-center justify-between min-w-[200px] max-w-[260px] px-2.5 py-1.5 rounded-lg border group transition-all duration-500 ${
+        flash
+          ? 'bg-emerald-100 dark:bg-emerald-500/20 border-emerald-400 ring-4 ring-emerald-400/20'
+          : 'bg-emerald-50/80 dark:bg-emerald-500/10 border-emerald-200/80 dark:border-emerald-500/20'
+      }`}>
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          <Lock size={12} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 truncate" title={val}>
-            {val}
-          </span>
+          {saveStatus === 'saving'
+            ? <Loader2 size={12} className="text-emerald-600 animate-spin shrink-0" />
+            : saveStatus === 'saved'
+              ? <Check size={12} className="text-emerald-600 shrink-0" />
+              : <Lock size={12} className="text-emerald-600 dark:text-emerald-400 shrink-0" />}
+          <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-200 truncate" title={val}>{val}</span>
         </div>
-        {!disabled && (
+        {!disabled && saveStatus !== 'saving' && (
           <button
             type="button"
-            onClick={() => setIsEditing(true)}
+            onClick={startEdit}
             className="p-1 ml-1 rounded-md text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-200 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/60 opacity-60 group-hover:opacity-100 transition-all shrink-0"
-            title="คลิกเพื่อแก้ไขอาจารย์นิเทศ"
+            title="แก้ไขอาจารย์นิเทศ"
           >
             <Pencil size={11} />
           </button>
@@ -76,45 +175,34 @@ const SupervisorInput: React.FC<SupervisorInputProps> = ({
   }
 
   return (
-    <div className="relative flex items-center min-w-[190px]">
+    <div className="relative flex items-center min-w-[200px]">
       <input
+        ref={inputRef}
         type="text"
-        disabled={disabled}
-        autoFocus={isEditing}
-        placeholder="พิมพ์ชื่ออาจารย์นิเทศ..."
+        disabled={disabled || saveStatus === 'saving'}
+        placeholder="พิมพ์ชื่ออาจารย์นิเทศ…"
         value={val}
         onChange={(e) => setVal(e.target.value)}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => {
-          setIsFocused(false);
-          commitChange();
-        }}
+        onFocus={startEdit}
+        onBlur={() => { if (editing) commit(); }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            (e.target as HTMLInputElement).blur();
-          } else if (e.key === 'Escape') {
-            setVal(initialValue || '');
-            setIsEditing(false);
-          }
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          else if (e.key === 'Escape') { e.stopPropagation(); cancel(); (e.target as HTMLInputElement).blur(); }
         }}
-        className={`w-full pr-8 pl-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border rounded-lg text-xs font-bold transition-all shadow-sm outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
+        className={`w-full pr-8 pl-3 py-1.5 bg-white dark:bg-slate-800/80 border rounded-lg text-xs font-medium transition-all outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
           saveStatus === 'saved'
             ? 'border-emerald-500 bg-emerald-50/40 text-emerald-800 dark:text-emerald-300'
-            : saveStatus === 'saving'
-            ? 'border-indigo-400 bg-indigo-50/30'
-            : 'border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+            : editing
+              ? 'border-[#630330] ring-4 ring-[#630330]/10 dark:border-amber-400 dark:ring-amber-400/10 text-slate-900 dark:text-white'
+              : 'border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:border-slate-300'
         }`}
       />
       <div className="absolute right-2.5 pointer-events-none flex items-center justify-center">
-        {saveStatus === 'saving' && (
-          <Loader2 size={13} className="text-indigo-500 animate-spin" />
-        )}
-        {saveStatus === 'saved' && (
-          <Check size={13} className="text-emerald-500 animate-in zoom-in-75 duration-200" />
-        )}
-        {saveStatus === 'idle' && (
-          <UserCheck size={13} className="text-slate-400 dark:text-slate-500 opacity-60" />
-        )}
+        {(saveStatus === 'saving' || acquiring) && <Loader2 size={13} className="text-slate-400 animate-spin" />}
+        {saveStatus === 'saved' && <Check size={13} className="text-emerald-500" />}
+        {saveStatus === 'idle' && !acquiring && (editing && live
+          ? <Lock size={12} className="text-[#630330] dark:text-amber-400" />
+          : <UserCheck size={13} className="text-slate-400 dark:text-slate-500 opacity-60" />)}
       </div>
     </div>
   );
@@ -125,103 +213,87 @@ interface SharedSummaryTableProps {
   formatDateBE: (dateStr?: string) => string;
   isReadOnly?: boolean;
   showSupervisor?: boolean;
-  onSupervisorChange?: (id: string, name: string) => void;
+  onSupervisorChange?: SupervisorSaveFn;
+  locks?: LockMap;
+  live?: boolean;
+  onLockDenied?: (lock: FieldLock) => void;
 }
 
-const SharedSummaryTable: React.FC<SharedSummaryTableProps> = ({ 
-  students, 
-  formatDateBE, 
+const SharedSummaryTable: React.FC<SharedSummaryTableProps> = ({
+  students,
+  formatDateBE,
   isReadOnly = false,
   showSupervisor = true,
-  onSupervisorChange 
+  onSupervisorChange,
+  locks = {},
+  live = false,
+  onLockDenied
 }) => {
+  const th = 'px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 whitespace-nowrap';
   return (
-    <div className="flex-1 overflow-auto min-h-0 custom-scrollbar rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-      <table className="w-full text-left border-collapse min-w-[1200px]">
-        <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 z-10 shadow-sm">
-          <tr>
-            <th className="px-4 py-2.5 text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-wider border-b border-slate-200 dark:border-slate-700">ปีการศึกษา/เทอม</th>
-            <th className="px-4 py-2.5 text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-wider border-b border-slate-200 dark:border-slate-700 whitespace-nowrap">สถานะ</th>
-            <th className="px-4 py-2.5 text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-wider border-b border-slate-200 dark:border-slate-700">รหัสนักศึกษา</th>
-            <th className="px-4 py-2.5 text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-wider border-b border-slate-200 dark:border-slate-700 w-[180px] min-w-[180px]">ชื่อ-นามสกุล</th>
-            <th className="px-4 py-2.5 text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-wider border-b border-slate-200 dark:border-slate-700">สาขา</th>
-            <th className="px-4 py-2.5 text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-wider border-b border-slate-200 dark:border-slate-700">ประเภท</th>
-            <th className="px-4 py-2.5 text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-wider border-b border-slate-200 dark:border-slate-700">สถานที่ฝึกงาน</th>
-            <th className="px-4 py-2.5 text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-wider border-b border-slate-200 dark:border-slate-700">ตำแหน่ง</th>
-            <th className="px-4 py-2.5 text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-wider border-b border-slate-200 dark:border-slate-700">วันที่เริ่ม-สิ้นสุด</th>
-            {showSupervisor && <th className="px-4 py-2.5 text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-wider border-b border-slate-200 dark:border-slate-700 whitespace-nowrap">อาจารย์นิเทศ</th>}
+    <div className="flex-1 overflow-auto min-h-0 custom-scrollbar bg-white dark:bg-slate-900">
+      <table className="w-full text-left text-sm min-w-[1150px]">
+        <thead className="sticky top-0 z-10 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur">
+          <tr className="border-b border-slate-200 dark:border-slate-700">
+            <th className={th}>ปี/เทอม</th>
+            <th className={th}>สถานะ</th>
+            <th className={th}>นักศึกษา</th>
+            <th className={th}>สาขา</th>
+            <th className={th}>ประเภท</th>
+            <th className={th}>สถานที่ฝึกงาน</th>
+            <th className={th}>ตำแหน่ง</th>
+            <th className={th}>ระยะเวลา</th>
+            {showSupervisor && <th className={th}>อาจารย์นิเทศ</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-          {students.map(student => (
-            <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors print:break-inside-avoid">
-              <td className="px-4 py-2 align-top">
-                 <div className="flex flex-col">
-                   <span className="text-xs font-black text-slate-900 dark:text-slate-100 leading-tight">ปี {student.academicYear || '-'}</span>
-                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">เทอม {student.term || '-'}</span>
-                 </div>
-              </td>
-              <td className="px-4 py-2 align-top">
-                 <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border whitespace-nowrap ${
-                   student.status === ApplicationStatus.ACCEPTED ? 'bg-emerald-50 border-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400' :
-                   student.status === ApplicationStatus.REJECTED ? 'bg-rose-50 border-rose-100 text-rose-600 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-400' :
-                   student.status === ApplicationStatus.PREPARING ? 'bg-blue-50 border-blue-100 text-blue-600 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400' :
-                   'bg-amber-50 border-amber-100 text-amber-600 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400'
-                 }`}>
-                   {student.status === ApplicationStatus.ACCEPTED ? 'ตอบรับแล้ว' : 
-                    student.status === ApplicationStatus.REJECTED ? 'ปฏิเสธ' :
-                    student.status === ApplicationStatus.PREPARING ? 'กำลังจัดเตรียม' : 'รอตรวจสอบ'}
-                 </span>
-              </td>
-              <td className="px-4 py-2 text-sm font-black text-slate-500 font-mono tracking-tighter align-top">{student.studentId}</td>
-              <td className="px-4 py-2 text-sm sm:text-base font-bold text-slate-900 dark:text-white w-[180px] min-w-[180px] leading-tight align-top break-words">{student.name}</td>
-              <td className="px-4 py-2 align-top">
-                 <span className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-md border whitespace-nowrap ${
-                    student.major === Major.HALAL_FOOD ? 'bg-amber-50 border-amber-100 text-amber-600 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400' : 
-                    student.major === Major.DIGITAL_TECH ? 'bg-blue-50 border-blue-100 text-blue-600 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400' :
-                    student.major === Major.INFO_TECH ? 'bg-indigo-50 border-indigo-100 text-indigo-600 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-400' :
-                    'bg-emerald-50 border-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400'
-                 }`}>
-                   {student.major === Major.HALAL_FOOD ? 'R&D (อาหารฮาลาล)' : 
-                    student.major === Major.DIGITAL_TECH ? 'TDS (ดิจิทัล)' : 
-                    student.major === Major.INFO_TECH ? 'IT (เทคโนโลยีฯ)' : 
-                    'DSA (ดาต้า)'}
-                 </span>
-              </td>
-              <td className="px-4 py-2 align-top">
-                 <span className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-md border ${
-                    student.internshipType === InternshipType.INTERNSHIP 
-                      ? 'bg-emerald-50 border-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400' 
-                      : 'bg-indigo-50 border-indigo-100 text-indigo-600 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-400'
-                 }`}>
-                   {student.internshipType === InternshipType.INTERNSHIP ? 'ฝึกงาน' : 'สหกิจ'}
-                 </span>
-              </td>
-              <td className="px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-300 align-top">{student.location || '-'}</td>
-              <td className="px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-300 align-top">{student.position || '-'}</td>
-              <td className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap align-top">
-                  {student.startDate && student.endDate ? `${formatDateBE(student.startDate)} - ${formatDateBE(student.endDate)}` : student.startDate ? `${formatDateBE(student.startDate)} - ไม่ระบุ` : '-'}
-              </td>
-              {showSupervisor && (
-                <td className="px-4 py-2 align-top">
-                  {isReadOnly ? (
-                    <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{student.supervisor || '-'}</span>
-                  ) : (
-                    <SupervisorInput
-                      studentId={student.id || student.studentId}
-                      initialValue={student.supervisor}
-                      onSave={onSupervisorChange}
-                    />
-                  )}
+          {students.map(student => {
+            const rowId = student.id || student.studentId;
+            const lock = locks[rowId];
+            return (
+              <tr key={student.id} className={`transition-colors print:break-inside-avoid ${lock ? 'bg-amber-50/40 dark:bg-amber-500/[0.04]' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
+                <td className="px-4 py-2.5 align-top text-xs text-slate-500 whitespace-nowrap tabular-nums">
+                  {student.academicYear || '-'} / {student.term || '-'}
                 </td>
-              )}
-            </tr>
-          ))}
+                <td className="px-4 py-2.5 align-top"><StatusBadge status={student.status} /></td>
+                <td className="px-4 py-2.5 align-top min-w-[180px]">
+                  <div className="font-semibold text-slate-900 dark:text-white leading-snug break-words">{student.name}</div>
+                  <div className="text-xs text-slate-400 font-mono">{student.studentId}</div>
+                </td>
+                <td className="px-4 py-2.5 align-top"><MajorBadge major={student.major} /></td>
+                <td className="px-4 py-2.5 align-top text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                  {student.internshipType === InternshipType.INTERNSHIP ? 'ฝึกงาน' : 'สหกิจ'}
+                </td>
+                <td className="px-4 py-2.5 align-top text-slate-700 dark:text-slate-200 min-w-[200px]">{student.location || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
+                <td className="px-4 py-2.5 align-top text-slate-600 dark:text-slate-300">{student.position || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
+                <td className="px-4 py-2.5 align-top text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                  {student.startDate && student.endDate ? `${formatDateBE(student.startDate)} – ${formatDateBE(student.endDate)}` : student.startDate ? `${formatDateBE(student.startDate)} – ไม่ระบุ` : <span className="text-slate-300 dark:text-slate-600">—</span>}
+                </td>
+                {showSupervisor && (
+                  <td className="px-4 py-2 align-top">
+                    {isReadOnly ? (
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{student.supervisor || '-'}</span>
+                    ) : (
+                      <SupervisorInput
+                        rowId={rowId}
+                        studentCode={student.studentId}
+                        initialValue={student.supervisor}
+                        onSave={onSupervisorChange}
+                        lock={lock}
+                        live={live}
+                        onLockDenied={onLockDenied}
+                      />
+                    )}
+                  </td>
+                )}
+              </tr>
+            );
+          })}
           {students.length === 0 && (
             <tr>
-              <td colSpan={showSupervisor ? 10 : 9} className="py-20 text-center">
-                <Search size={48} className="mx-auto text-slate-200 dark:text-slate-700 mb-4" />
-                <p className="text-base font-black uppercase text-slate-300 dark:text-slate-600">ไม่พบรายชื่อนักศึกษาในหมวดนี้</p>
+              <td colSpan={showSupervisor ? 9 : 8} className="py-20 text-center">
+                <Search size={28} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+                <p className="text-sm text-slate-400">ไม่พบรายชื่อนักศึกษาในหมวดนี้</p>
               </td>
             </tr>
           )}

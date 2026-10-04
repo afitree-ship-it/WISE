@@ -53,6 +53,13 @@ export interface StudentStatusRecord {
   remarks?: string;
 }
 
+/** Branding configurable only from the admin panel (stored in the "Settings" sheet). */
+export interface SiteSettings {
+  logo?: string;      // data URL shown in the top bar
+  favicon?: string;   // data URL used as the browser tab icon
+  siteTitle?: string; // browser tab title
+}
+
 export interface LocalizedString {
   th: string;
   en: string;

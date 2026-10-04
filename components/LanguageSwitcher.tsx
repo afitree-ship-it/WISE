@@ -7,13 +7,15 @@ interface LanguageSwitcherProps {
   onLanguageChange: (lang: Language) => void;
   className?: string;
   variant?: 'inline' | 'dropdown';
+  tone?: 'dark' | 'light';
 }
 
-const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ 
-  currentLang, 
-  onLanguageChange, 
+const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
+  currentLang,
+  onLanguageChange,
   className = "",
-  variant = 'inline'
+  variant = 'inline',
+  tone = 'dark'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -46,14 +48,16 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
         <button
           onClick={() => setIsOpen(!isOpen)}
           type="button"
-          className={`
+          className={tone === 'light'
+            ? `flex items-center gap-2 h-9 px-2.5 rounded-lg transition text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 ${isOpen ? 'bg-slate-100 dark:bg-slate-800' : ''}`
+            : `
             flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-300
             bg-white/20 border border-white/40
             shadow-[0_4px_12px_rgba(0,0,0,0.3)] hover:bg-white/30 group
             ${isOpen ? 'ring-2 ring-[#D4AF37]' : ''}
           `}
         >
-          <div className="w-5 h-3.5 overflow-hidden rounded-[2px] shadow-sm flex-shrink-0 ring-1 ring-white/50">
+          <div className={`w-5 h-3.5 overflow-hidden rounded-[2px] shadow-sm flex-shrink-0 ring-1 ${tone === 'light' ? 'ring-slate-200 dark:ring-slate-700' : 'ring-white/50'}`}>
             <img 
               src={activeLang.flag} 
               alt={activeLang.label}
@@ -61,12 +65,12 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
               loading="eager"
             />
           </div>
-          <span className="text-[11px] font-black tracking-tight text-white uppercase drop-shadow-md">
+          <span className={tone === 'light' ? 'text-xs font-semibold' : 'text-[11px] font-black tracking-tight text-white uppercase drop-shadow-md'}>
             {activeLang.label}
           </span>
-          <ChevronDown 
-            size={14} 
-            className={`text-white transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} 
+          <ChevronDown
+            size={14}
+            className={`${tone === 'light' ? 'text-slate-400' : 'text-white'} transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
           />
         </button>
 

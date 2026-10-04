@@ -45,6 +45,7 @@ interface LandingPageProps {
   onEnterDashboard: () => void;
   onAdminLogin: (password: string) => Promise<boolean>;
   studentStatuses: StudentStatusRecord[];
+  logo?: string;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ 
@@ -54,7 +55,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
   isRtl, 
   onEnterDashboard, 
   onAdminLogin,
-  studentStatuses
+  studentStatuses,
+  logo
 }) => {
   const [showStatusCheckModal, setShowStatusCheckModal] = useState(false);
   const [searchStudentId, setSearchStudentId] = useState('');
@@ -283,6 +285,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
       
       <div className="landing-content-wrapper flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-4 sm:px-6 reveal-anim h-full pointer-events-none py-2 sm:py-4">
         <div className="flex flex-col items-center space-y-2.5 sm:space-y-4 pointer-events-auto">
+           {logo && <img src={logo} alt="โลโก้" className="h-12 sm:h-16 max-w-[220px] object-contain drop-shadow-lg" />}
            <div className="px-4 sm:px-7 py-1.5 sm:py-2.5 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
              <div className="flex flex-row items-center gap-2 sm:gap-6 whitespace-nowrap overflow-hidden">
                <span className="text-[8px] sm:text-xs font-bold uppercase text-white tracking-normal opacity-90">

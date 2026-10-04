@@ -9,8 +9,13 @@ import {
   FormCategory, 
   ScheduleEvent,
   LocalizedString,
-  StudentStatusRecord
+  StudentStatusRecord,
+  SiteSettings
 } from './types';
+import { SHEET_API_URL } from './config';
+import { fetchLive, saveSupervisor, LiveRow, FieldLock } from './liveSync';
+import { useLiveSupervisors } from './useLiveSupervisors';
+import DashboardPage from './DashboardPage';
 import { TRANSLATIONS, INITIAL_SITES, INITIAL_FORMS, INITIAL_SCHEDULE, INITIAL_STUDENT_STATUSES } from './constants';
 import InternshipCard from './components/InternshipCard';
 import LanguageSwitcher from './components/LanguageSwitcher';
@@ -38,9 +43,26 @@ import {
   ClipboardList
 } from 'lucide-react';
 
-// Updated URL from User
-const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbycrXhJfdb5sp11tOGZZbM3Xx1DFqNwzyQ_VUVKeo2BJSMhO1GMxD73YXsKyDot_o3X/exec"; 
 const CACHE_KEY = "wise_portal_last_sync";
+const SETTINGS_KEY = "wise_site_settings";
+const DEFAULT_TITLE = "WISE - Work Integrated Science Education Unit";
+
+const settingsFromRows = (rows: any[]): SiteSettings => {
+  const out: SiteSettings = {};
+  if (!Array.isArray(rows)) return out;
+  rows.forEach(r => {
+    const k = String(r?.key || '');
+    const v = String(r?.value || '');
+    if (k === 'logo' || k === 'favicon' || k === 'siteTitle') (out as any)[k] = v;
+  });
+  return out;
+};
+
+const hashView = (): 'summary' | 'stats' | null => {
+  const params = new URLSearchParams(window.location.hash.replace(/^#\??/, ''));
+  const v = params.get('view');
+  return v === 'summary' || v === 'stats' ? v : null;
+};
 const CACHE_EXPIRY = 30 * 60 * 1000; // 30 Minutes
 
 const App: React.FC = () => {
@@ -66,10 +88,10 @@ const App: React.FC = () => {
     }
   });
 
-  const [viewState, setViewState] = useState<'landing' | 'dashboard' | 'summary'>(() => {
-    const params = new URLSearchParams(window.location.hash.slice(1));
-    if (params.get('view') === 'summary') return 'summary';
-    return 'landing';
+  const [viewState, setViewState] = useState<'landing' | 'dashboard' | 'summary' | 'stats'>(() => hashView() || 'landing');
+
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => {
+    try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch { return {}; }
   });
   
   const [role, setRole] = useState<UserRole>(() => {
@@ -217,7 +239,10 @@ const App: React.FC = () => {
           .filter((p: string) => p.length > 0);
         setAdminPasswords(passwords);
       }
-      
+      if (Array.isArray(cloudData.settings)) {
+        setSiteSettings(settingsFromRows(cloudData.settings));
+      }
+
       const syncTime = Date.now();
       setLastSync(syncTime);
       localStorage.setItem(CACHE_KEY, syncTime.toString());
@@ -336,20 +361,18 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // Check initial search params/hash
-    const params = new URLSearchParams(window.location.hash.slice(1));
-    if (params.get('view') === 'summary') {
-      setViewState('summary');
-    }
-    
+    const initial = hashView();
+    if (initial) setViewState(initial);
+
     window.history.replaceState({ view: window.history.state?.view || 'landing' }, '');
     const handlePopState = (event: PopStateEvent) => {
-      setViewState(event.state?.view || 'landing');
+      setViewState(hashView() || event.state?.view || 'landing');
     };
-    
+
     const handleHashChange = () => {
-      const currentHashParams = new URLSearchParams(window.location.hash.slice(1));
-      if (currentHashParams.get('view') === 'summary') {
-        setViewState('summary');
+      const v = hashView();
+      if (v) {
+        setViewState(v);
       } else if (window.location.hash === '' || window.location.hash === '#') {
         setViewState('landing');
       }
@@ -377,6 +400,101 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('wise_schedules', JSON.stringify(schedules)); }, [schedules]);
   useEffect(() => { localStorage.setItem('wise_forms', JSON.stringify(forms)); }, [forms]);
   useEffect(() => { localStorage.setItem('wise_admin_passwords', JSON.stringify(adminPasswords)); }, [adminPasswords]);
+
+  // Branding: persist and apply favicon + tab title
+  useEffect(() => {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(siteSettings)); } catch { /* quota */ }
+    document.title = siteSettings.siteTitle?.trim() || DEFAULT_TITLE;
+    let link = document.querySelector<HTMLLinkElement>('link[rel~="icon"]');
+    if (siteSettings.favicon) {
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = siteSettings.favicon;
+    } else if (link) {
+      link.remove();
+    }
+  }, [siteSettings]);
+
+  const forceFetch = useCallback(() => fetchFromSheets(true), [fetchFromSheets]);
+
+  const saveSiteSettings = useCallback(async (next: SiteSettings) => {
+    setSiteSettings(next);
+    await syncToSheets('settings', [
+      { key: 'logo', value: next.logo || '' },
+      { key: 'favicon', value: next.favicon || '' },
+      { key: 'siteTitle', value: next.siteTitle || '' },
+    ], 'all');
+  }, [syncToSheets]);
+
+  /* ---------------- Live supervisor sync + field locks ---------------- */
+
+  const [adminLiveActive, setAdminLiveActive] = useState(false);
+  const [backendLive, setBackendLive] = useState<boolean | null>(null);
+  // Values this browser just saved; ignore stale remote values for a short while
+  const recentLocal = useRef<Record<string, { value: string; at: number }>>({});
+
+  const mergeLiveRows = useCallback((rows: LiveRow[]) => {
+    const byId = new Map<string, LiveRow>();
+    const bySid = new Map<string, LiveRow>();
+    rows.forEach(r => { if (r.id) byId.set(String(r.id), r); if (r.studentId) bySid.set(String(r.studentId), r); });
+    setStudentStatuses(prev => {
+      let changed = false;
+      const next = prev.map(s => {
+        const r = byId.get(String(s.id)) || bySid.get(String(s.studentId));
+        if (!r) return s;
+        const remote = String(r.supervisor || '');
+        if (remote === (s.supervisor || '')) return s;
+        const recent = recentLocal.current[s.id];
+        if (recent && Date.now() - recent.at < 15000 && remote !== recent.value) return s;
+        changed = true;
+        return { ...s, supervisor: remote, lastUpdated: Number(r.lastUpdated) || s.lastUpdated };
+      });
+      return changed ? next : prev;
+    });
+  }, []);
+
+  const live = useLiveSupervisors({
+    enabled: viewState === 'summary' || (role === UserRole.ADMIN && adminLiveActive),
+    onRows: mergeLiveRows,
+  });
+  const liveSupported = live.supported ?? backendLive;
+
+  // One-shot backend capability check for admins (settings + locks need the new code.gs)
+  useEffect(() => {
+    if (role !== UserRole.ADMIN || backendLive !== null) return;
+    fetchLive().then(s => setBackendLive(!!s)).catch(() => setBackendLive(false));
+  }, [role, backendLive]);
+
+  const handleSupervisorChange = useCallback(async (id: string, name: string, studentCode?: string): Promise<{ ok: boolean; lock?: FieldLock }> => {
+    const before = studentStatuses.find(s => s.id === id || s.studentId === id);
+    const updated = studentStatuses.map(s => (s.id === id || s.studentId === id) ? { ...s, supervisor: name, lastUpdated: Date.now() } : s);
+    const target = updated.find(s => s.id === id || s.studentId === id);
+    setStudentStatuses(updated);
+    if (target) recentLocal.current[target.id] = { value: name, at: Date.now() };
+
+    if (liveSupported) {
+      setIsSyncing(true);
+      try {
+        const res = await saveSupervisor(target?.id || id, studentCode || target?.studentId || '', name);
+        if (res.ok) return { ok: true };
+        if ('lock' in res && res.lock) {
+          // Someone else holds the field: roll back our optimistic value
+          delete recentLocal.current[target?.id || id];
+          setStudentStatuses(prev => prev.map(s => s.id === (target?.id || id) ? { ...s, supervisor: before?.supervisor || '' } : s));
+          return { ok: false, lock: res.lock };
+        }
+      } catch (e) {
+        console.error('saveSupervisor failed', e);
+      } finally {
+        setIsSyncing(false);
+      }
+    }
+    if (target) await syncToSheets('studentStatuses', updated, 'update', target);
+    return { ok: true };
+  }, [studentStatuses, liveSupported, syncToSheets]);
 
   const currentT = useMemo(() => {
     const t = TRANSLATIONS[lang];
@@ -457,28 +575,37 @@ const App: React.FC = () => {
     return [...schedules].sort((a, b) => (a.rawStartDate || '').localeCompare(b.rawStartDate || ''));
   }, [schedules]);
 
+  const goLanding = () => {
+    setViewState('landing');
+    window.history.pushState({ view: 'landing' }, '', window.location.pathname);
+  };
+
   if (viewState === 'summary') {
     return (
-      <SummaryPage 
-        students={studentStatuses} 
-        onBack={() => {
-          setViewState('landing');
-          window.history.pushState({ view: 'landing' }, '', window.location.pathname);
-        }} 
-        onSupervisorChange={(id: string, name: string) => {
-          const updated = studentStatuses.map(s => (s.id === id || s.studentId === id) ? { ...s, supervisor: name, lastUpdated: Date.now() } : s);
-          setStudentStatuses(updated);
-          try {
-            localStorage.setItem('wise_student_statuses', JSON.stringify(updated));
-          } catch (e) { console.warn(e); }
-          const target = updated.find(s => s.id === id || s.studentId === id);
-          if (target) {
-            syncToSheets('studentStatuses', updated, 'update', target);
-          }
-        }}
-        fetchFromSheets={() => fetchFromSheets(true)}
+      <SummaryPage
+        students={studentStatuses}
+        onBack={goLanding}
+        onSupervisorChange={handleSupervisorChange}
+        fetchFromSheets={forceFetch}
         isLoading={isLoading}
         isSyncing={isSyncing}
+        locks={live.locks}
+        liveSupported={live.supported}
+        lastLiveSync={live.lastSyncAt}
+        logo={siteSettings.logo}
+      />
+    );
+  }
+
+  if (viewState === 'stats') {
+    return (
+      <DashboardPage
+        students={studentStatuses}
+        schedules={schedules}
+        onBack={goLanding}
+        fetchFromSheets={forceFetch}
+        isLoading={isLoading}
+        logo={siteSettings.logo}
       />
     );
   }
@@ -486,11 +613,12 @@ const App: React.FC = () => {
   if (viewState === 'landing') {
     return (
       <>
-        <LandingPage 
+        <LandingPage
           lang={lang} setLang={setLang} currentT={currentT} isRtl={isRtl}
           onEnterDashboard={handleEnterDashboard}
           onAdminLogin={handleAdminLogin as any}
           studentStatuses={studentStatuses}
+          logo={siteSettings.logo}
         />
         {contextMenu.visible && (
           <div 
@@ -511,271 +639,257 @@ const App: React.FC = () => {
     );
   }
 
+  const isAdmin = role === UserRole.ADMIN;
+
+  const majorChips: { id: Major | 'all', label: string, dot?: string }[] = [
+    { id: 'all', label: currentT.allMajors },
+    { id: Major.HALAL_FOOD, label: currentT.halalMajor, dot: 'bg-amber-500' },
+    { id: Major.DIGITAL_TECH, label: currentT.digitalMajor, dot: 'bg-blue-500' },
+    { id: Major.INFO_TECH, label: currentT.infoTechMajor, dot: 'bg-violet-500' },
+    { id: Major.DATA_SCIENCE, label: currentT.dataScienceMajor, dot: 'bg-teal-500' },
+  ];
+
+  const renderFormLink = (form: DocumentForm) => (
+    <a
+      key={form.id}
+      href={form.url && !form.url.startsWith('PENDING') ? form.url : '#'}
+      onClick={(e) => {
+        if (!form.url || form.url === '#' || form.url.startsWith('PENDING')) {
+          e.preventDefault();
+          alert(lang === Language.TH ? 'ระบบกำลังประมวลผลไฟล์เอกสาร กรุณาลองใหม่ในภายหลัง' : 'System is processing the document.');
+        }
+      }}
+      download={form.url?.startsWith('data:') ? `${getLocalized(form.title)}.pdf` : undefined}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition"
+    >
+      <div className="w-9 h-9 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center"><FileText size={17} /></div>
+      <span className="flex-1 text-sm font-medium text-slate-800 dark:text-slate-100">{getLocalized(form.title)}</span>
+      <Download size={16} className="text-slate-400 group-hover:text-[#630330] dark:group-hover:text-amber-300 transition" />
+    </a>
+  );
+
   return (
-    <div className={`min-h-screen min-h-[100dvh] flex flex-col transition-colors duration-300 ${isRtl ? 'rtl' : ''} ${role === UserRole.ADMIN ? 'bg-[#e4d4bc] dark:bg-slate-950 overflow-hidden' : 'bg-[#FFF8E7] dark:bg-slate-900'}`}>
-      {/* Global Loading Bar */}
+    <div className={`${isAdmin ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'} flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300 ${isRtl ? 'rtl' : ''}`}>
+      {/* Thin top progress bar */}
       {(isLoading || isSyncing) && (
-        <div className="fixed top-0 left-0 w-full h-1 z-[9999] pointer-events-none overflow-hidden">
-          <div className="absolute inset-0 bg-[#D4AF37]/10"></div>
-          <div className="absolute top-0 h-full bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent animate-loading-bar"></div>
+        <div className="fixed top-0 left-0 w-full h-0.5 z-[9999] pointer-events-none overflow-hidden">
+          <div className="absolute top-0 h-full bg-[#630330] dark:bg-amber-400 animate-loading-bar"></div>
         </div>
       )}
 
-      {/* Floating Loading Indicator */}
-      {(isLoading || isSyncing) && (
-        <div className="fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-2.5 bg-black/80 backdrop-blur-xl rounded-full border border-white/10 shadow-2xl animate-in slide-in-from-bottom-4 duration-500 pointer-events-none">
-          <div className="relative w-4 h-4">
-            <div className="absolute inset-0 border-2 border-[#D4AF37]/20 rounded-full"></div>
-            <div className="absolute inset-0 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
-          </div>
-          <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] leading-none">
-            {isLoading ? "Loading" : "Syncing"}
-          </span>
-          <div className="flex gap-0.5">
-            <div className="w-0.5 h-0.5 bg-[#D4AF37] rounded-full animate-bounce"></div>
-            <div className="w-0.5 h-0.5 bg-[#D4AF37] rounded-full animate-bounce [animation-delay:0.2s]"></div>
-            <div className="w-0.5 h-0.5 bg-[#D4AF37] rounded-full animate-bounce [animation-delay:0.4s]"></div>
-          </div>
-        </div>
-      )}
+      <header className="sticky top-0 z-[100] shrink-0 h-14 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800">
+        <div className={`${isAdmin ? 'px-4 sm:px-6' : 'container mx-auto px-4'} h-full flex items-center justify-between gap-3`}>
+          <button
+            className="flex items-center gap-2.5 group"
+            onClick={() => { setViewState('landing'); window.history.back(); }}
+            title="กลับหน้าแรก"
+          >
+            {siteSettings.logo ? (
+              <img src={siteSettings.logo} alt="โลโก้" className="h-8 max-w-[160px] object-contain" />
+            ) : (
+              <>
+                <span className="w-8 h-8 rounded-lg bg-[#630330] text-[#D4AF37] flex items-center justify-center text-sm font-extrabold shadow-sm">W</span>
+                <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">WISE</span>
+              </>
+            )}
+            {isAdmin && (
+              <span className="hidden sm:inline-flex items-center h-6 px-2 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400">ระบบหลังบ้าน</span>
+            )}
+          </button>
 
-      <div className="sticky top-0 z-[100] w-full px-2 sm:px-4 pt-2">
-        <nav className="container mx-auto h-auto min-h-[72px] navbar-luxe-container rounded-[1.5rem] px-4 sm:px-8 flex items-center justify-between border border-white/20 py-2 shadow-[0_20px_50px_rgba(0,0,0,0.3)] group">
-          <div className="absolute inset-0 z-0 pointer-events-none rounded-[1.5rem] overflow-hidden">
-             <div className="navbar-tech-circuit"></div>
-             <div className="navbar-scan-beam animate-scan-line"></div>
-             <div className="navbar-glow-orb -top-20 -left-20 opacity-60"></div>
-             <div className="navbar-glow-orb -bottom-20 -right-20 opacity-40"></div>
-             <div className="absolute top-2 left-1/4 w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse-soft"></div>
-             <div className="absolute bottom-2 left-2/3 w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse-soft delay-700"></div>
-             <div className="absolute -bottom-6 left-0 w-[200%] h-14 opacity-[0.25] animate-navbar-wave">
-                <svg viewBox="0 0 2880 320" preserveAspectRatio="none" className="w-full h-full filter drop-shadow-[0_0_10px_rgba(212,175,55,0.3)]">
-                  <path fill="#D4AF37" d="M0,160 C320,300 420,10 720,160 C1020,310 1120,20 1440,160 C1760,300 1860,10 2160,160 C2460,310 2560,20 2880,160 V320 H0 Z"></path>
-                </svg>
-             </div>
-             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
-          </div>
-
-          <div className="relative z-[110] flex items-center gap-4 sm:gap-6">
-            <div className="flex flex-col cursor-pointer group/logo" onClick={() => { setViewState('landing'); window.history.back(); }}>
-              <div className="flex flex-col">
-                <span className="block text-2xl sm:text-3xl font-black leading-none uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-white to-[#D4AF37] drop-shadow-sm">
-                  WISE
-                </span>
-                {role === UserRole.ADMIN ? (
-                  <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest leading-none mt-1 opacity-80">Admin Panel</span>
-                ) : (
-                  <div className="h-0.5 w-full bg-gradient-to-r from-[#D4AF37] via-white/50 to-transparent opacity-60 mt-1"></div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="relative z-[110] flex items-center gap-1.5 sm:gap-4">
-            {role === UserRole.ADMIN && (
-              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-xl rounded-full border border-white/10 shadow-inner">
-                {isLoading || isSyncing ? <RefreshCw size={12} className="text-[#D4AF37] animate-spin" /> : <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>}
-                <span className="text-[10px] font-black text-white/90 uppercase tracking-widest">
-                  {isLoading ? "FETCHING..." : isSyncing ? "SYNCING..." : "LIVE SECURE"}
-                </span>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {isAdmin && (
+              <div className="hidden xl:flex items-center gap-2 h-8 px-3 rounded-lg text-xs text-slate-500 dark:text-slate-400">
+                {isLoading || isSyncing
+                  ? <RefreshCw size={12} className="animate-spin text-amber-500" />
+                  : <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                {isLoading ? 'กำลังโหลด…' : isSyncing ? 'กำลังบันทึก…' : 'บันทึกอัตโนมัติ'}
               </div>
             )}
-            
-            <div className="flex items-center gap-1.5 sm:gap-3">
-              <div className="mr-1">
-                <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" />
-              </div>
-              <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-white/10 backdrop-blur-xl text-white/80 rounded-2xl border border-white/20 hover:bg-white/25 hover:scale-105 active:scale-95 transition-all shadow-lg">
-                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-              </button>
-              <button onClick={handleLogout} className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-rose-500/30 backdrop-blur-xl text-rose-300 border border-rose-400/30 rounded-2xl hover:bg-rose-600 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-xl group/logout">
-                <LogOut size={18} className="group-hover/logout:-translate-x-1 transition-transform" />
-              </button>
-            </div>
+            <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" tone="light" />
+            <button
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition"
+              title={theme === 'light' ? 'โหมดมืด' : 'โหมดสว่าง'}
+            >
+              {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="h-9 px-2.5 sm:px-3 flex items-center gap-2 rounded-lg text-sm font-medium text-slate-600 hover:text-rose-600 hover:bg-rose-50 dark:text-slate-300 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition"
+              title={currentT.logout}
+            >
+              <LogOut size={16} />
+              <span className="hidden sm:inline">{isAdmin ? 'ออกจากระบบ' : currentT.logout}</span>
+            </button>
           </div>
-        </nav>
-      </div>
+        </div>
+      </header>
 
-      <div className={`${role === UserRole.ADMIN ? 'w-full max-w-[1720px] mx-auto px-2 sm:px-4 h-[calc(100dvh-78px)] py-2 gap-3' : 'container mx-auto px-2 sm:px-4 py-4 gap-6'} flex flex-col md:flex-row flex-grow relative`}>
-        {role === UserRole.ADMIN ? (
-        <AdminPanel 
+      {isAdmin ? (
+        <div className="flex-1 min-h-0 flex">
+          <AdminPanel
             sites={sites} setSites={setSites}
             studentStatuses={studentStatuses} setStudentStatuses={setStudentStatuses}
             schedules={schedules} setSchedules={setSchedules}
             forms={forms} setForms={setForms}
             currentT={currentT} lang={lang}
             adminPasswords={adminPasswords} setAdminPasswords={setAdminPasswords}
-            fetchFromSheets={() => fetchFromSheets(true)}
+            fetchFromSheets={forceFetch}
             syncToSheets={syncToSheets}
             isLoading={isLoading}
             isSyncing={isSyncing}
             lastSync={lastSync}
+            siteSettings={siteSettings}
+            onSaveSiteSettings={saveSiteSettings}
+            backendLive={liveSupported}
+            liveLocks={live.locks}
+            setLiveActive={setAdminLiveActive}
+            onSupervisorChange={handleSupervisorChange}
           />
-        ) : (
-          <main className="container mx-auto px-4 py-6 space-y-10 flex-grow">
-            <section className="reveal-anim">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-500/20"><CalendarDays size={20} /></div>
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-black uppercase text-slate-900 dark:text-white leading-none">{currentT.schedule}</h2>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-wider">Stay updated with key dates and deadlines</p>
-                </div>
+        </div>
+      ) : (
+        <main className="container mx-auto px-4 py-6 sm:py-10 space-y-10 flex-grow max-w-6xl">
+          {/* Schedule */}
+          <section className="reveal-anim">
+            <div className="flex items-end justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                  <CalendarDays size={20} className="text-[#630330] dark:text-amber-400" /> {currentT.schedule}
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Stay updated with key dates and deadlines</p>
               </div>
-              <div className="flex flex-col gap-3">
-                {sortedSchedules.length > 0 ? sortedSchedules.map((item) => (
-                  <div key={item.id} className="group relative flex flex-row items-center justify-between p-2 sm:p-5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-slate-100 dark:border-slate-800 rounded-2xl transition-all duration-300 border-l-[6px] border-l-emerald-500 overflow-hidden shadow-lg hover:shadow-xl dark:shadow-none">
-                    <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1 pr-1 sm:pr-4">
-                       <div className="relative shrink-0 flex items-center justify-center w-3.5 h-3.5 sm:w-4 sm:h-4">
-                         <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,1)]"></div>
-                         <div className="absolute inset-0 w-full h-full rounded-full border border-emerald-400 animate-ping opacity-75"></div>
-                       </div>
-                       <h4 className="text-[10px] min-[360px]:text-[11px] sm:text-base font-black text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-3 break-words">
-                         {getLocalized(item.event)}
-                       </h4>
-                    </div>
-                    <div className="flex items-center gap-0.5 sm:gap-3 flex-shrink-0">
-                       <div className="flex items-center gap-1 px-1 sm:px-3 py-1 sm:py-1.5 bg-emerald-50/80 dark:bg-emerald-950/40 rounded-lg sm:rounded-xl border border-emerald-100 dark:border-emerald-800/40 transition-transform group-hover:scale-105">
-                          <Play size={7} className="text-emerald-500 fill-emerald-500 shrink-0" />
-                          <div className="flex flex-col leading-none">
-                            <span className="hidden sm:block text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter mb-1">{currentT.startDateLabel}</span>
-                            <span className="text-[8px] min-[400px]:text-[9px] sm:text-[12px] font-black text-emerald-900 dark:text-emerald-200 whitespace-nowrap">{getLocalized(item.startDate)}</span>
+            </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden">
+              {sortedSchedules.length > 0 ? (
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {sortedSchedules.map((item) => {
+                    const d = item.rawStartDate ? new Date(item.rawStartDate) : null;
+                    const validD = d && !isNaN(d.getTime());
+                    return (
+                      <li key={item.id} className="flex items-center gap-4 px-4 sm:px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                        <div className="w-12 shrink-0 text-center rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                          <div className="text-[10px] font-semibold bg-slate-50 dark:bg-slate-800 text-slate-500 py-0.5">
+                            {validD ? d!.toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-GB', { month: 'short' }) : '—'}
                           </div>
-                       </div>
-                       <div className="flex items-center gap-1 px-1 sm:px-3 py-1 sm:py-1.5 bg-rose-50/80 dark:bg-rose-950/40 rounded-lg sm:rounded-xl border border-rose-100 dark:border-rose-800/40 transition-transform group-hover:scale-105">
-                          <Flag size={7} className="text-rose-500 fill-rose-500 shrink-0" />
-                          <div className="flex flex-col leading-none">
-                            <span className="hidden sm:block text-[8px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-tighter mb-1">{currentT.endDateLabel}</span>
-                            <span className="text-[8px] min-[400px]:text-[9px] sm:text-[12px] font-black text-rose-900 dark:text-rose-200 whitespace-nowrap">{getLocalized(item.endDate)}</span>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
-                )) : (
-                  <div className="p-10 text-center text-[12px] font-bold text-slate-400 uppercase border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl bg-white/30">No upcoming events scheduled</div>
-                )}
-              </div>
-            </section>
-
-            <section className="reveal-anim" style={{ animationDelay: '100ms' }}>
-              <div onClick={() => setShowDocHub(true)} className="group relative overflow-hidden bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[1.5rem] p-6 sm:p-8 shadow-xl shadow-indigo-200/50 dark:shadow-none cursor-pointer hover:shadow-2xl transition-all">
-                <div className="absolute -right-10 -bottom-10 opacity-10 group-hover:scale-110 transition-transform duration-700"><Files size={180} /></div>
-                <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
-                  <div className="flex items-center gap-6">
-                    <div className="hidden sm:flex items-center justify-center w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl text-white"><FileText size={28} /></div>
-                    <div className="space-y-1.5 text-center sm:text-left">
-                       <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">{currentT.docHubTitle}</h3>
-                       <div className="flex items-center gap-3 justify-center sm:justify-start">
-                          <span className="text-indigo-200 text-[10px] font-black uppercase tracking-widest">Document Hub</span>
-                          <div className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></div>
-                          <span className="text-white/60 text-[10px] font-bold uppercase tracking-tight">{forms.length} FILES AVAILABLE</span>
-                       </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 px-6 py-3 bg-white text-indigo-700 rounded-full font-black uppercase text-[10px] shadow-lg group-hover:gap-5 transition-all">
-                     {currentT.docHubButton} <ArrowRight size={14} />
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="reveal-anim" style={{ animationDelay: '200ms' }}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-5 sm:mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-[#630330] dark:bg-amber-500 text-white rounded-xl shadow-lg"><LayoutGrid size={20} /></div>
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-black uppercase text-slate-900 dark:text-white leading-none">{currentT.internshipSites}</h2>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-wider">Explore available opportunities</p>
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                   <div className="relative w-full sm:w-auto">
-                     <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                     <input type="text" placeholder={currentT.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl text-[12px] font-bold focus:outline-none focus:ring-2 focus:ring-[#630330]/20 min-w-[240px]" />
-                   </div>
-                   <div className="flex flex-wrap items-center gap-2">
-                    <button onClick={() => setActiveMajor('all')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm ${activeMajor === 'all' ? 'bg-[#630330] text-white' : 'bg-white dark:bg-slate-900 text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-slate-50'}`}>{currentT.allMajors}</button>
-                    <button onClick={() => setActiveMajor(Major.HALAL_FOOD)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm ${activeMajor === Major.HALAL_FOOD ? 'bg-amber-500 text-white' : 'bg-white dark:bg-slate-900 text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-slate-50'}`}>{currentT.halalMajor}</button>
-                    <button onClick={() => setActiveMajor(Major.DIGITAL_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm ${activeMajor === Major.DIGITAL_TECH ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-900 text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-slate-50'}`}>{currentT.digitalMajor}</button>
-                    <button onClick={() => setActiveMajor(Major.INFO_TECH)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm ${activeMajor === Major.INFO_TECH ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-900 text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-slate-50'}`}>{currentT.infoTechMajor}</button>
-                    <button onClick={() => setActiveMajor(Major.DATA_SCIENCE)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm ${activeMajor === Major.DATA_SCIENCE ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-900 text-slate-400 border border-slate-100 dark:border-slate-800 hover:bg-slate-50'}`}>{currentT.dataScienceMajor}</button>
-                  </div>
-                </div>
-              </div>
-              {filteredSites.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {filteredSites.map(site => <InternshipCard key={site.id} site={site} lang={lang} />)}
-                </div>
+                          <div className="text-lg font-bold leading-7 tabular-nums">{validD ? d!.getDate() : '?'}</div>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white break-words">{getLocalized(item.event)}</h4>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                            <span className="inline-flex items-center gap-1"><Play size={9} className="text-emerald-500 fill-emerald-500" />{currentT.startDateLabel}: {getLocalized(item.startDate)}</span>
+                            <span className="inline-flex items-center gap-1"><Flag size={9} className="text-rose-500 fill-rose-500" />{currentT.endDateLabel}: {getLocalized(item.endDate)}</span>
+                          </p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : (
-                <div className="flex flex-col items-center justify-center py-20 bg-white/50 dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
-                  <Info size={40} className="text-slate-200 mb-4" />
-                  <p className="text-slate-400 font-bold uppercase text-[12px]">ไม่พบข้อมูลที่ค้นหา</p>
-                </div>
+                <div className="p-10 text-center text-sm text-slate-400">No upcoming events scheduled</div>
               )}
-            </section>
-          </main>
-        )}
-      </div>
+            </div>
+          </section>
+
+          {/* Document hub */}
+          <section className="reveal-anim" style={{ animationDelay: '80ms' }}>
+            <button
+              onClick={() => setShowDocHub(true)}
+              className="group w-full text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-[#630330] text-white hover:bg-[#6f0838] transition shadow-sm"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center"><Files size={22} className="text-[#D4AF37]" /></div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold">{currentT.docHubTitle}</h3>
+                  <p className="text-sm text-white/60">Document Hub · {forms.length} files available</p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-white text-[#630330] text-sm font-semibold self-start sm:self-auto group-hover:gap-3 transition-all">
+                {currentT.docHubButton} <ArrowRight size={15} />
+              </span>
+            </button>
+          </section>
+
+          {/* Sites */}
+          <section className="reveal-anim" style={{ animationDelay: '160ms' }}>
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                  <LayoutGrid size={20} className="text-[#630330] dark:text-amber-400" /> {currentT.internshipSites}
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Explore available opportunities</p>
+              </div>
+              <div className="relative w-full lg:w-72">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder={currentT.searchPlaceholder}
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full h-10 pl-9 pr-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:border-[#630330] focus:ring-4 focus:ring-[#630330]/10 transition"
+                />
+              </div>
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto hide-scrollbar mb-5">
+              {majorChips.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => setActiveMajor(c.id)}
+                  className={`shrink-0 h-9 px-3.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 ${
+                    activeMajor === c.id
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  {c.dot && <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />}
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            {filteredSites.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredSites.map(site => <InternshipCard key={site.id} site={site} lang={lang} />)}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                <Info size={28} className="text-slate-300 mb-3" />
+                <p className="text-sm text-slate-400">ไม่พบข้อมูลที่ค้นหา</p>
+              </div>
+            )}
+          </section>
+        </main>
+      )}
 
       {showDocHub && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8 bg-slate-950/80 backdrop-blur-2xl reveal-anim">
-          <div className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-[3rem] overflow-hidden shadow-3xl border border-white/10 flex flex-col max-h-[90svh]">
-            <div className="p-8 sm:p-12 bg-indigo-600 text-white relative">
-               <button onClick={() => setShowDocHub(false)} className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-colors"><X size={24} /></button>
-               <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 bg-white/20 rounded-2xl"><Files size={32} /></div>
-                  <div>
-                    <h3 className="text-3xl font-black uppercase leading-none">Document Hub</h3>
-                    <p className="text-indigo-200 text-xs font-bold uppercase mt-1 tracking-widest">Electronic Document Service</p>
-                  </div>
-               </div>
-            </div>
-            <div className="flex-grow overflow-y-auto p-8 sm:p-12 space-y-10">
-               <div className="space-y-4">
-                  <div className="flex items-center gap-2 px-2"><div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div><h4 className="text-[12px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{currentT.appForms}</h4></div>
-                  <div className="grid grid-cols-1 gap-3">
-                    {forms.filter(f => f.category === FormCategory.APPLICATION).map(form => (
-                      <a key={form.id} href={form.url && !form.url.startsWith('PENDING') ? form.url : '#'} onClick={(e) => {
-                        if (!form.url || form.url === '#' || form.url.startsWith('PENDING')) {
-                          e.preventDefault();
-                          alert(lang === Language.TH ? 'ระบบกำลังประมวลผลไฟล์เอกสาร กรุณาลองใหม่ในภายหลัง' : 'System is processing the document.');
-                        }
-                      }} download={form.url?.startsWith('data:') ? `${getLocalized(form.title)}.pdf` : undefined} target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 rounded-2xl transition-all">
-                        <div className="flex items-center gap-4">
-                           <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm text-indigo-600"><FileText size={20} /></div>
-                           <h5 className="font-bold text-slate-800 dark:text-white text-sm sm:text-base">{getLocalized(form.title)}</h5>
-                        </div>
-                        <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><Download size={18} /></div>
-                      </a>
-                    ))}
-                  </div>
-               </div>
-               <div className="space-y-4">
-                  <div className="flex items-center gap-2 px-2"><div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div><h4 className="text-[12px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{currentT.monitoringForms}</h4></div>
-                  <div className="grid grid-cols-1 gap-3">
-                    {forms.filter(f => f.category === FormCategory.MONITORING).map(form => (
-                      <a key={form.id} href={form.url && !form.url.startsWith('PENDING') ? form.url : '#'} onClick={(e) => {
-                        if (!form.url || form.url === '#' || form.url.startsWith('PENDING')) {
-                          e.preventDefault();
-                          alert(lang === Language.TH ? 'ระบบกำลังประมวลผลไฟล์เอกสาร กรุณาลองใหม่ในภายหลัง' : 'System is processing the document.');
-                        }
-                      }} download={form.url?.startsWith('data:') ? `${getLocalized(form.title)}.pdf` : undefined} target="_blank" rel="noopener noreferrer" className="group flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 rounded-2xl transition-all">
-                        <div className="flex items-center gap-4">
-                           <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm text-indigo-600"><FileText size={20} /></div>
-                           <h5 className="font-bold text-slate-800 dark:text-white text-sm sm:text-base">{getLocalized(form.title)}</h5>
-                        </div>
-                        <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><Download size={18} /></div>
-                      </a>
-                    ))}
-                  </div>
-               </div>
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4 bg-slate-950/40 backdrop-blur-[2px] wise-fade-in" onMouseDown={() => setShowDocHub(false)}>
+          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl ring-1 ring-slate-900/5 dark:ring-white/10 flex flex-col max-h-[90svh] wise-pop-in" onMouseDown={(e) => e.stopPropagation()}>
+            <header className="flex items-center gap-3 px-5 sm:px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-9 h-9 rounded-lg bg-[#630330] text-[#D4AF37] flex items-center justify-center"><Files size={18} /></div>
+              <div className="flex-1">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white">Document Hub</h3>
+                <p className="text-xs text-slate-500">{currentT.docHubTitle}</p>
+              </div>
+              <button onClick={() => setShowDocHub(false)} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition"><X size={18} /></button>
+            </header>
+            <div className="flex-grow overflow-y-auto custom-scrollbar p-5 sm:p-6 space-y-6">
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{currentT.appForms}</h4>
+                <div className="grid gap-2">{forms.filter(f => f.category === FormCategory.APPLICATION).map(renderFormLink)}</div>
+              </div>
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{currentT.monitoringForms}</h4>
+                <div className="grid gap-2">{forms.filter(f => f.category === FormCategory.MONITORING).map(renderFormLink)}</div>
+              </div>
             </div>
           </div>
         </div>
       )}
       {contextMenu.visible && (
-        <div className="fixed z-[9999] w-48 bg-white/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl py-1.5 reveal-anim overflow-hidden" style={{ top: contextMenu.y, left: contextMenu.x }}>
-          <button onClick={handleCopy} className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><Copy size={16} className="text-[#630330] dark:text-[#D4AF37]" /><span className="text-xs font-black uppercase tracking-widest">{lang === Language.TH ? 'คัดลอก' : 'Copy'}</span></button>
-          <button onClick={handlePaste} className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><ClipboardList size={16} className="text-[#630330] dark:text-[#D4AF37]" /><span className="text-xs font-black uppercase tracking-widest">{lang === Language.TH ? 'วาง' : 'Paste'}</span></button>
+        <div className="fixed z-[9999] w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl shadow-xl py-1 reveal-anim overflow-hidden" style={{ top: contextMenu.y, left: contextMenu.x }}>
+          <button onClick={handleCopy} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><Copy size={15} className="text-slate-400" />{lang === Language.TH ? 'คัดลอก' : 'Copy'}</button>
+          <button onClick={handlePaste} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><ClipboardList size={15} className="text-slate-400" />{lang === Language.TH ? 'วาง' : 'Paste'}</button>
         </div>
       )}
     </div>
