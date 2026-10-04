@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { 
   Language, 
   Major, 
@@ -9,7 +9,6 @@ import {
   InternshipType
 } from './types';
 import LanguageSwitcher from './components/LanguageSwitcher';
-import { MouseGlow, TechMeteorShower, ModernWaves } from './components/LandingBackground';
 import { 
   X, 
   ChevronRight, 
@@ -106,6 +105,50 @@ const LandingPage: React.FC<LandingPageProps> = ({
     const id = setInterval(() => setTaglineIdx(i => i + 1), 3200);
     return () => clearInterval(id);
   }, []);
+
+  // Fit the EN and TH lockup lines (and the divider) to the exact width of the word WISE
+  const lockupRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = lockupRef.current;
+    if (!el) return;
+    const fit = () => {
+      const target = el.querySelector('[data-fit-target]')?.getBoundingClientRect().width || 0;
+      if (!target) return;
+      const rule = el.querySelector<HTMLElement>('[data-fit-rule]');
+      if (rule) rule.style.width = `${target}px`;
+      el.querySelectorAll<HTMLElement>('[data-fit]').forEach(span => {
+        const line = span.parentElement as HTMLElement;
+        line.style.fontSize = '20px';
+        const w = span.getBoundingClientRect().width;
+        if (w) line.style.fontSize = `${(20 * target / w).toFixed(2)}px`;
+      });
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el.querySelector('[data-fit-target]') as Element);
+    window.addEventListener('resize', fit);
+    document.fonts?.ready.then(fit);
+    return () => { ro.disconnect(); window.removeEventListener('resize', fit); };
+  }, []);
+
+  // Thai heading breaks before "และ" for a balanced two-line title
+  const headingLines = lang === Language.TH && currentT.landingHeading.includes('และ')
+    ? [currentT.landingHeading.slice(0, currentT.landingHeading.indexOf('และ')).trim(), currentT.landingHeading.slice(currentT.landingHeading.indexOf('และ'))]
+    : [currentT.landingHeading.replace(/-/g, '‑')];
+
+  const locale = lang === Language.TH ? 'th-TH' : lang === Language.AR ? 'ar' : lang === Language.MS ? 'ms-MY' : 'en-US';
+  const shortDate = (s: string) => {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? s : d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  };
+  const eventCountdown = (() => {
+    const d = nextEvent ? new Date(nextEvent.date) : null;
+    if (!d || isNaN(d.getTime())) return '';
+    const days = Math.ceil((d.setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+    const label = { [Language.TH]: 'กำหนดการถัดไป', [Language.EN]: 'Next up', [Language.AR]: 'الموعد القادم', [Language.MS]: 'Seterusnya' }[lang] || 'Next up';
+    if (days <= 0) return `${label} · ${lang === Language.TH ? 'วันนี้' : 'today'}`;
+    return `${label} · ${lang === Language.TH ? `อีก ${days} วัน` : `in ${days} days`}`;
+  })();
 
   // Subtle parallax of the arch following the cursor (desktop only)
   const archRef = useRef<HTMLDivElement>(null);
@@ -366,106 +409,122 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className={`fixed inset-0 w-full h-full min-h-[100svh] flex flex-col items-center justify-center luxe-mangosteen-bg overflow-hidden touch-auto ${isRtl ? 'rtl' : ''}`}>
-      <MouseGlow />
-      <div className="bg-video-wrap">
-        <video autoPlay loop muted playsInline>
-          <source src="https://assets.mixkit.co/videos/preview/kit-business-people-working-in-a-busy-office-33824-large.mp4" type="video/mp4" />
-        </video>
-      </div>
-      <div className="video-overlay"></div>
-      <div className="islamic-tech-watermark"></div>
-      <TechMeteorShower />
-      <ModernWaves />
-      
-      {/* Top bar: faculty logo (left) + staff access (right) */}
-      <header className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-4 sm:px-8 lg:px-12 pt-4 sm:pt-6 pointer-events-auto">
-        <div className="wise-rise flex items-center gap-2.5 sm:gap-3 pl-1.5 pr-4 sm:pr-5 py-1.5 rounded-full bg-white/[0.08] border border-white/15 backdrop-blur-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] max-w-[78vw]">
-          <span className="w-9 h-9 sm:w-11 sm:h-11 shrink-0 rounded-full bg-white overflow-hidden flex items-center justify-center ring-2 ring-white/20">
+    <div className={`wl fixed inset-0 w-full h-full overflow-y-auto overflow-x-hidden touch-auto ${isRtl ? 'rtl' : ''}`} dir={isRtl ? 'rtl' : 'ltr'}>
+      {/* Floating pill nav: faculty logo + staff access */}
+      <header className="wise-rise sticky top-[max(12px,env(safe-area-inset-top))] z-30 mx-auto mt-3 sm:mt-5 w-[calc(100%-24px)] sm:w-[min(1180px,calc(100%-48px))] flex items-center justify-between gap-3 p-1.5 sm:p-2 ps-2 sm:ps-2.5 rounded-full bg-white/75 backdrop-blur-xl border border-[#efe4d2] shadow-[0_14px_34px_-22px_rgba(99,3,48,0.35)]">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-[#630330] overflow-hidden flex items-center justify-center">
             {emblem ? (
-              <img src={emblem} alt="" className={`w-full h-full ${favicon ? 'object-contain p-0.5' : 'object-cover object-left'}`} />
+              <img src={emblem} alt="" className={`w-full h-full bg-white ${favicon ? 'object-contain p-0.5' : 'object-cover object-left'}`} />
             ) : (
-              <span className="text-[10px] font-extrabold text-[#630330]">FST</span>
+              <span className="wl-latin text-[10px] font-extrabold text-[#e8cf7a]">FST</span>
             )}
           </span>
           <span className="min-w-0 leading-tight">
-            <span className="block truncate text-[12px] sm:text-[14px] font-semibold text-white">{facultyName}</span>
-            <span className="block truncate text-[10px] sm:text-[12px] text-white/60">{universityName}</span>
+            <span className="block truncate text-[13px] sm:text-[14px] font-medium text-[#630330]">{facultyName}</span>
+            <span className="hidden sm:block truncate text-[11.5px] font-light text-[#8b7380]">{universityName}</span>
           </span>
         </div>
         <button
           onClick={() => { setLoginError(false); setLoginSuccess(false); setShowAdminLogin(true); }}
-          className="flex items-center gap-2 h-10 px-3 sm:px-4 rounded-full text-[13px] font-medium text-white/80 hover:text-white hover:bg-white/10 border border-white/10 backdrop-blur-md transition"
+          className="shrink-0 flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:px-4 rounded-full bg-white border border-[#e5d6c0] text-[13px] font-medium text-[#630330] hover:bg-[#630330] hover:text-white hover:border-[#630330] transition"
           title="Staff Access"
         >
-          <LockKeyhole size={15} className="text-[#D4AF37]" />
+          <LockKeyhole size={15} />
           <span className="hidden sm:inline">{t3.staff}</span>
         </button>
       </header>
 
-      <div className="landing-content-wrapper relative flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-5 sm:px-6 h-full pointer-events-none pt-20 pb-24 sm:pt-24 sm:pb-[max(170px,26vh)]">
-        <div className="relative flex flex-col items-center text-center pointer-events-auto">
-          {/* Gold arch (mihrab) anchored to the text block so it always frames it; legs fade out */}
-          <div
-            className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[22%] w-[150vw] sm:w-[min(130vw,900px)] h-[calc(100%+18vh)] pointer-events-none -z-10"
-            style={{ WebkitMaskImage: 'linear-gradient(to bottom, #000 60%, transparent 97%)', maskImage: 'linear-gradient(to bottom, #000 60%, transparent 97%)' }}
-            aria-hidden="true"
-          >
-            <div ref={archRef} className="w-full h-full relative transition-transform duration-700 ease-out will-change-transform">
-              <svg viewBox="0 0 600 640" fill="none" preserveAspectRatio="none" className="w-full h-full">
-                <path className="wise-arch-path" d="M50 640 V230 C50 100 190 32 300 10 C410 32 550 100 550 230 V640" stroke="rgba(212,175,55,.5)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" pathLength={1} />
-                <path className="wise-arch-path wise-arch-path--inner" d="M84 640 V236 C84 122 200 64 300 44 C400 64 516 122 516 236 V640" stroke="rgba(212,175,55,.2)" strokeWidth="1" vectorEffect="non-scaling-stroke" pathLength={1} />
-              </svg>
-              <span className="wise-arch-dot absolute left-1/2 top-[1.56%] -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#D4AF37]" />
+      <main className="relative mx-auto w-full max-w-[720px] lg:max-w-none lg:w-[min(1180px,calc(100%-48px))] px-[22px] sm:px-10 lg:px-0 pt-9 sm:pt-14 pb-12 lg:py-0 lg:min-h-[calc(100svh-90px)] grid lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-16 items-center">
+        <div className="min-w-0 flex flex-col items-start">
+          {/* Lockup: EN and TH lines are fitted to the exact width of the word WISE */}
+          <div ref={lockupRef} className="wl-lockup" dir="ltr">
+            <h2 className="wl-wise wise-rise select-none" style={{ animationDelay: '120ms' }}>
+              <span data-fit-target className="inline-block">WISE</span><em>.</em>
+            </h2>
+            <div className="wl-line wl-en wise-rise" style={{ animationDelay: '260ms' }}>
+              <span data-fit>Work-Integrated Science Education Unit</span>
             </div>
-          </div>          <span className="wise-rise text-[#D4AF37] text-[9.5px] min-[400px]:text-[10px] sm:text-[13px] font-semibold uppercase tracking-[0.14em] min-[400px]:tracking-[0.2em] sm:tracking-[0.35em] whitespace-nowrap" style={{ animationDelay: '150ms' }}>
-            Work-Integrated Science Education Unit
-          </span>
+            <div className="wl-rule" data-fit-rule><i /></div>
+            <div className="wl-line wl-th wise-rise" style={{ animationDelay: '380ms' }}>
+              <span data-fit>หน่วยจัดการศึกษาวิทยาศาสตร์บูรณาการกับการทำงาน</span>
+            </div>
+          </div>
 
-          <h2 className="wise-rise wise-shimmer-text mt-3 sm:mt-4 text-[5.5rem] leading-[0.9] sm:text-[9rem] md:text-[11rem] font-extrabold tracking-[-0.04em] drop-shadow-[0_20px_40px_rgba(0,0,0,0.35)] select-none" style={{ animationDelay: '250ms' }}>
-            WISE
-          </h2>
-
-          <span className="wise-rise mt-3 sm:mt-4 text-[#E8CF7A]/90 text-[12px] sm:text-base font-medium" style={{ animationDelay: '380ms' }}>
-            หน่วยจัดการศึกษาวิทยาศาสตร์บูรณาการกับการทำงาน
-          </span>
-
-          <h1 className={`wise-rise mt-4 sm:mt-6 text-white/95 font-semibold leading-snug tracking-tight drop-shadow-xl ${
-            lang === Language.MS ? 'text-lg sm:text-2xl md:text-3xl' : 'text-xl sm:text-3xl md:text-[2.1rem]'
+          <h1 className={`wise-rise mt-7 sm:mt-8 font-medium leading-[1.25] text-[#2a0a17] [text-wrap:balance] ${
+            lang === Language.MS ? 'text-[26px] sm:text-[clamp(28px,2.8vw,40px)]' : 'text-[30px] sm:text-[clamp(30px,3.2vw,46px)]'
           }`} style={{ animationDelay: '480ms' }}>
-            {currentT.landingHeading}
+            {headingLines.map((line, i) => <React.Fragment key={i}>{i > 0 && <br />}{line}</React.Fragment>)}
           </h1>
 
           {/* Rotating tagline */}
-          <div className="wise-rise mt-2.5 sm:mt-3 h-6 flex items-center justify-center overflow-hidden" style={{ animationDelay: '560ms' }} aria-live="polite">
-            <span key={`${lang}-${taglineIdx}`} className="wise-tagline inline-flex items-center gap-2 text-[13px] sm:text-[15px] text-white/60">
+          <div className="wise-rise mt-2.5 h-7 flex items-center overflow-hidden" style={{ animationDelay: '560ms' }} aria-live="polite">
+            <span key={`${lang}-${taglineIdx}`} className="wise-tagline inline-flex items-center gap-2 text-[14px] sm:text-[16px] font-light text-[#7d6470]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shrink-0" />
               {taglines[taglineIdx % taglines.length]}
             </span>
           </div>
 
-          <div className="wise-rise mt-6 sm:mt-8 scale-90 sm:scale-100" style={{ animationDelay: '660ms' }}>
-            <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} />
+          <div className="wise-rise mt-6 mb-5" style={{ animationDelay: '640ms' }}>
+            <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} className="!bg-white !border-[#ecdfcc] shadow-[0_8px_20px_-10px_rgba(99,3,48,0.25)]" />
           </div>
 
-          <div className="wise-rise mt-5 sm:mt-7 grid grid-cols-2 gap-3 w-full max-w-[460px]" style={{ animationDelay: '760ms' }}>
+          <div className="wise-rise grid grid-cols-2 gap-2.5 sm:gap-3 w-full max-w-[460px]" style={{ animationDelay: '740ms' }}>
             <button
               onClick={onEnterDashboard}
-              className="group h-12 sm:h-14 rounded-2xl bg-white text-[#630330] font-bold text-[14px] sm:text-base flex items-center justify-center gap-2 shadow-[0_14px_34px_-10px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.6)] active:translate-y-0 transition"
+              className="group h-[52px] sm:h-14 rounded-[15px] sm:rounded-2xl bg-[#630330] text-white font-medium text-[15px] sm:text-base flex items-center justify-center gap-2 shadow-[0_16px_34px_-14px_rgba(99,3,48,0.6)] hover:bg-[#7a0b3d] hover:-translate-y-0.5 active:translate-y-0 transition"
             >
               {t3.enter}
               <ChevronRight size={18} className={`transition-transform group-hover:translate-x-1 ${isRtl ? 'rotate-180 group-hover:-translate-x-1' : ''}`} />
             </button>
             <button
               onClick={openStatusCheck}
-              className="wise-sheen group relative overflow-hidden h-12 sm:h-14 rounded-2xl bg-gradient-to-b from-[#f0d78a] to-[#cfa73a] text-[#2A0114] font-bold text-[14px] sm:text-base flex items-center justify-center gap-2 shadow-[0_14px_34px_-12px_rgba(212,175,55,0.6)] ring-1 ring-inset ring-white/30 hover:-translate-y-0.5 hover:shadow-[0_20px_44px_-12px_rgba(212,175,55,0.7)] active:translate-y-0 transition"
+              className="wise-sheen group relative overflow-hidden h-[52px] sm:h-14 rounded-[15px] sm:rounded-2xl bg-gradient-to-b from-[#f0d78a] to-[#cfa73a] text-[#2A0114] font-medium text-[15px] sm:text-base flex items-center justify-center gap-2 shadow-[0_14px_34px_-12px_rgba(212,175,55,0.6)] hover:-translate-y-0.5 active:translate-y-0 transition"
             >
               <Search size={17} className="group-hover:scale-110 transition-transform" />
               {currentT.checkStatus}
             </button>
           </div>
         </div>
-      </div>
+
+        {/* Double arch */}
+        <div className="wise-rise min-w-0" style={{ animationDelay: '300ms' }} aria-hidden="true">
+          <div ref={archRef} className="wl-arches transition-transform duration-700 ease-out will-change-transform" dir="ltr">
+            <div className="wl-back" />
+            <div className="wl-arch">
+              <div className="wl-pattern" /><div className="in" /><div className="in2" />
+              {emblem ? <div className="emb"><img src={emblem} alt="" /></div> : <div className="wm">WISE</div>}
+            </div>
+            <div className="wl-seal">
+              <svg viewBox="0 0 120 120">
+                <defs><path id="wl-circ" d="M60 60 m-48 0 a48 48 0 1 1 96 0 a48 48 0 1 1 -96 0" /></defs>
+                <circle cx="60" cy="60" r="58" fill="#fff" stroke="#e8cf7a" />
+                <text fontFamily="Plus Jakarta Sans" fontSize="10.5" fontWeight="700" letterSpacing="3.2" fill="#630330">
+                  <textPath href="#wl-circ">{`WISE · FST · FATONI · ${new Date().getFullYear() + 543} · WISE · FST ·`}</textPath>
+                </text>
+              </svg>
+              <i>W</i>
+            </div>
+            {nextEvent && nextEvent.date && (
+              <div className="wl-float wl-float--a" dir={isRtl ? 'rtl' : 'ltr'}>
+                <small className="block text-[12px] text-[#8b7380]">{eventCountdown}</small>
+                <div className="n my-2">{shortDate(nextEvent.date)}</div>
+                <b className="block text-[14px] sm:text-[14.5px] font-medium leading-snug line-clamp-2">{nextEvent.label}</b>
+              </div>
+            )}
+            {sitesCount > 0 && (
+              <div className="wl-float wl-float--b" dir={isRtl ? 'rtl' : 'ltr'}>
+                <div className="n">{sitesCount}</div>
+                <b className="block mt-1 text-[14px] sm:text-[14.5px] font-medium">{t3.sites}</b>
+                {studentsThisYear > 0 && <small className="block text-[12px] text-[#8b7380] mt-0.5">{studentsThisYear} {t3.students}</small>}
+                <div className="flex gap-[3px] mt-2.5 h-1.5 rounded-full overflow-hidden">
+                  <i className="block flex-[38] bg-[#eb6834]" /><i className="block flex-[30] bg-[#2a78d6]" /><i className="block flex-[34] bg-[#4a3aa7]" /><i className="block flex-[26] bg-[#1baf7a]" />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
 
       {showStatusCheckModal && (
         <div
