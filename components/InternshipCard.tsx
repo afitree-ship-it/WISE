@@ -2,25 +2,30 @@
 import React from 'react';
 import { InternshipSite, Language, Major, LocalizedString } from '../types';
 import { TRANSLATIONS } from '../constants';
-import { MapPin, Mail, Phone, ExternalLink, GraduationCap, Flame, Sparkles, Briefcase, History, CheckCircle2 } from 'lucide-react';
+import { localize } from '../localize';
+import { MapPin, Mail, Phone, ArrowUpRight, Sparkles, Briefcase, History, CheckCircle2, Circle } from 'lucide-react';
 
 interface InternshipCardProps {
   site: InternshipSite;
   lang: Language;
 }
 
+const MAJOR_DOT: Record<Major, string> = {
+  [Major.HALAL_FOOD]: 'bg-amber-500',
+  [Major.DIGITAL_TECH]: 'bg-blue-500',
+  [Major.INFO_TECH]: 'bg-violet-500',
+  [Major.DATA_SCIENCE]: 'bg-teal-500',
+};
+
 const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
   const t = TRANSLATIONS[lang];
   const isActive = site.status === 'active';
   const isSeniorVisited = site.status === 'senior_visited';
-  
+
   // A site is considered "new" if it was created in the last 48 hours
   const isNew = site.createdAt && (Date.now() - site.createdAt < 172800000);
 
-  // Helper to extract localized text
-  const getLocalized = (localized: LocalizedString) => {
-    return localized[lang] || localized['en'] || localized['th'];
-  };
+  const getLocalized = (localized: LocalizedString) => localize(localized, lang);
 
   const getSafeUrl = (url?: string) => {
     if (!url) return undefined;
@@ -41,127 +46,83 @@ const InternshipCard: React.FC<InternshipCardProps> = ({ site, lang }) => {
     }
   };
 
-  const getMajorColorClass = (m: Major) => {
-    switch(m) {
-      case Major.HALAL_FOOD: return 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/50';
-      case Major.DIGITAL_TECH: return 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/50';
-      case Major.INFO_TECH: return 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800/50';
-      case Major.DATA_SCIENCE: return 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50';
-      default: return '';
-    }
-  };
-
   const description = getLocalized(site.description);
-  
+  const position = getLocalized(site.position);
+
+  const statusChip = isActive
+    ? { cls: 'bg-[#630330] text-white', icon: <Circle size={7} className="fill-emerald-400 text-emerald-400" />, label: t.activeSites }
+    : isSeniorVisited
+    ? { cls: 'bg-[#D4AF37]/15 text-[#8a6a14] dark:text-[#e8cf7a]', icon: <CheckCircle2 size={13} />, label: t.seniorVisitedSites }
+    : { cls: 'bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400', icon: <History size={13} />, label: t.pastSites };
+
   return (
-    <div className={`group relative overflow-hidden rounded-[2rem] bg-white dark:bg-slate-900 border-2 transition-all duration-500 flex flex-col h-full shadow-md hover:shadow-2xl hover:-translate-y-2
-      ${isActive 
-        ? 'border-[#630330]/20 dark:border-[#D4AF37]/30 shadow-[#630330]/5' 
-        : isSeniorVisited
-        ? 'border-amber-400/40 dark:border-amber-600/40 shadow-amber-500/5'
-        : 'border-slate-200 dark:border-slate-800'
-      }`}>
-      
-      {isNew && isActive && (
-        <div className="absolute top-0 right-0 bg-gradient-to-l from-[#D4AF37] to-[#f3d066] text-[#630330] py-1.5 px-4 rounded-bl-[1.5rem] font-black text-[10px] uppercase flex items-center gap-1 shadow-lg z-10">
-          <Sparkles size={12} className="animate-pulse" /> NEW
-        </div>
-      )}
+    <div className={`group relative flex flex-col h-full rounded-3xl bg-white dark:bg-[#1c0c14] border transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_44px_-28px_rgba(99,3,48,0.55)]
+      ${isActive ? 'border-[#efe4d2] dark:border-white/10 hover:border-[#D4AF37]/70' : 'border-[#efe4d2]/80 dark:border-white/5'}`}>
 
-      {/* Header Tags Section */}
-      <div className="p-5 pb-2 flex flex-wrap gap-2">
-        {isActive && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight border bg-[#630330] text-white border-[#630330] shadow-sm">
-            <Flame size={12} className="animate-bounce" /> {t.activeSites}
-          </div>
+      <div className="p-5 pb-0 flex flex-wrap items-center gap-1.5">
+        <span className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[12px] font-medium ${statusChip.cls}`}>
+          {statusChip.icon} {statusChip.label}
+        </span>
+        <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[12px] text-[#6e5560] dark:text-slate-300 bg-[#faf6ef] dark:bg-white/5">
+          <span className={`w-1.5 h-1.5 rounded-full ${MAJOR_DOT[site.major] || 'bg-slate-400'}`} /> {getMajorLabel(site.major)}
+        </span>
+        {isNew && isActive && (
+          <span className="ms-auto inline-flex items-center gap-1 h-7 px-2.5 rounded-full bg-gradient-to-b from-[#f0d78a] to-[#cfa73a] text-[#2A0114] text-[11px] font-semibold">
+            <Sparkles size={12} /> NEW
+          </span>
         )}
-
-        {isSeniorVisited && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight border bg-amber-500 text-white border-amber-500 shadow-sm">
-            <CheckCircle2 size={12} /> {t.seniorVisitedSites}
-          </div>
-        )}
-
-        {!isActive && !isSeniorVisited && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight border bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 shadow-sm">
-            <History size={12} /> {t.pastSites}
-          </div>
-        )}
-
-        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-tight border ${getMajorColorClass(site.major)}`}>
-          <GraduationCap size={12} /> {getMajorLabel(site.major)}
-        </div>
       </div>
-      
-      {/* Content Section */}
-      <div className="px-6 pb-5 flex-grow space-y-4">
-        <div>
-          <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight group-hover:text-[#630330] dark:group-hover:text-[#D4AF37] transition-colors mb-1.5">
-            {getLocalized(site.name)}
-          </h3>
-          <div className="flex items-center text-slate-500 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-            <MapPin size={14} className="mr-1.5 text-rose-500 flex-shrink-0" />
-            {getLocalized(site.location)}
-          </div>
-        </div>
 
-        {/* Job Position - Highlighted Box */}
-        <div className={`p-4 rounded-2xl border-2 shadow-inner transition-colors duration-500
-          ${isActive ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700 group-hover:bg-white group-hover:border-[#630330]/10' : 'bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800'}
-        `}>
-          <div className="text-[9px] font-black text-slate-400 uppercase mb-1.5 flex items-center gap-1.5 tracking-widest">
-            <Briefcase size={12} className="text-[#630330]/40 dark:text-[#D4AF37]/40" /> Position Required
-          </div>
-          <div className="text-[13px] font-black text-[#630330] dark:text-[#D4AF37] uppercase leading-tight">
-            {getLocalized(site.position) || '-'}
-          </div>
-        </div>
-        
-        {description && (
-          <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed line-clamp-3 font-medium italic opacity-70 group-hover:opacity-100 transition-opacity">
-            "{description}"
+      <div className="px-5 pt-4 pb-5 flex-grow">
+        <h3 className="text-[18px] font-medium leading-snug text-[#2a0a17] dark:text-white group-hover:text-[#630330] dark:group-hover:text-[#e8cf7a] transition-colors">
+          {getLocalized(site.name)}
+        </h3>
+        {getLocalized(site.location) && (
+          <p className="mt-1 flex items-center gap-1.5 text-[13px] font-light text-[#7d6470] dark:text-slate-400">
+            <MapPin size={14} className="shrink-0 text-[#D4AF37]" /> {getLocalized(site.location)}
           </p>
         )}
 
-        {/* Contact Information */}
-        <div className="space-y-2 pt-1">
-          {site.email && (
-            <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 group/link">
-              <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover/link:bg-[#630330]/5 group-hover/link:text-[#630330] transition-colors shadow-sm">
-                <Mail size={14} />
-              </div>
-              <span className="truncate">{site.email}</span>
-            </div>
-          )}
-          {site.phone && (
-            <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 group/link">
-              <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover/link:bg-[#630330]/5 group-hover/link:text-[#630330] transition-colors shadow-sm">
-                <Phone size={14} />
-              </div>
-              <span className="truncate">{site.phone}</span>
-            </div>
-          )}
-        </div>
+        {position && (
+          <div className="mt-4 flex items-start gap-2.5 p-3 rounded-2xl bg-[#faf6ef] dark:bg-white/[0.04]">
+            <Briefcase size={15} className="shrink-0 mt-0.5 text-[#630330]/60 dark:text-[#e8cf7a]/70" />
+            <span className="text-[14px] text-[#630330] dark:text-[#e8cf7a] leading-snug">{position}</span>
+          </div>
+        )}
+
+        {description && (
+          <p className="mt-3 text-[13px] font-light leading-relaxed text-[#6e5560] dark:text-slate-400 line-clamp-3">{description}</p>
+        )}
+
+        {(site.email || site.phone) && (
+          <div className="mt-4 space-y-1.5">
+            {site.email && (
+              <p className="flex items-center gap-2.5 text-[13px] text-[#6e5560] dark:text-slate-400 min-w-0 select-all">
+                <Mail size={14} className="shrink-0 text-[#a8862a]" /><span className="truncate">{site.email}</span>
+              </p>
+            )}
+            {site.phone && (
+              <p className="flex items-center gap-2.5 text-[13px] text-[#6e5560] dark:text-slate-400 select-all">
+                <Phone size={14} className="shrink-0 text-[#a8862a]" /><span className="truncate">{site.phone}</span>
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Action Section */}
-      <div className="p-6 pt-0 mt-auto">
+      <div className="px-5 pb-5 mt-auto">
         {safeContactLink ? (
-          <a 
-            href={safeContactLink} 
-            target="_blank" 
+          <a
+            href={safeContactLink}
+            target="_blank"
             rel="noopener noreferrer"
-            className={`w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-white text-[11px] font-black uppercase shadow-lg hover:shadow-[#630330]/20 hover:scale-[1.02] active:scale-95 transition-all
-              ${isSeniorVisited 
-                ? 'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/20' 
-                : 'bg-gradient-to-r from-[#630330] to-[#8B1A4F] dark:from-[#7a0b3d] dark:to-[#630330] shadow-[#630330]/20'
-              }`}
+            className="flex items-center justify-center gap-2 h-11 rounded-2xl bg-[#630330] hover:bg-[#7a0b3d] text-white text-[14px] font-medium transition active:scale-[0.98]"
           >
-            {t.visitWebsite} <ExternalLink size={14} />
+            {t.visitWebsite} <ArrowUpRight size={16} />
           </a>
         ) : (
-          <div className="w-full text-center py-4 text-[10px] text-slate-300 dark:text-slate-600 font-black uppercase border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl">
-            {lang === 'th' ? 'ไม่มีเว็บไซต์หลัก' : 'Official Website Unavailable'}
+          <div className="flex items-center justify-center h-11 rounded-2xl border border-dashed border-[#e5d6c0] dark:border-white/10 text-[13px] font-light text-[#a8949e]">
+            {lang === 'th' ? 'ไม่มีเว็บไซต์หลัก' : 'Official website unavailable'}
           </div>
         )}
       </div>
