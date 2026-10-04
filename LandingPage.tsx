@@ -153,6 +153,34 @@ const LandingPage: React.FC<LandingPageProps> = ({
     return `${label} · ${lang === Language.TH ? `อีก ${days} วัน` : `in ${days} days`}`;
   })();
 
+  // Background pattern: brighter around the cursor, water ripple when the empty background is tapped
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    let raf = 0;
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        el.style.setProperty('--wl-mx', `${e.clientX}px`);
+        el.style.setProperty('--wl-my', `${e.clientY}px`);
+        el.style.setProperty('--wl-spot', '1');
+      });
+    };
+    const onLeave = () => el.style.setProperty('--wl-spot', '0');
+    window.addEventListener('pointermove', onMove);
+    document.documentElement.addEventListener('mouseleave', onLeave);
+    return () => { window.removeEventListener('pointermove', onMove); document.documentElement.removeEventListener('mouseleave', onLeave); cancelAnimationFrame(raf); };
+  }, []);
+  const onBackgroundPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button, a, input, header, [role="dialog"], .wl-float, .wl-lockup, h1')) return;
+    const id = Date.now() + Math.random();
+    setRipples(r => [...r.slice(-4), { id, x: e.clientX, y: e.clientY }]);
+    setTimeout(() => setRipples(r => r.filter(p => p.id !== id)), 2000);
+  };
+
   // Subtle parallax of the arch following the cursor (desktop only)
   const archRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -412,7 +440,19 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className={`wl fixed inset-0 w-full h-full overflow-y-auto overflow-x-hidden touch-auto ${isRtl ? 'rtl' : ''}`} dir={isRtl ? 'rtl' : 'ltr'}>
+    <div ref={rootRef} onPointerDown={onBackgroundPointerDown} className={`wl fixed inset-0 w-full h-full overflow-y-auto overflow-x-hidden touch-auto ${isRtl ? 'rtl' : ''}`} dir={isRtl ? 'rtl' : 'ltr'}>
+      <div className="wl-pattern wl-bg wl-bg-base" aria-hidden="true" />
+      <div className="wl-pattern wl-bg wl-bg-spot" aria-hidden="true" />
+      {ripples.map(r => {
+        const pos = { '--x': `${r.x}px`, '--y': `${r.y}px` } as React.CSSProperties;
+        return (
+          <React.Fragment key={r.id}>
+            <div className="wl-pattern wl-bg wl-ripple" style={pos} aria-hidden="true" />
+            <span className="wl-ring" style={pos} aria-hidden="true" />
+            <span className="wl-ring wl-ring--2" style={pos} aria-hidden="true" />
+          </React.Fragment>
+        );
+      })}
       {/* Floating pill nav: faculty logo + staff access */}
       <header className="wise-rise sticky top-[max(12px,env(safe-area-inset-top))] z-30 mx-auto mt-3 sm:mt-5 w-[calc(100%-24px)] sm:w-[min(1180px,calc(100%-48px))] flex items-center justify-between gap-3 p-1.5 sm:p-2 ps-2 sm:ps-2.5 rounded-full bg-white/75 backdrop-blur-xl border border-[#efe4d2] shadow-[0_14px_34px_-22px_rgba(99,3,48,0.35)]">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -438,7 +478,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
         </button>
       </header>
 
-      <main className="relative mx-auto w-full max-w-[720px] lg:max-w-none lg:w-[min(1180px,calc(100%-48px))] px-[22px] sm:px-10 lg:px-0 pt-9 sm:pt-14 pb-12 lg:py-0 lg:min-h-[calc(100svh-90px)] grid lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-16 items-center">
+      <main className="relative z-10 mx-auto w-full max-w-[720px] lg:max-w-none lg:w-[min(1180px,calc(100%-48px))] px-[22px] sm:px-10 lg:px-0 pt-9 sm:pt-14 pb-12 lg:py-0 lg:min-h-[calc(100svh-90px)] grid lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-16 items-center">
         <div className="min-w-0 flex flex-col items-start">
           {/* Lockup: EN and TH lines are fitted to the exact width of the word WISE */}
           <div ref={lockupRef} className="wl-lockup" dir="ltr">

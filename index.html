@@ -100,6 +100,18 @@
     .wl-float--a { left: -50px; top: 46%; width: 230px; }
     .wl-float--b { right: 24px; bottom: 40px; width: 200px; animation-delay: -3.5s; }
     .wl-float .n { font: 800 34px/1 'Plus Jakarta Sans', sans-serif; color: #630330; letter-spacing: -1px; }
+    /* Background: faint star pattern, brighter around the cursor, water ripple on click */
+    .wl-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+    .wl-bg-base { opacity: .09; -webkit-mask-image: linear-gradient(100deg, rgba(0,0,0,.45) 0%, rgba(0,0,0,.7) 40%, #000 70%); mask-image: linear-gradient(100deg, rgba(0,0,0,.45) 0%, rgba(0,0,0,.7) 40%, #000 70%); }
+    .wl-bg-spot { opacity: var(--wl-spot, 0); transition: opacity .5s ease; -webkit-mask-image: radial-gradient(240px circle at var(--wl-mx, -999px) var(--wl-my, -999px), rgba(0,0,0,.42), transparent 72%); mask-image: radial-gradient(240px circle at var(--wl-mx, -999px) var(--wl-my, -999px), rgba(0,0,0,.42), transparent 72%); }
+    @property --wl-r { syntax: '<length>'; inherits: false; initial-value: 0px; }
+    .wl-ripple { --wl-r: 0px; -webkit-mask-image: radial-gradient(circle at var(--x) var(--y), transparent calc(var(--wl-r) - 48px), #000 var(--wl-r), transparent calc(var(--wl-r) + 48px)); mask-image: radial-gradient(circle at var(--x) var(--y), transparent calc(var(--wl-r) - 48px), #000 var(--wl-r), transparent calc(var(--wl-r) + 48px)); animation: wl-ripple 1.8s cubic-bezier(.2,.6,.3,1) forwards, wl-ripple-fade 1.8s linear forwards; }
+    @keyframes wl-ripple { from { --wl-r: 0px; } to { --wl-r: 560px; } }
+    @keyframes wl-ripple-fade { 0%, 30% { opacity: .7; } 100% { opacity: 0; } }
+    .wl-ring { position: fixed; left: var(--x); top: var(--y); width: 0; height: 0; translate: -50% -50%; border-radius: 50%; border: 1.5px solid rgba(212,175,55,.55); pointer-events: none; z-index: 0; animation: wl-ring 1.4s cubic-bezier(.2,.6,.3,1) forwards, wl-ring-fade 1.4s linear forwards; }
+    .wl-ring--2 { border-color: rgba(212,175,55,.4); animation-delay: .2s; opacity: 0; }
+    @keyframes wl-ring { from { width: 0; height: 0; } to { width: 440px; height: 440px; } }
+    @keyframes wl-ring-fade { 0%, 25% { opacity: 1; } 100% { opacity: 0; } }
     @keyframes wl-spin { to { transform: rotate(360deg); } }
     @keyframes wl-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
     @keyframes wl-glow { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
