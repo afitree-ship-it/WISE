@@ -7,26 +7,13 @@ import InternshipCard from './InternshipCard';
 import LanguageSwitcher from './LanguageSwitcher';
 import { localize } from '../localize';
 import { useFitLockup } from '../useFitLockup';
+import { ChecklistStep, DEFAULT_CHECKLIST } from '../checklist';
 import {
   CalendarDays, FileText, Download, Search, Building2, ArrowRight, ChevronDown, X, Info, Check, Moon, Sun, LogOut,
   ListChecks, Users, Briefcase, GraduationCap, Sparkles, ExternalLink, RotateCcw,
 } from 'lucide-react';
 
 type Tab = 'all' | 'check' | 'schedule' | 'docs' | 'sites';
-type StepLink = 'sites' | 'app' | 'monitor' | 'deadline' | null;
-interface Step { id: string; group: 0 | 1 | 2; link: StepLink }
-
-const STEPS: Step[] = [
-  { id: 'pick', group: 0, link: 'sites' },
-  { id: 'advisor', group: 0, link: null },
-  { id: 'form', group: 0, link: 'app' },
-  { id: 'submit', group: 0, link: 'deadline' },
-  { id: 'reply', group: 0, link: null },
-  { id: 'orient', group: 0, link: null },
-  { id: 'weekly', group: 1, link: 'monitor' },
-  { id: 'visit', group: 1, link: null },
-  { id: 'report', group: 2, link: null },
-];
 const CHECK_KEY = 'wise_student_checklist';
 
 const STRINGS = {
@@ -39,17 +26,6 @@ const STRINGS = {
     savedLocal: 'เช็กลิสต์จำไว้ในเครื่องนี้', nextTask: 'สิ่งที่ต้องทำต่อไป', allDone: 'ครบทุกขั้นแล้ว ยอดเยี่ยม!', reset: 'เริ่มใหม่',
     todo: 'สิ่งที่ต้องทำ', todoSub: 'ติ๊กเมื่อทำเสร็จ เอกสารที่ต้องใช้อยู่ข้างแต่ละรายการ',
     groups: ['ก่อนออกฝึก', 'ระหว่างฝึก', 'หลังฝึก'],
-    steps: {
-      pick: ['เลือกสถานประกอบการ', 'ดูที่เปิดรับ หรือที่รุ่นพี่เคยไป'],
-      advisor: ['ปรึกษาอาจารย์ที่ปรึกษา', 'ยืนยันสถานที่และช่วงเวลาฝึก'],
-      form: ['กรอกแบบฟอร์มสมัคร', 'ดาวน์โหลดเอกสารสมัครงาน'],
-      submit: ['ยื่นเอกสารที่เจ้าหน้าที่ WISE', 'ตามกำหนดการ'],
-      reply: ['รอผลการตอบรับ', 'ติดตามสถานะได้จากหน้าแรก'],
-      orient: ['เข้าร่วมปฐมนิเทศ', 'ก่อนออกฝึก'],
-      weekly: ['ส่งบันทึกการฝึกทุกสัปดาห์', 'ใช้เอกสารระหว่างฝึกงาน'],
-      visit: ['รับการนิเทศจากอาจารย์', 'อาจารย์นิเทศจะนัดหมายล่วงหน้า'],
-      report: ['ส่งรายงานและแบบประเมิน', 'เมื่อฝึกครบตามกำหนด'],
-    } as Record<string, [string, string]>,
     openForms: (n: number) => `เอกสาร ${n}`, seeSites: 'ดูสถานที่', schedule: 'กำหนดการ', scheduleSub: 'วันสำคัญและกำหนดส่งเอกสาร',
     showPast: (n: number) => `แสดงที่ผ่านมาแล้ว (${n})`, hidePast: 'ซ่อนที่ผ่านมาแล้ว', noEvents: 'ยังไม่มีกำหนดการ',
     docsSub: 'ดาวน์โหลดแบบฟอร์มที่ต้องใช้ในแต่ละขั้นตอน', noForms: 'ยังไม่มีเอกสารในหมวดนี้',
@@ -70,17 +46,6 @@ const STRINGS = {
     savedLocal: 'Saved on this device', nextTask: 'Next task', allDone: 'All steps done. Great work!', reset: 'Reset',
     todo: 'To-do', todoSub: 'Tick each step when done. Related documents sit beside each item.',
     groups: ['Before placement', 'During placement', 'After placement'],
-    steps: {
-      pick: ['Choose a placement', 'Browse open sites or where seniors went'],
-      advisor: ['Meet your advisor', 'Confirm the site and dates'],
-      form: ['Fill in the application', 'Download the application forms'],
-      submit: ['Submit documents to WISE', 'By the deadline'],
-      reply: ['Wait for the reply', 'Track your status from the home page'],
-      orient: ['Attend orientation', 'Before you start'],
-      weekly: ['Send weekly logs', 'Use the in-placement forms'],
-      visit: ['Supervisor visit', 'Your supervisor will schedule it'],
-      report: ['Submit report and evaluation', 'When the placement ends'],
-    } as Record<string, [string, string]>,
     openForms: (n: number) => `${n} docs`, seeSites: 'See sites', schedule: 'Schedule', scheduleSub: 'Key dates and document deadlines',
     showPast: (n: number) => `Show past (${n})`, hidePast: 'Hide past', noEvents: 'No events scheduled',
     docsSub: 'Download the forms you need at each step', noForms: 'No documents in this category yet',
@@ -101,17 +66,6 @@ const STRINGS = {
     savedLocal: 'محفوظة على هذا الجهاز', nextTask: 'المهمة التالية', allDone: 'أنجزت جميع الخطوات!', reset: 'إعادة',
     todo: 'المهام', todoSub: 'ضع علامة عند الإنجاز، والنماذج بجانب كل مهمة',
     groups: ['قبل التدريب', 'أثناء التدريب', 'بعد التدريب'],
-    steps: {
-      pick: ['اختر جهة التدريب', 'المتاحة أو التي ذهب إليها السابقون'],
-      advisor: ['استشر المرشد الأكاديمي', 'تأكيد الجهة والمدة'],
-      form: ['املأ نموذج الطلب', 'حمّل نماذج التقديم'],
-      submit: ['سلّم الوثائق لوحدة WISE', 'حسب الموعد'],
-      reply: ['انتظر الرد', 'تابع حالتك من الصفحة الرئيسية'],
-      orient: ['احضر اللقاء التعريفي', 'قبل بدء التدريب'],
-      weekly: ['أرسل السجل الأسبوعي', 'استخدم نماذج أثناء التدريب'],
-      visit: ['زيارة المشرف', 'سيحدد المشرف الموعد'],
-      report: ['سلّم التقرير والتقييم', 'عند انتهاء التدريب'],
-    } as Record<string, [string, string]>,
     openForms: (n: number) => `${n} نماذج`, seeSites: 'عرض الجهات', schedule: 'المواعيد', scheduleSub: 'التواريخ المهمة ومواعيد التسليم',
     showPast: (n: number) => `عرض السابقة (${n})`, hidePast: 'إخفاء السابقة', noEvents: 'لا توجد مواعيد',
     docsSub: 'حمّل النماذج المطلوبة في كل مرحلة', noForms: 'لا توجد نماذج في هذا القسم',
@@ -132,17 +86,6 @@ const STRINGS = {
     savedLocal: 'Disimpan pada peranti ini', nextTask: 'Tugasan seterusnya', allDone: 'Semua langkah selesai!', reset: 'Set semula',
     todo: 'Perlu dibuat', todoSub: 'Tandakan apabila selesai. Dokumen berkaitan ada di sebelah setiap item.',
     groups: ['Sebelum latihan', 'Semasa latihan', 'Selepas latihan'],
-    steps: {
-      pick: ['Pilih tempat latihan', 'Lihat yang dibuka atau tempat senior pernah pergi'],
-      advisor: ['Jumpa penasihat', 'Sahkan tempat dan tarikh'],
-      form: ['Isi borang permohonan', 'Muat turun borang permohonan'],
-      submit: ['Hantar dokumen kepada WISE', 'Mengikut tarikh akhir'],
-      reply: ['Tunggu jawapan', 'Semak status dari halaman utama'],
-      orient: ['Hadiri orientasi', 'Sebelum bermula'],
-      weekly: ['Hantar log mingguan', 'Guna borang semasa latihan'],
-      visit: ['Lawatan penyelia', 'Penyelia akan menetapkan tarikh'],
-      report: ['Hantar laporan dan penilaian', 'Apabila latihan tamat'],
-    } as Record<string, [string, string]>,
     openForms: (n: number) => `${n} dokumen`, seeSites: 'Lihat tempat', schedule: 'Jadual', scheduleSub: 'Tarikh penting dan tarikh akhir',
     showPast: (n: number) => `Tunjuk lepas (${n})`, hidePast: 'Sembunyi lepas', noEvents: 'Tiada acara dijadualkan',
     docsSub: 'Muat turun borang yang diperlukan', noForms: 'Tiada dokumen dalam kategori ini',
@@ -189,6 +132,7 @@ interface StudentPortalProps {
   schedules: ScheduleEvent[];
   forms: DocumentForm[];
   studentStatuses: StudentStatusRecord[];
+  checklist?: ChecklistStep[];
   searchTerm: string;
   setSearchTerm: (v: string) => void;
   activeMajor: Major | 'all';
@@ -203,7 +147,7 @@ interface StudentPortalProps {
 }
 
 const StudentPortal: React.FC<StudentPortalProps> = ({
-  lang, setLang, currentT, isRtl, sites, schedules, forms, studentStatuses, searchTerm, setSearchTerm,
+  lang, setLang, currentT, isRtl, sites, schedules, forms, studentStatuses, checklist, searchTerm, setSearchTerm,
   activeMajor, setActiveMajor, majorChips, emblem, emblemIsIcon, theme, onToggleTheme, onLogout, onHome,
 }) => {
   const S = STRINGS[lang] || STRINGS[Language.TH];
@@ -227,6 +171,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
     try { return JSON.parse(localStorage.getItem(CHECK_KEY) || '{}'); } catch { return {}; }
   });
   useEffect(() => { try { localStorage.setItem(CHECK_KEY, JSON.stringify(done)); } catch { /* storage blocked */ } }, [done]);
+  const STEPS = (checklist?.length ? checklist : DEFAULT_CHECKLIST).filter(s => (s.title.th || s.title.en || '').trim());
   const doneCount = STEPS.filter(s => done[s.id]).length;
   const nextStep = STEPS.find(s => !done[s.id]);
 
@@ -313,7 +258,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
     </div>
   );
 
-  const stepLinkBtn = (step: Step) => {
+  const stepLinkBtn = (step: ChecklistStep) => {
     const cls = 'shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12.5px] bg-[#630330]/[0.06] dark:bg-white/5 text-[#630330] dark:text-[#e8cf7a] hover:bg-[#630330] hover:text-white transition';
     if (step.link === 'sites') return <button onClick={() => go('sites')} className={cls}><Building2 size={14} />{S.seeSites}</button>;
     if (step.link === 'app' && appForms.length) return <button onClick={() => go('docs')} className={cls}><Download size={14} />{S.openForms(appForms.length)}</button>;
@@ -429,7 +374,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
                 <p className="text-[12.5px] text-[#e8cf7a]">{S.myProgress}</p>
                 <p className="text-[17px] font-medium leading-snug">{S.doneOf(doneCount, STEPS.length)}</p>
                 <div className="mt-3 p-3 rounded-2xl bg-white/10 text-start text-[13.5px] leading-snug">
-                  {nextStep ? (<><span className="block text-[12px] text-[#e8cf7a]">{S.nextTask}</span>{S.steps[nextStep.id][0]}</>) : <span className="inline-flex items-center gap-1.5"><Sparkles size={15} className="text-[#e8cf7a]" />{S.allDone}</span>}
+                  {nextStep ? (<><span className="block text-[12px] text-[#e8cf7a]">{S.nextTask}</span>{loc(nextStep.title as LocalizedString)}</>) : <span className="inline-flex items-center gap-1.5"><Sparkles size={15} className="text-[#e8cf7a]" />{S.allDone}</span>}
                 </div>
                 <p className="mt-2 text-[11.5px] font-light text-white/55">{S.savedLocal}</p>
               </div>
@@ -449,7 +394,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
                   {STEPS.filter(s => s.group === g).map(step => {
                     const isDone = !!done[step.id];
                     const isNext = nextStep?.id === step.id;
-                    const [title, hint] = S.steps[step.id];
+                    const title = loc(step.title as LocalizedString), hint = loc(step.hint as LocalizedString);
                     return (
                       <div key={step.id} className={`flex items-center gap-3 px-2 py-2.5 rounded-2xl transition ${isNext ? 'bg-[#D4AF37]/10' : ''}`}>
                         <button

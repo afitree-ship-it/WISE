@@ -69,6 +69,7 @@ import SharedSummaryTable, { SupervisorSaveFn } from './SharedSummaryTable';
 import Dashboard, { DashboardFilters } from './components/Dashboard';
 import { DateRangePicker, RangePreset, addMonths, normalizeISO, toISO } from './components/admin/DatePicker';
 import { processImage } from './imageUtils';
+import ChecklistEditor from './components/admin/ChecklistEditor';
 import { LockMap, FieldLock, getEditorName, setEditorName } from './liveSync';
 import { formatDateBE } from './dateUtils';
 import { exportToExcel, exportToWord, exportToPDF } from './exportUtils';
@@ -943,7 +944,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     { id: 'schedule', label: 'กำหนดการ', desc: 'วันสำคัญและกำหนดส่งที่นักศึกษาจะเห็นในหน้าหลัก', icon: <CalendarDays size={18} />, count: schedules.length },
     { id: 'forms', label: 'เอกสาร', desc: 'แบบฟอร์มสำหรับดาวน์โหลดในศูนย์เอกสาร', icon: <FileText size={18} />, count: forms.length },
     { id: 'admins', label: 'สิทธิ์แอดมิน', desc: 'รหัสผ่านที่ใช้เข้าสู่ระบบหลังบ้าน', icon: <ShieldCheck size={18} />, count: adminPasswords.length },
-    { id: 'settings', label: 'ตั้งค่าเว็บไซต์', desc: 'โลโก้ ไอคอนแท็บ ตรากลางซุ้มหน้าแรก และชื่อเว็บไซต์', icon: <Settings2 size={18} />, count: -1 },
+    { id: 'settings', label: 'ตั้งค่าเว็บไซต์', desc: 'โลโก้ ไอคอนแท็บ ตรากลางซุ้ม เช็กลิสต์นักศึกษา และชื่อเว็บไซต์', icon: <Settings2 size={18} />, count: -1 },
   ];
   const activeMenu = adminMenu.find(m => m.id === adminActiveTab)!;
 
@@ -1361,6 +1362,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       )}
                       <span className="text-[11px] text-slate-400">ย่อเป็น 320×320px อัตโนมัติ</span>
                     </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Student checklist */}
+              <section className={`${card} p-5`}>
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="md:w-64 shrink-0">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">เช็กลิสต์ของนักศึกษา</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">รายการ "สิ่งที่ต้องทำ" ในหน้านักศึกษา เพิ่ม แก้ไข สลับลำดับ หรือลบขั้นตอนได้ และเลือกปุ่มลัดไปยังเอกสารหรือสถานประกอบการ</p>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <ChecklistEditor value={draftSettings.checklist} onChange={(next) => setDraftSettings(p => ({ ...p, checklist: next }))} />
                   </div>
                 </div>
               </section>

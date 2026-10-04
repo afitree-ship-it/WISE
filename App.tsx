@@ -13,6 +13,7 @@ import {
   SiteSettings
 } from './types';
 import { SHEET_API_URL } from './config';
+import { parseChecklist } from './checklist';
 import { fetchLive, saveSupervisor, LiveRow, FieldLock } from './liveSync';
 import { useLiveSupervisors } from './useLiveSupervisors';
 import DashboardPage from './DashboardPage';
@@ -54,6 +55,7 @@ const settingsFromRows = (rows: any[]): SiteSettings => {
     const k = String(r?.key || '');
     const v = String(r?.value || '');
     if (k === 'logo' || k === 'favicon' || k === 'siteTitle' || k === 'heroEmblem') (out as any)[k] = v;
+    if (k === 'checklist') out.checklist = parseChecklist(v);
   });
   return out;
 };
@@ -426,6 +428,7 @@ const App: React.FC = () => {
       { key: 'favicon', value: next.favicon || '' },
       { key: 'siteTitle', value: next.siteTitle || '' },
       { key: 'heroEmblem', value: next.heroEmblem || '' },
+      { key: 'checklist', value: next.checklist?.length ? JSON.stringify(next.checklist) : '' },
     ], 'all');
   }, [syncToSheets]);
 
@@ -752,6 +755,7 @@ const App: React.FC = () => {
           setLang={setLang}
           currentT={currentT}
           studentStatuses={studentStatuses}
+          checklist={siteSettings.checklist}
           emblem={siteSettings.favicon || siteSettings.logo}
           emblemIsIcon={!!siteSettings.favicon}
           theme={theme}

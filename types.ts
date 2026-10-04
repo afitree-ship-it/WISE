@@ -59,6 +59,7 @@ export interface SiteSettings {
   favicon?: string;   // data URL used as the browser tab icon
   siteTitle?: string; // browser tab title
   heroEmblem?: string; // data URL shown inside the arch on the landing page
+  checklist?: import('./checklist').ChecklistStep[]; // student checklist; stored as JSON, unset = defaults
 }
 
 export interface LocalizedString {
