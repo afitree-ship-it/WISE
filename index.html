@@ -285,8 +285,40 @@
     .wise-pop-in { animation: wise-pop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.1) both; }
     @keyframes wise-fade { from { opacity: 0; } to { opacity: 1; } }
     @keyframes wise-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+    /* ---- Landing page touches ---- */
+    .wise-rise { opacity: 0; animation: wise-rise .8s cubic-bezier(.2,.8,.2,1) forwards; }
+    @keyframes wise-rise { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+    .wise-arch-path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: wise-draw 2.6s cubic-bezier(.6,0,.2,1) .1s forwards; }
+    .wise-arch-path--inner { animation-delay: .5s; }
+    @keyframes wise-draw { to { stroke-dashoffset: 0; } }
+    .wise-arch-dot { opacity: 0; animation: wise-dot-in .6s ease-out 1.6s forwards, wise-dot-glow 3s ease-in-out 2.2s infinite; }
+    @keyframes wise-dot-in { to { opacity: 1; } }
+    @keyframes wise-dot-glow { 0%,100% { box-shadow: 0 0 10px 2px rgba(212,175,55,.35); } 50% { box-shadow: 0 0 22px 8px rgba(212,175,55,.6); } }
+    .wise-shimmer-text {
+      color: transparent; -webkit-background-clip: text; background-clip: text;
+      background-image: linear-gradient(110deg, transparent 42%, rgba(255,255,255,.95) 50%, transparent 58%), linear-gradient(180deg, #fff 30%, #f1dfa6 75%, #c69a2e);
+      background-size: 250% 100%, 100% 100%; background-repeat: no-repeat;
+      background-position: 160% 0, 0 0;
+      animation: wise-rise .8s cubic-bezier(.2,.8,.2,1) forwards, wise-shimmer 6s ease-in-out 1.4s infinite;
+    }
+    @keyframes wise-shimmer { 0% { background-position: 160% 0, 0 0; } 35%, 100% { background-position: -60% 0, 0 0; } }
+    .wise-tagline { animation: wise-tagline 3.2s ease-in-out both; }
+    @keyframes wise-tagline { 0% { opacity: 0; transform: translateY(10px); } 12%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-10px); } }
+    .wise-sheen::after {
+      content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%;
+      background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent);
+      transform: skewX(-20deg); animation: wise-sheen 4.5s ease-in-out 2s infinite; pointer-events: none;
+    }
+    @keyframes wise-sheen { 0% { left: -60%; } 25%, 100% { left: 130%; } }
+    .wise-grow { animation: wise-grow 1.2s cubic-bezier(.2,.8,.2,1) both; transform-origin: left; }
+    @keyframes wise-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
     @media (prefers-reduced-motion: reduce) {
-      .wise-fade-in, .wise-pop-in, .reveal-anim { animation: none !important; }
+      .wise-fade-in, .wise-pop-in, .reveal-anim, .wise-rise, .wise-tagline, .wise-grow { animation: none !important; opacity: 1 !important; }
+      .wise-arch-path { animation: none !important; stroke-dashoffset: 0 !important; }
+      .wise-arch-dot { animation: none !important; opacity: 1 !important; }
+      .wise-shimmer-text { animation: none !important; opacity: 1 !important; }
+      .wise-sheen::after { display: none; }
     }
     .hide-scrollbar { scrollbar-width: none; }
     .hide-scrollbar::-webkit-scrollbar { display: none; }

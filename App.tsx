@@ -575,6 +575,16 @@ const App: React.FC = () => {
     return [...schedules].sort((a, b) => (a.rawStartDate || '').localeCompare(b.rawStartDate || ''));
   }, [schedules]);
 
+  // Nearest upcoming/ongoing schedule item for the landing page
+  const today = new Date().toISOString().split('T')[0];
+  const upcomingEvent = sortedSchedules.find(s => (s.rawEndDate || s.rawStartDate || '') >= today);
+  const nextEvent = upcomingEvent
+    ? {
+        label: getLocalized(upcomingEvent.event),
+        date: (upcomingEvent.rawStartDate && upcomingEvent.rawStartDate > today ? upcomingEvent.rawStartDate : upcomingEvent.rawEndDate) || upcomingEvent.rawStartDate || '',
+      }
+    : null;
+
   const goLanding = () => {
     setViewState('landing');
     window.history.pushState({ view: 'landing' }, '', window.location.pathname);
@@ -619,6 +629,9 @@ const App: React.FC = () => {
           onAdminLogin={handleAdminLogin as any}
           studentStatuses={studentStatuses}
           logo={siteSettings.logo}
+          favicon={siteSettings.favicon}
+          sitesCount={sites.filter(s => s.status !== 'archived').length}
+          nextEvent={nextEvent}
         />
         {contextMenu.visible && (
           <div 

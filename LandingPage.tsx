@@ -46,6 +46,9 @@ interface LandingPageProps {
   onAdminLogin: (password: string) => Promise<boolean>;
   studentStatuses: StudentStatusRecord[];
   logo?: string;
+  favicon?: string;
+  sitesCount?: number;
+  nextEvent?: { label: string; date: string } | null;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ 
@@ -56,7 +59,10 @@ const LandingPage: React.FC<LandingPageProps> = ({
   onEnterDashboard, 
   onAdminLogin,
   studentStatuses,
-  logo
+  logo,
+  favicon,
+  sitesCount = 0,
+  nextEvent = null
 }) => {
   const [showStatusCheckModal, setShowStatusCheckModal] = useState(false);
   const [searchStudentId, setSearchStudentId] = useState('');
@@ -77,6 +83,95 @@ const LandingPage: React.FC<LandingPageProps> = ({
     const now = Date.now();
     return lockedUntil > now ? Math.ceil((lockedUntil - now) / 1000) : 0;
   });
+
+  const facultyName = lang === Language.TH ? 'คณะวิทยาศาสตร์และเทคโนโลยี' : lang === Language.AR ? 'كلية العلوم والتكنولوجيا' : lang === Language.MS ? 'Fakulti Sains dan Teknologi' : 'Faculty of Science and Technology';
+  const universityName = lang === Language.TH ? 'มหาวิทยาลัยฟาฏอนี' : lang === Language.AR ? 'جامعة فطاني' : lang === Language.MS ? 'Universiti Fatoni' : 'Fatoni University';
+  const t3 = {
+    [Language.TH]: { enter: 'เข้าสู่ระบบ', staff: 'เจ้าหน้าที่', sites: 'สถานประกอบการ', students: 'นักศึกษาปีนี้' },
+    [Language.EN]: { enter: 'Enter site', staff: 'Staff', sites: 'partner sites', students: 'students this year' },
+    [Language.AR]: { enter: 'دخول', staff: 'الموظفون', sites: 'جهة تدريب', students: 'طالب هذا العام' },
+    [Language.MS]: { enter: 'Masuk', staff: 'Kakitangan', sites: 'tempat latihan', students: 'pelajar tahun ini' },
+  }[lang] || { enter: 'เข้าสู่ระบบ', staff: 'เจ้าหน้าที่', sites: 'สถานประกอบการ', students: 'นักศึกษาปีนี้' };
+  const emblem = favicon || logo;
+
+  // Rotating tagline under the heading
+  const taglines = {
+    [Language.TH]: ['ค้นหาสถานประกอบการที่ใช่สำหรับคุณ', 'ดาวน์โหลดแบบฟอร์มครบในที่เดียว', 'ติดตามสถานะได้ทุกที่ ทุกเวลา'],
+    [Language.EN]: ['Find the right placement for you', 'Every form you need, in one place', 'Track your status anytime, anywhere'],
+    [Language.AR]: ['اعثر على جهة التدريب المناسبة لك', 'جميع النماذج في مكان واحد', 'تابع حالتك في أي وقت ومن أي مكان'],
+    [Language.MS]: ['Cari tempat latihan yang sesuai', 'Semua borang dalam satu tempat', 'Semak status anda bila-bila masa'],
+  }[lang] || [];
+  const [taglineIdx, setTaglineIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTaglineIdx(i => i + 1), 3200);
+    return () => clearInterval(id);
+  }, []);
+
+  // Subtle parallax of the arch following the cursor (desktop only)
+  const archRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (window.matchMedia('(pointer: coarse), (prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0;
+    const onMove = (e: MouseEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const x = (e.clientX / window.innerWidth - 0.5) * 14;
+        const y = (e.clientY / window.innerHeight - 0.5) * 10;
+        if (archRef.current) archRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      });
+    };
+    window.addEventListener('mousemove', onMove);
+    return () => { window.removeEventListener('mousemove', onMove); cancelAnimationFrame(raf); };
+  }, []);
+
+  const isTH = lang === Language.TH;
+  const L = {
+    hint: isTH ? 'กรอกรหัสนักศึกษา แล้วกดค้นหาเพื่อดูสถานะล่าสุด' : 'Enter your student ID to see your latest status',
+    notFoundHint: isTH ? 'ตรวจสอบรหัสอีกครั้ง หรือติดต่อเจ้าหน้าที่ WISE' : 'Double-check your ID or contact WISE staff',
+    supervisor: isTH ? 'อาจารย์นิเทศ' : 'Supervisor',
+    step1: isTH ? 'ส่งข้อมูล' : 'Submitted',
+    step2: isTH ? 'จัดเตรียมเอกสาร' : 'Preparing',
+    step3: isTH ? 'ตอบรับแล้ว' : 'Accepted',
+    step3No: isTH ? 'ไม่ผ่าน' : 'Not accepted',
+  };
+
+  const openStatusCheck = () => {
+    setSearchStudentId('');
+    setFoundStatuses(undefined);
+    setShowStatusCheckModal(true);
+  };
+
+  useEffect(() => {
+    if (!showStatusCheckModal) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowStatusCheckModal(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showStatusCheckModal]);
+
+  const initials = (name: string) => {
+    const parts = String(name || '').replace(/^(นางสาว|นาย|นาง|น\.ส\.|Mr\.?|Ms\.?|Mrs\.?)\s*/i, '').trim().split(/\s+/);
+    const first = (p?: string) => (p || '').replace(/^[เแโใไ]/, '').charAt(0);
+    return (first(parts[0]) + first(parts[1])) || '?';
+  };
+
+  const trainingProgress = (start?: string, end?: string) => {
+    const a = start ? new Date(start) : null, b = end ? new Date(end) : null;
+    if (!a || !b || isNaN(a.getTime()) || isNaN(b.getTime()) || b <= a) return null;
+    const now = new Date();
+    const day = 86400000;
+    const totalWeeks = Math.max(1, Math.ceil((b.getTime() - a.getTime()) / (7 * day)));
+    if (now < a) {
+      const days = Math.ceil((a.getTime() - now.getTime()) / day);
+      return { pct: 0, label: isTH ? `เริ่มฝึกอีก ${days} วัน` : `Starts in ${days} days` };
+    }
+    if (now > b) return { pct: 100, label: isTH ? 'ฝึกครบแล้ว' : 'Completed' };
+    const week = Math.min(totalWeeks, Math.ceil((now.getTime() - a.getTime() + 1) / (7 * day)));
+    return { pct: Math.round(((now.getTime() - a.getTime()) / (b.getTime() - a.getTime())) * 100), label: isTH ? `สัปดาห์ที่ ${week} จาก ${totalWeeks}` : `Week ${week} of ${totalWeeks}` };
+  };
+  const studentsThisYear = React.useMemo(() => {
+    const be = String(new Date().getFullYear() + 543);
+    return studentStatuses.filter(s => String(s.academicYear || '').trim() === be).length;
+  }, [studentStatuses]);
 
   const maxAttempts = 5;
   const lockoutDuration = 60; // seconds
@@ -283,249 +378,249 @@ const LandingPage: React.FC<LandingPageProps> = ({
       <TechMeteorShower />
       <ModernWaves />
       
-      <div className="landing-content-wrapper flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-4 sm:px-6 reveal-anim h-full pointer-events-none py-2 sm:py-4">
-        <div className="flex flex-col items-center space-y-2.5 sm:space-y-4 pointer-events-auto">
-           {logo && <img src={logo} alt="โลโก้" className="h-12 sm:h-16 max-w-[220px] object-contain drop-shadow-lg" />}
-           <div className="px-4 sm:px-7 py-1.5 sm:py-2.5 glass-polish rounded-full border border-white/10 shadow-2xl backdrop-blur-3xl transform hover:scale-105 transition-all">
-             <div className="flex flex-row items-center gap-2 sm:gap-6 whitespace-nowrap overflow-hidden">
-               <span className="text-[8px] sm:text-xs font-bold uppercase text-white tracking-normal opacity-90">
-                 {lang === Language.TH ? "คณะวิทยาศาสตร์และเทคโนโลยี" : (lang === Language.AR ? "كلية العلوم والتكنولوجيا" : "Faculty of Science and Technology")}
-               </span>
-               <div className="w-1 h-1 sm:w-2 sm:h-2 bg-[#D4AF37] rounded-full opacity-40"></div>
-               <span className="text-[8px] sm:text-xs font-bold uppercase text-[#D4AF37] tracking-normal">
-                 {lang === Language.TH ? "มหาวิทยาลัยฟาฏอนี" : (lang === Language.AR ? "جامعة فطاني" : "Fatoni University")}
-               </span>
-             </div>
-           </div>
+      {/* Top bar: faculty logo (left) + staff access (right) */}
+      <header className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-4 sm:px-8 lg:px-12 pt-4 sm:pt-6 pointer-events-auto">
+        <div className="wise-rise flex items-center gap-2.5 sm:gap-3 pl-1.5 pr-4 sm:pr-5 py-1.5 rounded-full bg-white/[0.08] border border-white/15 backdrop-blur-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] max-w-[78vw]">
+          <span className="w-9 h-9 sm:w-11 sm:h-11 shrink-0 rounded-full bg-white overflow-hidden flex items-center justify-center ring-2 ring-white/20">
+            {emblem ? (
+              <img src={emblem} alt="" className={`w-full h-full ${favicon ? 'object-contain p-0.5' : 'object-cover object-left'}`} />
+            ) : (
+              <span className="text-[10px] font-extrabold text-[#630330]">FST</span>
+            )}
+          </span>
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate text-[12px] sm:text-[14px] font-semibold text-white">{facultyName}</span>
+            <span className="block truncate text-[10px] sm:text-[12px] text-white/60">{universityName}</span>
+          </span>
+        </div>
+        <button
+          onClick={() => { setLoginError(false); setLoginSuccess(false); setShowAdminLogin(true); }}
+          className="flex items-center gap-2 h-10 px-3 sm:px-4 rounded-full text-[13px] font-medium text-white/80 hover:text-white hover:bg-white/10 border border-white/10 backdrop-blur-md transition"
+          title="Staff Access"
+        >
+          <LockKeyhole size={15} className="text-[#D4AF37]" />
+          <span className="hidden sm:inline">{t3.staff}</span>
+        </button>
+      </header>
 
-           <div className="relative flex flex-col items-center group text-center max-w-full">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[100px] w-60 h-60 sm:w-80 sm:h-80 bg-[#D4AF37] rounded-full"></div>
-              <h2 className="relative text-6xl sm:text-[8.5rem] md:text-[9.5rem] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-[#D4AF37] leading-tight transition-all duration-700 group-hover:scale-105 drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)] select-none">
-                WISE
-              </h2>
-              <div className="relative flex flex-col items-center -mt-2 sm:-mt-6 space-y-1 sm:space-y-1.5 px-4 w-full overflow-hidden">
-                <div className="h-px w-20 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent mb-1"></div>
-                <span className="text-[#D4AF37] text-[10px] sm:text-xl md:text-2xl font-extrabold tracking-tight uppercase opacity-95 drop-shadow-lg leading-none whitespace-nowrap">
-                  Work-Integrated  Science  Education  Unit
-                </span>
-                <span className="text-[#D4AF37] text-[8px] sm:text-base md:text-lg font-semibold opacity-90 drop-shadow-md leading-none whitespace-nowrap">
-                  หน่วยจัดการศึกษาวิทยาศาสตร์บูรณาการกับการทำงาน
-                </span>
-                <div className="h-px w-14 bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent mt-1"></div>
-              </div>
-           </div>
+      <div className="landing-content-wrapper relative flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-5 sm:px-6 h-full pointer-events-none pt-20 pb-24 sm:py-24">
+        {/* Gold arch (mihrab) framing the title — draws itself in, drifts with the cursor */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[52%] w-[124vw] max-w-[880px] h-[80vh] max-h-[720px] pointer-events-none" aria-hidden="true">
+          <div ref={archRef} className="w-full h-full relative transition-transform duration-700 ease-out will-change-transform">
+            <svg viewBox="0 0 600 640" fill="none" preserveAspectRatio="none" className="w-full h-full">
+              <path className="wise-arch-path" d="M60 640 V300 C60 140 180 40 300 10 C420 40 540 140 540 300 V640" stroke="rgba(212,175,55,.5)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" pathLength={1} />
+              <path className="wise-arch-path wise-arch-path--inner" d="M92 640 V305 C92 165 196 76 300 46 C404 76 508 165 508 305 V640" stroke="rgba(212,175,55,.2)" strokeWidth="1" vectorEffect="non-scaling-stroke" pathLength={1} />
+            </svg>
+            <span className="wise-arch-dot absolute left-1/2 top-[1.4%] -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#D4AF37]" />
+          </div>
         </div>
 
-        <div className="mt-4 sm:mt-6 space-y-4 sm:space-y-6 text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 flex flex-col items-center pointer-events-auto">
-          <h1 className={`text-center text-[11px] min-[360px]:text-[13px] min-[400px]:text-[15px] min-[480px]:text-base sm:text-4xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-2xl px-2 opacity-90 tracking-tight lg:whitespace-nowrap mx-auto w-full ${
-            lang === Language.MS ? 'lg:text-4xl' : 
-            lang === Language.EN ? 'lg:text-5xl' : 
-            lang === Language.AR ? 'lg:text-5xl' : 
-            'lg:text-6xl'
-          }`}>
+        <div className="relative flex flex-col items-center text-center pointer-events-auto">
+          <span className="wise-rise text-[#D4AF37] text-[9.5px] min-[400px]:text-[10px] sm:text-[13px] font-semibold uppercase tracking-[0.14em] min-[400px]:tracking-[0.2em] sm:tracking-[0.35em] whitespace-nowrap" style={{ animationDelay: '150ms' }}>
+            Work-Integrated Science Education Unit
+          </span>
+
+          <h2 className="wise-rise wise-shimmer-text mt-3 sm:mt-4 text-[5.5rem] leading-[0.9] sm:text-[9rem] md:text-[11rem] font-extrabold tracking-[-0.04em] drop-shadow-[0_20px_40px_rgba(0,0,0,0.35)] select-none" style={{ animationDelay: '250ms' }}>
+            WISE
+          </h2>
+
+          <span className="wise-rise mt-3 sm:mt-4 text-[#E8CF7A]/90 text-[12px] sm:text-base font-medium" style={{ animationDelay: '380ms' }}>
+            หน่วยจัดการศึกษาวิทยาศาสตร์บูรณาการกับการทำงาน
+          </span>
+
+          <h1 className={`wise-rise mt-4 sm:mt-6 text-white/95 font-semibold leading-snug tracking-tight drop-shadow-xl ${
+            lang === Language.MS ? 'text-lg sm:text-2xl md:text-3xl' : 'text-xl sm:text-3xl md:text-[2.1rem]'
+          }`} style={{ animationDelay: '480ms' }}>
             {currentT.landingHeading}
           </h1>
 
-          <div className="flex flex-col items-center w-full gap-4 sm:gap-6">
-            <div className="transform transition-all duration-500 hover:scale-105 scale-90 sm:scale-100">
-              <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} />
-            </div>
-            
-            <div className="flex flex-col items-center w-full">
-              <div className="flex flex-row items-center justify-center gap-2 sm:gap-4 px-2">
-                <button 
-                  onClick={onEnterDashboard}
-                  className="group relative px-5 sm:px-12 py-3.5 sm:py-4 bg-white text-[#630330] rounded-full font-black uppercase text-[12px] min-[400px]:text-[13px] sm:text-lg transition-all hover:scale-105 active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-hidden"
-                >
-                  <div className="absolute inset-0 rounded-full border-2 border-white/0 group-hover:border-white/50 group-hover:animate-ring-expand pointer-events-none"></div>
-                  <span className="relative z-10 flex items-center gap-1.5 sm:gap-4 tracking-tight whitespace-nowrap">
-                    {currentT.startNow} 
-                    <div className="flex items-center justify-center w-5 h-5 sm:w-8 sm:h-8 rounded-full bg-[#630330]/5 group-hover:bg-[#630330] group-hover:text-white transition-all duration-500">
-                      <ChevronRight size={14} className={`sm:w-[18px] sm:h-[18px] ${isRtl ? 'rotate-180' : ''}`} />
-                    </div>
-                  </span>
-                </button>
+          {/* Rotating tagline */}
+          <div className="wise-rise mt-2.5 sm:mt-3 h-6 flex items-center justify-center overflow-hidden" style={{ animationDelay: '560ms' }} aria-live="polite">
+            <span key={`${lang}-${taglineIdx}`} className="wise-tagline inline-flex items-center gap-2 text-[13px] sm:text-[15px] text-white/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shrink-0" />
+              {taglines[taglineIdx % taglines.length]}
+            </span>
+          </div>
 
-                <button 
-                  onClick={() => {
-                    setSearchStudentId('');
-                    setFoundStatuses(undefined);
-                    setShowStatusCheckModal(true);
-                  }}
-                  className="group relative px-4 sm:px-7 py-3.5 sm:py-4 bg-[#D4AF37] hover:bg-[#b8952c] text-[#2A0114] rounded-full font-bold uppercase text-[10px] sm:text-sm transition-all hover:scale-105 active:scale-95 shadow-[0_10px_20px_rgba(212,175,55,0.2)]"
-                >
-                  <span className="flex items-center gap-2 tracking-tight whitespace-nowrap">
-                    <Timer size={14} className="sm:w-[16px] sm:h-[16px] group-hover:rotate-12 transition-transform" />
-                    {currentT.checkStatus}
-                  </span>
-                </button>
-              </div>
+          <div className="wise-rise mt-6 sm:mt-8 scale-90 sm:scale-100" style={{ animationDelay: '660ms' }}>
+            <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} />
+          </div>
 
-              <button 
-                onClick={() => {
-                  setLoginError(false);
-                  setLoginSuccess(false);
-                  setShowAdminLogin(true);
-                }}
-                className="flex items-center gap-2 mt-4 sm:mt-5 opacity-40 hover:opacity-100 transition-all duration-500 group touch-auto"
-                title="Staff Access"
-              >
-                <LockKeyhole size={12} className="text-[#D4AF37] group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-bold uppercase text-[#D4AF37] tracking-[0.2em] group-hover:tracking-[0.3em] transition-all">Staff Access</span>
-              </button>
-            </div>
+          <div className="wise-rise mt-5 sm:mt-7 grid grid-cols-2 gap-3 w-full max-w-[460px]" style={{ animationDelay: '760ms' }}>
+            <button
+              onClick={onEnterDashboard}
+              className="group h-12 sm:h-14 rounded-2xl bg-white text-[#630330] font-bold text-[14px] sm:text-base flex items-center justify-center gap-2 shadow-[0_14px_34px_-10px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.6)] active:translate-y-0 transition"
+            >
+              {t3.enter}
+              <ChevronRight size={18} className={`transition-transform group-hover:translate-x-1 ${isRtl ? 'rotate-180 group-hover:-translate-x-1' : ''}`} />
+            </button>
+            <button
+              onClick={openStatusCheck}
+              className="wise-sheen group relative overflow-hidden h-12 sm:h-14 rounded-2xl bg-gradient-to-b from-[#f0d78a] to-[#cfa73a] text-[#2A0114] font-bold text-[14px] sm:text-base flex items-center justify-center gap-2 shadow-[0_14px_34px_-12px_rgba(212,175,55,0.6)] ring-1 ring-inset ring-white/30 hover:-translate-y-0.5 hover:shadow-[0_20px_44px_-12px_rgba(212,175,55,0.7)] active:translate-y-0 transition"
+            >
+              <Search size={17} className="group-hover:scale-110 transition-transform" />
+              {currentT.checkStatus}
+            </button>
           </div>
         </div>
       </div>
 
       {showStatusCheckModal && (
-        <div className="fixed inset-0 z-[101] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xl reveal-anim touch-auto">
-          <div className="w-full max-w-[560px] bg-white rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-12 shadow-3xl relative overflow-y-auto max-h-[92svh]">
-             <button onClick={() => setShowStatusCheckModal(false)} className="absolute top-4 right-4 sm:top-8 sm:right-8 p-2 sm:p-3 rounded-full hover:bg-slate-100 transition-colors z-10">
-               <X size={20} className="text-slate-400 sm:w-6 sm:h-6" />
-             </button>
-             
-             <div className="flex flex-col items-center mb-6 sm:mb-10">
-               <div className="p-3 sm:p-5 bg-[#D4AF37]/10 rounded-2xl sm:rounded-[2rem] mb-4 sm:mb-6">
-                 <Timer size={32} className="text-[#D4AF37] sm:w-[40px] sm:h-[40px]" />
-               </div>
-               <h3 className="text-lg sm:text-2xl font-black text-[#2A0114] uppercase text-center">{currentT.statusTitle}</h3>
-               <p className="text-[10px] sm:text-sm text-slate-400 font-bold uppercase mt-1 sm:mt-2 tracking-wide text-center">{currentT.statusCheckPrompt}</p>
-             </div>
+        <div
+          className="fixed inset-0 z-[101] flex items-end sm:items-center justify-center sm:p-6 bg-[#12000a]/80 backdrop-blur-xl wise-fade-in touch-auto"
+          onMouseDown={() => setShowStatusCheckModal(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => e.stopPropagation()}
+            className="wise-pop-in w-full sm:max-w-[560px] max-h-[92svh] overflow-y-auto custom-scrollbar rounded-t-[28px] sm:rounded-[28px] bg-[#2a0114]/95 border border-white/10 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] relative"
+          >
+            {/* Soft gold glow + pattern */}
+            <div className="pointer-events-none absolute inset-0 rounded-[inherit] overflow-hidden">
+              <div className="absolute -top-24 -right-16 w-72 h-72 rounded-full bg-[#D4AF37]/15 blur-3xl" />
+              <div className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-[#7A0B3D]/60 blur-3xl" />
+            </div>
 
-             <form onSubmit={handleCheckStatus} className="space-y-4 sm:space-y-6">
-               <div className="relative group">
-                 <div className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#D4AF37] transition-colors">
-                   <UserCircle size={24} className="sm:w-[28px] sm:h-[28px]" />
-                 </div>
-                 <input 
-                  type="text" 
+            <div className="relative p-5 sm:p-8">
+              <div className="flex items-start gap-3 sm:gap-4 mb-5 sm:mb-6">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-[#D4AF37]/15 border border-[#D4AF37]/30 text-[#E8CF7A] flex items-center justify-center">
+                  <Timer size={22} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg sm:text-xl font-bold text-white leading-tight">{currentT.statusTitle}</h3>
+                  <p className="text-[13px] text-white/55 mt-0.5">{currentT.statusCheckPrompt}</p>
+                </div>
+                <button onClick={() => setShowStatusCheckModal(false)} className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition" aria-label="close">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleCheckStatus} className="flex items-center gap-2 p-1.5 rounded-2xl bg-white shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)]">
+                <UserCircle size={20} className="ml-2.5 text-slate-300 shrink-0" />
+                <input
+                  type="text"
+                  inputMode="numeric"
                   placeholder={currentT.studentIdPlaceholder}
                   value={searchStudentId}
-                  onChange={e => setSearchStudentId(e.target.value)}
-                  className="w-full pl-12 sm:pl-16 pr-6 sm:pr-8 py-4 sm:py-6 bg-slate-50 border-2 border-transparent focus:border-[#D4AF37] focus:bg-white rounded-xl sm:rounded-2xl outline-none font-bold text-lg sm:text-2xl transition-all"
+                  onChange={e => { setSearchStudentId(e.target.value); if (foundStatuses === null) setFoundStatuses(undefined); }}
+                  className="flex-1 min-w-0 h-11 sm:h-12 bg-transparent outline-none text-[15px] sm:text-base font-semibold text-[#2a0114] placeholder:text-slate-400 placeholder:font-normal"
                   autoFocus
-                 />
-               </div>
-               <button type="submit" className="w-full bg-[#2A0114] text-white py-4 sm:py-6 rounded-xl sm:rounded-2xl font-black uppercase text-sm sm:text-base shadow-xl shadow-[#2A0114]/20 transform active:scale-[0.98] transition-all hover:bg-[#43021f] flex items-center justify-center gap-2">
-                 <Search size={18} /> {currentT.searchButton}
-               </button>
-             </form>
+                />
+                {searchStudentId && (
+                  <button type="button" onClick={() => { setSearchStudentId(''); setFoundStatuses(undefined); }} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100" aria-label="clear">
+                    <X size={15} />
+                  </button>
+                )}
+                <button type="submit" className="h-11 sm:h-12 px-4 sm:px-5 rounded-xl bg-[#630330] hover:bg-[#7a0b3d] text-white text-sm font-semibold flex items-center gap-2 transition active:scale-[0.97]">
+                  <Search size={16} /> <span className="hidden min-[380px]:inline">{currentT.searchButton}</span>
+                </button>
+              </form>
 
-             <div className="mt-6 sm:mt-10 min-h-[200px] space-y-4">
-               {foundStatuses === undefined ? (
-                 <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-slate-300 animate-pulse">
-                    <Activity size={32} className="sm:w-[48px] sm:h-[48px] opacity-20 mb-4" />
-                    <p className="text-[10px] sm:text-sm font-black uppercase tracking-widest">Waiting for ID...</p>
-                 </div>
-               ) : foundStatuses === null ? (
-                 <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-rose-500 gap-3 border-2 border-dashed border-rose-100 rounded-2xl sm:rounded-[2.5rem] bg-rose-50/30">
-                   <AlertCircle size={32} className="sm:w-[40px] sm:h-[40px]" />
-                   <p className="text-sm sm:text-lg font-black uppercase text-center px-4 leading-tight">{currentT.noStatusFound}</p>
-                 </div>
-               ) : (
-                 foundStatuses.map((record) => {
-                   const info = getStatusInfo(record.status);
-                   return (
-                     <div key={record.id} className={`rounded-2xl sm:rounded-[2.5rem] p-5 sm:p-8 border-2 ${info.border} ${info.bg} reveal-anim space-y-6 sm:space-y-8 shadow-inner overflow-hidden`}>
-                       <div className="flex items-start justify-between gap-2">
-                         <div className="flex items-center gap-3 sm:gap-5 min-w-0">
-                           <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-xl sm:rounded-[2rem] bg-white flex items-center justify-center text-[#2A0114] shadow-md border border-slate-100 flex-shrink-0">
-                             <GraduationCap size={24} className="sm:w-[40px] sm:h-[40px]" />
-                           </div>
-                           <div className="min-w-0">
-                             <p className="text-[8px] sm:text-xs font-black text-slate-400 uppercase leading-none mb-1 sm:mb-2 tracking-widest">{currentT.studentLabel}</p>
-                             <h4 className="font-black text-slate-900 dark:text-white text-base sm:text-2xl line-clamp-2 mb-1 sm:mb-2">{record.name}</h4>
-                             <div className="flex flex-col gap-2">
-                               <div className="flex flex-wrap gap-2">
-                                 <span className="inline-flex w-fit text-[9px] sm:text-sm font-black text-[#D4AF37] uppercase bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-sm border border-[#D4AF37]/20 whitespace-nowrap">ID: {record.studentId}</span>
-                                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-sm font-black uppercase border border-slate-100 dark:border-slate-700 bg-white text-slate-500 whitespace-nowrap shadow-sm">
-                                   <Briefcase size={10} className="sm:w-3 sm:h-3 text-slate-400" />
-                                   {getInternshipTypeLabel(record.internshipType)}
-                                 </div>
-                                 {record.location && (
-                                   <div className="flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-sm font-black uppercase border border-slate-100 dark:border-slate-700 bg-white text-slate-500 whitespace-nowrap shadow-sm">
-                                     <MapPin size={10} className="sm:w-3 sm:h-3 text-rose-400" />
-                                     {record.location}
-                                   </div>
-                                 )}
-                               </div>
-                               <div className={`text-[8px] sm:text-[11px] font-black uppercase px-3 py-1.5 rounded-xl border ${info.border} ${info.bg} ${info.text} leading-tight`}>
-                                 {getMajorLabel(record.major)}
-                               </div>
-                             </div>
-                           </div>
-                         </div>
-                         <div className={`p-2.5 sm:p-4 rounded-full ${info.color} text-white shadow-lg flex-shrink-0`}>
-                           {info.icon}
-                         </div>
-                       </div>
-                       
-                       <div className="space-y-4 sm:space-y-6">
-                          <div className="flex items-end justify-between px-1">
-                             <div className="flex flex-col">
-                               <span className="text-[7px] sm:text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-0.5 sm:mb-1">Current Process</span>
-                               <span className={`text-sm sm:text-2xl font-black uppercase ${info.text} leading-tight`}>{getStatusLabel(record.status)}</span>
-                             </div>
+              <div className="mt-5 sm:mt-6 space-y-3">
+                {foundStatuses === undefined ? (
+                  <div className="flex items-center gap-3 px-4 py-4 rounded-2xl border border-dashed border-white/15 text-white/50 text-[13px]">
+                    <Fingerprint size={20} className="text-[#D4AF37]/70 shrink-0" />
+                    {L.hint}
+                  </div>
+                ) : foundStatuses === null ? (
+                  <div className="wise-pop-in flex items-start gap-3 px-4 py-4 rounded-2xl bg-rose-500/10 border border-rose-400/25 text-rose-200">
+                    <AlertCircle size={20} className="shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold">{currentT.noStatusFound}</p>
+                      <p className="text-[12px] text-rose-200/70 mt-0.5">{L.notFoundHint}</p>
+                    </div>
+                  </div>
+                ) : (
+                  foundStatuses.map((record, i) => {
+                    const info = getStatusInfo(record.status);
+                    const rejected = record.status === ApplicationStatus.REJECTED;
+                    const progress = trainingProgress(record.startDate, record.endDate);
+                    const steps = rejected ? [L.step1, L.step2, L.step3No] : [L.step1, L.step2, L.step3];
+                    return (
+                      <div key={record.id} className="wise-pop-in rounded-[22px] bg-white text-[#1a0a10] p-4 sm:p-5 shadow-[0_24px_50px_-20px_rgba(0,0,0,0.6)]" style={{ animationDelay: `${i * 80}ms` }}>
+                        {/* Header */}
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 shrink-0 rounded-2xl bg-[#630330]/[0.07] text-[#630330] flex items-center justify-center text-[15px] font-bold">
+                            {initials(record.name)}
                           </div>
-
-                          <div className="flex items-center justify-between relative px-2 pt-2">
-                             <div className="absolute top-1/2 left-4 right-4 h-1 sm:h-1.5 bg-slate-200 -translate-y-1/2 rounded-full overflow-hidden">
-                                <div 
-                                  className={`absolute top-0 left-0 h-full transition-all duration-[2s] ease-out ${record.status === ApplicationStatus.REJECTED ? 'bg-rose-500' : info.color}`}
-                                  style={{ 
-                                    width: info.step === 1 ? '15%' : info.step === 2 ? '50%' : '100%' 
-                                  }}
-                                ></div>
-                             </div>
-                             
-                             {[1, 2, 3].map((step) => (
-                               <div key={step} className={`relative z-10 w-5 h-5 sm:w-8 sm:h-8 rounded-full border-2 sm:border-4 flex items-center justify-center transition-all duration-1000
-                                 ${info.step >= step ? `${info.color} border-white shadow-md scale-110 sm:scale-125` : 'bg-white border-slate-200 scale-100'}`}>
-                                 {info.step > step ? <CheckCircle2 size={10} className="text-white sm:w-[12px] sm:h-[12px]" /> : <div className={`w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full ${info.step >= step ? 'bg-white' : 'bg-slate-300'}`} />}
-                               </div>
-                             ))}
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-bold text-[15px] sm:text-base leading-snug break-words">{record.name}</h4>
+                            <p className="text-[12px] text-slate-500 mt-0.5 flex flex-wrap gap-x-2">
+                              <span className="font-mono">{record.studentId}</span>
+                              <span className="text-slate-300">·</span>
+                              <span>{getMajorLabel(record.major)}</span>
+                            </p>
                           </div>
-                       </div>
+                        </div>
+                        <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl text-[13px] font-semibold ${info.bg} ${info.text}`}>
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${info.color}`} />
+                          <span className="min-w-0">{getStatusLabel(record.status)}</span>
+                        </div>
 
-                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 text-[8px] sm:text-xs text-slate-400 font-black uppercase justify-between pt-4 sm:pt-6 border-t border-slate-200/50">
-                         <div className="flex flex-col gap-2 w-full sm:w-auto">
-                            <div className="flex items-center gap-2">
-                              <Activity size={12} className={info.text} />
-                              {currentT.lastUpdated}: {new Date(record.lastUpdated).toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
-                            </div>
-                            
-                            {record.startDate && record.endDate && (
-                              <div className="flex items-center gap-3 px-4 py-2.5 bg-white/60 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm mt-1">
-                                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-[7px] sm:text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">ระยะเวลาฝึก / Period</span>
-                                  <span className="text-[9px] sm:text-sm font-black text-slate-700 dark:text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis">
-                                    {formatDate(record.startDate)} — {formatDate(record.endDate)}
-                                  </span>
-                                </div>
+                        {/* Stepper */}
+                        <div className="mt-5 grid grid-cols-3 gap-1.5">
+                          {steps.map((label, idx) => {
+                            const reached = info.step >= idx + 1;
+                            const color = rejected && idx === 2 ? 'bg-rose-500' : 'bg-[#630330]';
+                            return (
+                              <div key={idx} className="min-w-0">
+                                <div className={`h-1.5 rounded-full ${reached ? color : 'bg-slate-100'} transition-colors`} />
+                                <p className={`mt-1.5 text-[10.5px] sm:text-[11px] leading-tight truncate ${reached ? 'text-slate-700 font-medium' : 'text-slate-400'}`}>{label}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Placement details */}
+                        {(record.location || record.position || record.supervisor) && (
+                          <div className="mt-4 rounded-2xl bg-slate-50 divide-y divide-slate-100">
+                            {record.location && (
+                              <div className="flex items-center gap-3 px-3.5 py-2.5 text-[13px]">
+                                <MapPin size={15} className="text-[#630330]/60 shrink-0" />
+                                <span className="min-w-0 truncate font-medium">{record.location}</span>
+                                <span className="ml-auto shrink-0 text-[11px] text-slate-400">{getInternshipTypeLabel(record.internshipType)}</span>
                               </div>
                             )}
-                            
+                            {record.position && (
+                              <div className="flex items-center gap-3 px-3.5 py-2.5 text-[13px]">
+                                <Briefcase size={15} className="text-[#630330]/60 shrink-0" />
+                                <span className="min-w-0 truncate">{record.position}</span>
+                              </div>
+                            )}
                             {record.supervisor && (
-                              <div className="flex items-center gap-3 px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800/50 shadow-sm mt-1">
-                                <UserCircle className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-500 shrink-0" />
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-[7px] sm:text-[8px] font-black uppercase text-indigo-400 tracking-widest leading-none mb-1">อาจารย์นิเทศ / Supervisor</span>
-                                  <span className="text-[9px] sm:text-sm font-black text-indigo-700 dark:text-indigo-300 whitespace-nowrap overflow-hidden text-ellipsis">
-                                    {record.supervisor}
-                                  </span>
-                                </div>
+                              <div className="flex items-center gap-3 px-3.5 py-2.5 text-[13px]">
+                                <UserCircle size={15} className="text-[#630330]/60 shrink-0" />
+                                <span className="text-slate-500 shrink-0">{L.supervisor}</span>
+                                <span className="min-w-0 truncate font-medium ml-auto">{record.supervisor}</span>
                               </div>
                             )}
-                         </div>
-                         {record.remarks && <span className="text-rose-400 break-words line-clamp-1 mt-2 sm:mt-0 font-bold">NOTE: {record.remarks}</span>}
-                       </div>
-                     </div>
-                   );
-                 })
-               )}
-             </div>
+                          </div>
+                        )}
+
+                        {/* Training period progress */}
+                        {record.startDate && record.endDate && progress && (
+                          <div className="mt-4">
+                            <div className="flex items-center justify-between text-[12px] text-slate-500">
+                              <span className="font-medium text-slate-700">{progress.label}</span>
+                              <span>{formatDate(record.startDate)} – {formatDate(record.endDate)}</span>
+                            </div>
+                            <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
+                              <div className="h-full rounded-full bg-gradient-to-r from-[#630330] to-[#a3174f] wise-grow" style={{ width: `${progress.pct}%` }} />
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                          <span className="inline-flex items-center gap-1.5"><Activity size={12} /> {currentT.lastUpdated} {new Date(record.lastUpdated).toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          {record.remarks && <span className="text-rose-500 truncate max-w-full">{record.remarks}</span>}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
