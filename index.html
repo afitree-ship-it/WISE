@@ -12,7 +12,7 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Plus Jakarta Sans', 'Anuphan', 'Noto Sans Arabic', 'sans-serif'],
+            sans: ['Plus Jakarta Sans', 'Anuphan', 'Cairo', 'sans-serif'],
           },
           animation: {
             'ring-expand': 'ring-expand 1s cubic-bezier(0, 0, 0.2, 1) infinite',
@@ -50,7 +50,7 @@
       },
     }
   </script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Anuphan:wght@400;500;600;700&family=Kanit:wght@300;400;500;600&family=Noto+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Anuphan:wght@400;500;600;700&family=Kanit:wght@300;400;500;600&family=Cairo:wght@400;500;600;700;800&family=Amiri:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <style>
     :root {
       --mangosteen-deep: #2A0114;
@@ -61,7 +61,7 @@
       --mouse-y: -50%;
     }
     body {
-      font-family: 'Plus Jakarta Sans', 'Anuphan', 'Noto Sans Arabic', sans-serif;
+      font-family: 'Plus Jakarta Sans', 'Anuphan', 'Cairo', sans-serif;
       overflow-x: hidden;
       background-color: #ffffff;
       color: #1a1a1a;
@@ -69,9 +69,15 @@
       transition: background-color 0.3s ease, color 0.3s ease;
     }
 
+    /* ---- Arabic: Cairo for UI and body, Amiri for secondary / accent text ---- */
+    .ar-accent:is(.rtl *, [dir="rtl"] *) { font-family: 'Amiri', 'Cairo', serif; }
+    /* Letter-spacing breaks the joins of Arabic script */
+    :is(.rtl, [dir="rtl"]) [class*="tracking-"]:not([dir="ltr"] *) { letter-spacing: 0 !important; }
+
     /* ---- Landing · luxe minimal, double arch ---- */
-    .wl { background: linear-gradient(160deg, #fdfaf4 0%, #f6eee2 60%, #f1e5d3 100%); color: #2a0a17; font-family: 'Kanit', 'Anuphan', 'Plus Jakarta Sans', 'Noto Sans Arabic', sans-serif; }
+    .wl { background: linear-gradient(160deg, #fdfaf4 0%, #f6eee2 60%, #f1e5d3 100%); color: #2a0a17; font-family: 'Kanit', 'Anuphan', 'Plus Jakarta Sans', 'Cairo', sans-serif; }
     .wl-latin { font-family: 'Plus Jakarta Sans', 'Kanit', sans-serif; }
+    .rtl, [dir="rtl"] { font-family: 'Cairo', 'Plus Jakarta Sans', 'Kanit', 'Anuphan', sans-serif; }
     .wl-pattern { position: absolute; inset: 0; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='none' stroke='%23D4AF37' stroke-width='1'%3E%3Cpath d='M40 4 L50 30 L76 40 L50 50 L40 76 L30 50 L4 40 L30 30 Z'/%3E%3Crect x='22' y='22' width='36' height='36' transform='rotate(45 40 40)'/%3E%3C/g%3E%3C/svg%3E"); }
     .wl-lockup { display: inline-flex; flex-direction: column; align-items: stretch; }
     .wl-wise { font: 800 clamp(96px, 12.5vw, 184px)/.86 'Plus Jakarta Sans', sans-serif; letter-spacing: -.04em; color: #630330; white-space: nowrap; }

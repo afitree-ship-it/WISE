@@ -465,7 +465,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </span>
           <span className="min-w-0 leading-tight">
             <span className="block truncate text-[13px] sm:text-[14px] font-medium text-[#630330]">{facultyName}</span>
-            <span className="hidden sm:block truncate text-[11.5px] font-light text-[#8b7380]">{universityName}</span>
+            <span className="ar-accent hidden sm:block truncate text-[11.5px] font-light text-[#8b7380]">{universityName}</span>
           </span>
         </div>
         <button
@@ -502,7 +502,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
           {/* Rotating tagline */}
           <div className="wise-rise mt-2.5 h-7 flex items-center overflow-hidden" style={{ animationDelay: '560ms' }} aria-live="polite">
-            <span key={`${lang}-${taglineIdx}`} className="wise-tagline inline-flex items-center gap-2 text-[14px] sm:text-[16px] font-light text-[#7d6470]">
+            <span key={`${lang}-${taglineIdx}`} className="ar-accent wise-tagline inline-flex items-center gap-2 text-[14px] sm:text-[16px] font-light text-[#7d6470]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shrink-0" />
               {taglines[taglineIdx % taglines.length]}
             </span>
@@ -550,7 +550,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </div>
             {nextEvent && nextEvent.date && (
               <div className="wl-float wl-float--a" dir={isRtl ? 'rtl' : 'ltr'}>
-                <small className="block text-[12px] text-[#8b7380]">{eventCountdown}</small>
+                <small className="ar-accent block text-[12px] text-[#8b7380]">{eventCountdown}</small>
                 <div className="n my-2">{shortDate(nextEvent.date)}</div>
                 <b className="block text-[14px] sm:text-[14.5px] font-medium leading-snug line-clamp-2">{nextEvent.label}</b>
               </div>
@@ -559,7 +559,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
               <div className="wl-float wl-float--b" dir={isRtl ? 'rtl' : 'ltr'}>
                 <div className="n">{sitesCount}</div>
                 <b className="block mt-1 text-[14px] sm:text-[14.5px] font-medium">{t3.sites}</b>
-                {studentsThisYear > 0 && <small className="block text-[12px] text-[#8b7380] mt-0.5">{studentsThisYear} {t3.students}</small>}
+                {studentsThisYear > 0 && <small className="ar-accent block text-[12px] text-[#8b7380] mt-0.5">{studentsThisYear} {t3.students}</small>}
                 <div className="flex gap-[3px] mt-2.5 h-1.5 rounded-full overflow-hidden">
                   <i className="block flex-[38] bg-[#eb6834]" /><i className="block flex-[30] bg-[#2a78d6]" /><i className="block flex-[34] bg-[#4a3aa7]" /><i className="block flex-[26] bg-[#1baf7a]" />
                 </div>
