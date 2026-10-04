@@ -149,6 +149,40 @@ function handleSettingsSave(params) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Translation (Google's built-in LanguageApp: free, no API key)       */
+/* ------------------------------------------------------------------ */
+
+var TRANSLATE_LANGS = ["th", "en", "ar", "ms"];
+
+// params.items = { key: "text", ... }, params.source = "th" (default)
+// returns { status, data: { key: { th, en, ar, ms } } }
+function handleTranslate(params) {
+  var items = params.items || {};
+  var source = TRANSLATE_LANGS.indexOf(params.source) >= 0 ? params.source : "th";
+  var cache = CacheService.getScriptCache();
+  var out = {};
+  Object.keys(items).forEach(function(key) {
+    var text = String(items[key] == null ? "" : items[key]).trim();
+    var result = { th: "", en: "", ar: "", ms: "" };
+    result[source] = text;
+    TRANSLATE_LANGS.forEach(function(lang) {
+      if (lang === source || !text) { result[lang] = text; return; }
+      var cacheKey = "tr_" + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, source + ">" + lang + ":" + text, Utilities.Charset.UTF_8));
+      var hit = cache.get(cacheKey);
+      if (hit !== null) { result[lang] = hit; return; }
+      try {
+        result[lang] = LanguageApp.translate(text, source, lang);
+        cache.put(cacheKey, result[lang], 21600);
+      } catch (err) {
+        result[lang] = text;
+      }
+    });
+    out[key] = result;
+  });
+  return { status: "success", data: out };
+}
+
+/* ------------------------------------------------------------------ */
 /* HTTP entry points                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -156,6 +190,8 @@ function doGet(e) {
   var type = (e && e.parameter) ? e.parameter.type : null;
 
   if (type === "live") return jsonOut(handleLive());
+  // Capability probe: lets the web app know this deployment can translate
+  if (type === "translate") return jsonOut({ status: "success", translate: true });
 
   // ดึงข้อมูลทุกชีตพร้อมกัน
   if (!type) {
@@ -193,6 +229,7 @@ function doPost(e) {
   if (type === "lock") return jsonOut(handleLock(params));
   if (type === "supervisor") return jsonOut(handleSupervisorSave(params));
   if (type === "settings") return jsonOut(handleSettingsSave(params));
+  if (type === "translate") return jsonOut(handleTranslate(params));
 
   var sheetName = (type === "admins") ? "Admins" : (type === "studentStatuses" ? "StudentStatuses" : type);
   var sheet = ss.getSheetByName(sheetName) || ss.getSheetByName(type);

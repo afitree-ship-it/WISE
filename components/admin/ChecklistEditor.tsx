@@ -17,9 +17,9 @@ const ChecklistEditor: React.FC<Props> = ({ value, onChange }) => {
   const commit = (next: ChecklistStep[]) => onChange(next);
   const update = (id: string, patch: (s: ChecklistStep) => ChecklistStep) => commit(steps.map(s => (s.id === id ? patch(s) : s)));
 
-  // Editing the Thai text drops the old AR/MS translations so students never see stale wording
+  // Editing the Thai text drops the old translations; they are re-translated automatically on save
   const setTh = (id: string, field: 'title' | 'hint', v: string) =>
-    update(id, s => ({ ...s, [field]: { th: v, en: s[field].en } }));
+    update(id, s => ({ ...s, [field]: { th: v } }));
   const setEn = (id: string, field: 'title' | 'hint', v: string) =>
     update(id, s => ({ ...s, [field]: { ...s[field], en: v, ar: undefined, ms: undefined } }));
 
@@ -88,12 +88,12 @@ const ChecklistEditor: React.FC<Props> = ({ value, onChange }) => {
                         <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       </div>
                       <button onClick={() => setOpenEn(o => ({ ...o, [s.id]: !o[s.id] }))} className={`${btn('ghost', 'sm')} ${openEn[s.id] ? 'text-[#630330] dark:text-amber-300' : ''}`}>
-                        <Languages size={14} /> ภาษาอังกฤษ
+                        <Languages size={14} /> แก้คำแปลอังกฤษเอง
                       </button>
                     </div>
                     {openEn[s.id] && (
                       <div className="grid sm:grid-cols-2 gap-2">
-                        <input value={s.title.en || ''} onChange={e => setEn(s.id, 'title', e.target.value)} placeholder="Step title (ว่างไว้ = ใช้ภาษาไทย)" className={inputCls} aria-label="Step title" />
+                        <input value={s.title.en || ''} onChange={e => setEn(s.id, 'title', e.target.value)} placeholder="ว่างไว้ = แปลอัตโนมัติตอนบันทึก" className={inputCls} aria-label="Step title" />
                         <input value={s.hint.en || ''} onChange={e => setEn(s.id, 'hint', e.target.value)} placeholder="Short hint" className={inputCls} aria-label="Hint" />
                       </div>
                     )}
@@ -111,7 +111,7 @@ const ChecklistEditor: React.FC<Props> = ({ value, onChange }) => {
       })}
       <p className="text-[11px] text-slate-400 leading-relaxed">
         นักศึกษาติ๊กเช็กลิสต์ในเครื่องของตัวเอง · เพิ่ม/แก้ชื่อขั้นตอนได้โดยไม่ทำให้ความคืบหน้าเดิมหาย แต่ถ้าลบขั้นตอน ความคืบหน้าของขั้นนั้นจะหายไป ·
-        แก้ข้อความภาษาไทยแล้ว ภาษาอาหรับและมลายูจะใช้ข้อความภาษาอังกฤษแทน (หรือภาษาไทยถ้าไม่ได้กรอก)
+        กรอกเป็นภาษาไทยได้เลย ระบบจะแปลเป็นอังกฤษ อาหรับ และมลายูให้อัตโนมัติเมื่อกดบันทึก
       </p>
     </div>
   );

@@ -14,10 +14,12 @@ import {
   InternshipType,
   SiteSettings
 } from './types';
-import { GoogleGenAI, Type } from "@google/genai";
+import { translateTexts, localizeDate, sameInAll, isUntranslated, Localized4 } from "./translate";
+import { localize } from './localize';
 import { ShareLinkModal } from './components/ShareLinkModal';
 import {
   Plus,
+  Languages,
   Pencil,
   Search,
   Trash2,
@@ -303,10 +305,90 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  /* ---------- Bulk-translate existing records that were saved Thai-only ---------- */
+  const [bulkTr, setBulkTr] = useState<{ done: number; total: number } | null>(null);
+  const asLoc = (v: any) => ({ th: localize(v, Language.TH), en: localize(v, Language.EN), ar: localize(v, Language.AR), ms: localize(v, Language.MS) });
+  const untranslated = useMemo(() => {
+    const jobs: { key: string; th: string }[] = [];
+    const push = (key: string, v: any) => { const o = asLoc(v); if (o.th.trim() && isUntranslated(o)) jobs.push({ key, th: o.th }); };
+    schedules.forEach(s => push(`schedules|${s.id}|event`, s.event));
+    forms.forEach(f => push(`forms|${f.id}|title`, f.title));
+    // Company names are proper nouns and stay as typed
+    sites.forEach(s => { push(`sites|${s.id}|location`, s.location); push(`sites|${s.id}|position`, s.position); push(`sites|${s.id}|description`, s.description); });
+    return jobs;
+  }, [schedules, forms, sites]);
+
+  const translateExisting = async () => {
+    const jobs = untranslated;
+    if (!jobs.length) return;
+    setBulkTr({ done: 0, total: jobs.length });
+    const results: Record<string, Localized4> = {};
+    for (let i = 0; i < jobs.length; i += 12) {
+      const chunk = jobs.slice(i, i + 12);
+      const res = await translateTexts(Object.fromEntries(chunk.map(j => [j.key, j.th])));
+      if (!res) {
+        setBulkTr(null);
+        notify('ยังแปลภาษาอัตโนมัติไม่ได้ กรุณาอัปเดต code.gs แล้ว Deploy ใหม่', 'error');
+        return;
+      }
+      Object.assign(results, res);
+      setBulkTr({ done: Math.min(i + 12, jobs.length), total: jobs.length });
+    }
+    const apply = <T extends { id: string }>(type: string, list: T[]) => list.map(item => {
+      let changed: any = item;
+      Object.keys(results).forEach(k => {
+        const [t, id, field] = k.split('|');
+        if (t === type && id === String(item.id)) changed = { ...changed, [field]: results[k] };
+      });
+      // Schedule dates: Buddhist Era for Thai, Gregorian for the rest
+      if (type === 'schedules') {
+        const s: any = changed;
+        if (s.rawStartDate && isUntranslated(asLoc(s.startDate))) changed = { ...changed, startDate: localizeDate(s.rawStartDate) };
+        if (s.rawEndDate && isUntranslated(asLoc(s.endDate))) changed = { ...changed, endDate: localizeDate(s.rawEndDate) };
+      }
+      return changed as T;
+    });
+    const nextSchedules = apply('schedules', schedules);
+    const nextForms = apply('forms', forms);
+    const nextSites = apply('sites', sites);
+    setSchedules(nextSchedules); setForms(nextForms); setSites(nextSites);
+    await Promise.all([
+      syncToSheets('schedules', nextSchedules, 'all'),
+      syncToSheets('forms', nextForms, 'all'),
+      syncToSheets('sites', nextSites, 'all'),
+    ]);
+    setBulkTr(null);
+    notify(`แปลแล้ว ${jobs.length} รายการ`);
+  };
+
   const saveSettings = async () => {
     setSettingsBusy('save');
     try {
-      await onSaveSiteSettings(draftSettings);
+      let next = draftSettings;
+      // Fill in EN / AR / MS for checklist steps the admin wrote or changed in Thai
+      if (next.checklist?.length) {
+        const texts: Record<string, string> = {};
+        next.checklist.forEach(s => (['title', 'hint'] as const).forEach(f => {
+          const v = s[f];
+          if (v.th?.trim() && (!v.en || !v.ar || !v.ms)) texts[`${s.id}|${f}`] = v.th;
+        }));
+        if (Object.keys(texts).length) {
+          const res = await translateTexts(texts);
+          if (res) {
+            next = { ...next, checklist: next.checklist.map(s => {
+              const fill = (f: 'title' | 'hint') => {
+                const r = res[`${s.id}|${f}`];
+                return r ? { th: s[f].th, en: s[f].en || r.en, ar: s[f].ar || r.ar, ms: s[f].ms || r.ms } : s[f];
+              };
+              return { ...s, title: fill('title'), hint: fill('hint') };
+            }) };
+            setDraftSettings(next);
+          } else {
+            notify('ยังแปลเช็กลิสต์อัตโนมัติไม่ได้ กรุณาอัปเดต code.gs แล้ว Deploy ใหม่', 'error');
+          }
+        }
+      }
+      await onSaveSiteSettings(next);
       notify('บันทึกการตั้งค่าแล้ว');
     } finally {
       setSettingsBusy(null);
@@ -478,40 +560,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     });
   };
 
-  const performBatchTranslation = async (items: { key: string, value: string, isDate?: boolean }[]) => {
-    if (items.length === 0) return {};
-    const apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
-    if (!apiKey) {
-      return items.reduce((acc, curr) => ({ ...acc, [curr.key]: { th: curr.value, en: curr.value, ar: curr.value, ms: curr.value } }), {});
-    }
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      const prompt = `Translate to EN, AR, MS: ${items.map(i => `${i.key}:"${i.value}"${i.isDate ? '(date-standard)' : ''}`).join('|')}`;
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          systemInstruction: "You are a professional translator for an educational portal. For 'date-standard' items: In 'th' (Thai), MUST use Buddhist Era year (BE = current year + 543). In 'en', 'ar', 'ms', MUST use Gregorian year (AD). Return JSON with th, en, ar, ms keys.",
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: items.reduce((acc, curr) => ({
-              ...acc,
-              [curr.key]: {
-                type: Type.OBJECT,
-                properties: { th: { type: Type.STRING }, en: { type: Type.STRING }, ar: { type: Type.STRING }, ms: { type: Type.STRING } },
-                required: ["th", "en", "ar", "ms"]
-              }
-            }), {})
-          },
-        },
-      });
-      return JSON.parse(response.text ?? "{}");
-    } catch (error) {
-      return items.reduce((acc, curr) => ({ ...acc, [curr.key]: { th: curr.value, en: curr.value, ar: curr.value, ms: curr.value } }), {});
-    }
+  // Text goes to the Apps Script backend (Google LanguageApp); dates are formatted locally
+  const performBatchTranslation = async (items: { key: string, value: string, isDate?: boolean }[]): Promise<Record<string, Localized4>> => {
+    const out: Record<string, Localized4> = {};
+    const texts: Record<string, string> = {};
+    items.forEach(i => {
+      if (i.isDate) out[i.key] = localizeDate(i.value);
+      else if (String(i.value || '').trim()) texts[i.key] = i.value;
+      else out[i.key] = sameInAll(i.value || '');
+    });
+    if (!Object.keys(texts).length) return out;
+    const res = await translateTexts(texts);
+    if (!res) notify('ยังแปลภาษาอัตโนมัติไม่ได้ กรุณาอัปเดต code.gs แล้ว Deploy ใหม่ (บันทึกเป็นภาษาไทยไว้ก่อน)', 'error');
+    Object.keys(texts).forEach(k => { out[k] = res?.[k] || sameInAll(texts[k]); });
+    return out;
   };
-
   const filteredAdminStudents = useMemo(() => {
     let result = [...studentStatuses];
     result.sort((a, b) => b.lastUpdated - a.lastUpdated);
@@ -703,13 +766,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const thPos = formData.get('pos_th') as string;
     setIsTranslating(true);
     const results = await performBatchTranslation([
-      { key: 'name', value: thName }, { key: 'loc', value: thLoc },
+      { key: 'loc', value: thLoc },
       { key: 'desc', value: thDesc }, { key: 'pos', value: thPos }
     ]);
     setIsTranslating(false);
     const newSite: InternshipSite = {
       id: editingSite?.id || `site-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: results['name'] || { th: thName, en: thName, ar: thName, ms: thName },
+      name: sameInAll(thName), // company names are proper nouns: never translated
       location: results['loc'] || { th: thLoc, en: thLoc, ar: thLoc, ms: thLoc },
       description: results['desc'] || { th: thDesc, en: thDesc, ar: thDesc, ms: thDesc },
       position: results['pos'] || { th: thPos, en: thPos, ar: thPos, ms: thPos },
@@ -1362,6 +1425,40 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       )}
                       <span className="text-[11px] text-slate-400">ย่อเป็น 320×320px อัตโนมัติ</span>
                     </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Auto-translation */}
+              <section className={`${card} p-5`}>
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="md:w-64 shrink-0">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">แปลภาษาอัตโนมัติ</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">กรอกข้อมูลเป็นภาษาไทย ระบบจะแปลเป็นอังกฤษ อาหรับ และมลายูให้เมื่อบันทึก (ยกเว้นชื่อสถานประกอบการ)</p>
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-3">
+                    <div className="flex flex-wrap gap-1.5 text-xs">
+                      {['กำหนดการ', 'ชื่อเอกสาร', 'จังหวัด / ตำแหน่ง / รายละเอียดสถานประกอบการ', 'เช็กลิสต์นักศึกษา'].map(x => (
+                        <span key={x} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"><Check size={12} />{x}</span>
+                      ))}
+                      <span className="inline-flex items-center h-7 px-2.5 rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">ชื่อสถานประกอบการ: คงตามที่พิมพ์</span>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                      <div className="text-sm">
+                        {untranslated.length
+                          ? <><b className="text-slate-900 dark:text-white">{untranslated.length}</b> <span className="text-slate-500 dark:text-slate-400">ข้อความเดิมที่ยังเป็นภาษาไทยทุกภาษา</span></>
+                          : <span className="text-emerald-600 dark:text-emerald-400">ข้อมูลเดิมแปลครบแล้ว</span>}
+                        {bulkTr && <span className="block text-xs text-slate-500 mt-0.5">กำลังแปล {bulkTr.done}/{bulkTr.total}…</span>}
+                      </div>
+                      <button onClick={translateExisting} disabled={!untranslated.length || !!bulkTr || backendLive === false} className={`${btn('primary', 'sm')} disabled:opacity-50`}>
+                        {bulkTr ? <RefreshCw size={14} className="animate-spin" /> : <Languages size={14} />} แปลข้อมูลเดิมทั้งหมด
+                      </button>
+                    </div>
+                    {bulkTr && (
+                      <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <div className="h-full bg-[#630330] dark:bg-amber-400 transition-all" style={{ width: `${(bulkTr.done / bulkTr.total) * 100}%` }} />
+                      </div>
+                    )}
                   </div>
                 </div>
               </section>
