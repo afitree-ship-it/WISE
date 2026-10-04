@@ -46,6 +46,7 @@ interface LandingPageProps {
   studentStatuses: StudentStatusRecord[];
   logo?: string;
   favicon?: string;
+  heroEmblem?: string;
   sitesCount?: number;
   nextEvent?: { label: string; date: string } | null;
 }
@@ -60,6 +61,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   studentStatuses,
   logo,
   favicon,
+  heroEmblem,
   sitesCount = 0,
   nextEvent = null
 }) => {
@@ -92,6 +94,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
     [Language.MS]: { enter: 'Masuk', staff: 'Kakitangan', sites: 'tempat latihan', students: 'pelajar tahun ini' },
   }[lang] || { enter: 'เข้าสู่ระบบ', staff: 'เจ้าหน้าที่', sites: 'สถานประกอบการ', students: 'นักศึกษาปีนี้' };
   const emblem = favicon || logo;
+  const archEmblem = heroEmblem || emblem;
 
   // Rotating tagline under the heading
   const taglines = {
@@ -493,7 +496,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
             <div className="wl-back" />
             <div className="wl-arch">
               <div className="wl-pattern" /><div className="in" /><div className="in2" />
-              {emblem ? <div className="emb"><img src={emblem} alt="" /></div> : <div className="wm">WISE</div>}
+              {archEmblem ? <div className="emb"><img src={archEmblem} alt="" /></div> : <div className="wm">WISE</div>}
             </div>
             <div className="wl-seal">
               <svg viewBox="0 0 120 120">

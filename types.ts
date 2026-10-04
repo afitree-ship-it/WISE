@@ -58,6 +58,7 @@ export interface SiteSettings {
   logo?: string;      // data URL shown in the top bar
   favicon?: string;   // data URL used as the browser tab icon
   siteTitle?: string; // browser tab title
+  heroEmblem?: string; // data URL shown inside the arch on the landing page
 }
 
 export interface LocalizedString {

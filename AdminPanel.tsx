@@ -284,15 +284,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Site settings form
   const [draftSettings, setDraftSettings] = useState<SiteSettings>(siteSettings);
-  const [settingsBusy, setSettingsBusy] = useState<'logo' | 'favicon' | 'save' | null>(null);
+  const [settingsBusy, setSettingsBusy] = useState<'logo' | 'favicon' | 'heroEmblem' | 'save' | null>(null);
   useEffect(() => { setDraftSettings(siteSettings); }, [siteSettings]);
   const settingsDirty = JSON.stringify(draftSettings) !== JSON.stringify(siteSettings);
 
-  const pickImage = async (kind: 'logo' | 'favicon', file?: File | null) => {
+  const pickImage = async (kind: 'logo' | 'favicon' | 'heroEmblem', file?: File | null) => {
     if (!file) return;
     setSettingsBusy(kind);
     try {
-      const dataUrl = await processImage(file, kind === 'logo' ? { maxW: 480, maxH: 128 } : { maxW: 64, maxH: 64, square: true });
+      const size = kind === 'logo' ? { maxW: 480, maxH: 128 } : kind === 'heroEmblem' ? { maxW: 320, maxH: 320, square: true } : { maxW: 64, maxH: 64, square: true };
+      const dataUrl = await processImage(file, size);
       setDraftSettings(prev => ({ ...prev, [kind]: dataUrl }));
     } catch (err: any) {
       notify(err?.message || 'อัปโหลดรูปไม่สำเร็จ', 'error');
@@ -942,7 +943,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     { id: 'schedule', label: 'กำหนดการ', desc: 'วันสำคัญและกำหนดส่งที่นักศึกษาจะเห็นในหน้าหลัก', icon: <CalendarDays size={18} />, count: schedules.length },
     { id: 'forms', label: 'เอกสาร', desc: 'แบบฟอร์มสำหรับดาวน์โหลดในศูนย์เอกสาร', icon: <FileText size={18} />, count: forms.length },
     { id: 'admins', label: 'สิทธิ์แอดมิน', desc: 'รหัสผ่านที่ใช้เข้าสู่ระบบหลังบ้าน', icon: <ShieldCheck size={18} />, count: adminPasswords.length },
-    { id: 'settings', label: 'ตั้งค่าเว็บไซต์', desc: 'โลโก้ ไอคอนแท็บเบราว์เซอร์ และชื่อเว็บไซต์', icon: <Settings2 size={18} />, count: -1 },
+    { id: 'settings', label: 'ตั้งค่าเว็บไซต์', desc: 'โลโก้ ไอคอนแท็บ ตรากลางซุ้มหน้าแรก และชื่อเว็บไซต์', icon: <Settings2 size={18} />, count: -1 },
   ];
   const activeMenu = adminMenu.find(m => m.id === adminActiveTab)!;
 
@@ -1326,6 +1327,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <button onClick={() => setDraftSettings(p => ({ ...p, favicon: '' }))} className={btn('ghost', 'sm')}><Trash2 size={14} /> ลบไอคอน</button>
                       )}
                       <span className="text-[11px] text-slate-400">ย่อเป็น 64×64px อัตโนมัติ</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Landing arch emblem */}
+              <section className={`${card} p-5`}>
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="md:w-64 shrink-0">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">ตราสัญลักษณ์กลางซุ้ม (หน้าแรก)</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">รูปในวงกลมสีขาวกลางซุ้มสีมารูนบนหน้าแรก ควรเป็นตราหรือโลโก้ทรงกลม/จัตุรัส ถ้าเว้นว่างจะใช้ไอคอนเบราว์เซอร์หรือโลโก้เว็บแทน</p>
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    {/* Mini preview of the landing arch */}
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-gradient-to-br from-[#fdfaf4] to-[#f1e5d3] h-44 flex items-end justify-center gap-6 px-6">
+                      <div className="relative w-36 h-40 rounded-t-full rounded-b-lg bg-[#630330] overflow-hidden shadow-[0_20px_40px_-20px_rgba(99,3,48,0.6)]">
+                        <div className="absolute inset-x-2.5 top-2.5 bottom-0 rounded-t-full border border-[#e8cf7a]/50" />
+                        <div className="absolute left-1/2 top-[22%] -translate-x-1/2 w-[46%] aspect-square rounded-full bg-white p-1.5 shadow-lg flex items-center justify-center">
+                          {(draftSettings.heroEmblem || draftSettings.favicon || draftSettings.logo)
+                            ? <img src={draftSettings.heroEmblem || draftSettings.favicon || draftSettings.logo} alt="ตัวอย่างตรากลางซุ้ม" className="w-full h-full object-contain rounded-full" />
+                            : <span className="text-[11px] font-extrabold text-[#630330]">WISE</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className={`${btn('secondary', 'sm')} cursor-pointer`}>
+                        <ImagePlus size={14} /> {settingsBusy === 'heroEmblem' ? 'กำลังประมวลผล…' : draftSettings.heroEmblem ? 'เปลี่ยนตรา' : 'อัปโหลดตรา'}
+                        <input type="file" accept="image/*" className="sr-only" onChange={(e) => { pickImage('heroEmblem', e.target.files?.[0]); e.currentTarget.value = ''; }} />
+                      </label>
+                      {draftSettings.heroEmblem && (
+                        <button onClick={() => setDraftSettings(p => ({ ...p, heroEmblem: '' }))} className={btn('ghost', 'sm')}><Trash2 size={14} /> ลบตรา</button>
+                      )}
+                      <span className="text-[11px] text-slate-400">ย่อเป็น 320×320px อัตโนมัติ</span>
                     </div>
                   </div>
                 </div>

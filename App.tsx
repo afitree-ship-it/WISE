@@ -53,7 +53,7 @@ const settingsFromRows = (rows: any[]): SiteSettings => {
   rows.forEach(r => {
     const k = String(r?.key || '');
     const v = String(r?.value || '');
-    if (k === 'logo' || k === 'favicon' || k === 'siteTitle') (out as any)[k] = v;
+    if (k === 'logo' || k === 'favicon' || k === 'siteTitle' || k === 'heroEmblem') (out as any)[k] = v;
   });
   return out;
 };
@@ -426,6 +426,7 @@ const App: React.FC = () => {
       { key: 'logo', value: next.logo || '' },
       { key: 'favicon', value: next.favicon || '' },
       { key: 'siteTitle', value: next.siteTitle || '' },
+      { key: 'heroEmblem', value: next.heroEmblem || '' },
     ], 'all');
   }, [syncToSheets]);
 
@@ -630,6 +631,7 @@ const App: React.FC = () => {
           studentStatuses={studentStatuses}
           logo={siteSettings.logo}
           favicon={siteSettings.favicon}
+          heroEmblem={siteSettings.heroEmblem}
           sitesCount={sites.filter(s => s.status !== 'archived').length}
           nextEvent={nextEvent}
         />
