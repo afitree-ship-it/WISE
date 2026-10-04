@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Language, 
   Major, 
@@ -9,6 +9,7 @@ import {
   InternshipType
 } from './types';
 import LanguageSwitcher from './components/LanguageSwitcher';
+import { useFitLockup } from './useFitLockup';
 import { 
   X, 
   ChevronRight, 
@@ -111,28 +112,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
   // Fit the EN and TH lockup lines (and the divider) to the exact width of the word WISE
   const lockupRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const el = lockupRef.current;
-    if (!el) return;
-    const fit = () => {
-      const target = el.querySelector('[data-fit-target]')?.getBoundingClientRect().width || 0;
-      if (!target) return;
-      const rule = el.querySelector<HTMLElement>('[data-fit-rule]');
-      if (rule) rule.style.width = `${target}px`;
-      el.querySelectorAll<HTMLElement>('[data-fit]').forEach(span => {
-        const line = span.parentElement as HTMLElement;
-        line.style.fontSize = '20px';
-        const w = span.getBoundingClientRect().width;
-        if (w) line.style.fontSize = `${(20 * target / w).toFixed(2)}px`;
-      });
-    };
-    fit();
-    const ro = new ResizeObserver(fit);
-    ro.observe(el.querySelector('[data-fit-target]') as Element);
-    window.addEventListener('resize', fit);
-    document.fonts?.ready.then(fit);
-    return () => { ro.disconnect(); window.removeEventListener('resize', fit); };
-  }, []);
+  useFitLockup(lockupRef);
 
   // Thai heading breaks before "และ" for a balanced two-line title
   const headingLines = lang === Language.TH && currentT.landingHeading.includes('และ')

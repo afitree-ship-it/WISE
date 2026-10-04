@@ -17,7 +17,7 @@ import { fetchLive, saveSupervisor, LiveRow, FieldLock } from './liveSync';
 import { useLiveSupervisors } from './useLiveSupervisors';
 import DashboardPage from './DashboardPage';
 import { TRANSLATIONS, INITIAL_SITES, INITIAL_FORMS, INITIAL_SCHEDULE, INITIAL_STUDENT_STATUSES } from './constants';
-import StudentPortal, { PORTAL_NAV, scrollToSection, useActiveSection } from './components/StudentPortal';
+import StudentPortal from './components/StudentPortal';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import LandingPage from './LandingPage';
 import AdminPanel from './AdminPanel';
@@ -179,7 +179,6 @@ const App: React.FC = () => {
   });
   const [activeMajor, setActiveMajor] = useState<Major | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const activeSection = useActiveSection(viewState === 'dashboard' && role !== UserRole.ADMIN);
 
   // Utility for resilient fetching from Google Apps Script
   const fetchWithRetry = async (url: string, options: RequestInit = {}, retries = 3): Promise<Response> => {
@@ -674,63 +673,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {!isAdmin ? (
-        <header className="wp sticky top-0 z-[100] shrink-0 px-3 sm:px-6 pt-[max(12px,env(safe-area-inset-top))]">
-          <div className="mx-auto max-w-6xl h-14 flex items-center justify-between gap-2 ps-2 pe-1.5 rounded-full bg-white/80 dark:bg-[#1c0c14]/80 backdrop-blur-xl border border-[#efe4d2] dark:border-white/10 shadow-[0_14px_34px_-22px_rgba(99,3,48,0.35)]">
-            <button className="flex items-center gap-2.5 min-w-0" onClick={() => { setViewState('landing'); window.history.back(); }} title="กลับหน้าแรก">
-              {siteSettings.favicon || siteSettings.logo ? (
-                <span className="w-10 h-10 shrink-0 rounded-full bg-white ring-1 ring-[#efe4d2] dark:ring-white/10 overflow-hidden flex items-center justify-center">
-                  <img src={siteSettings.favicon || siteSettings.logo} alt="" className={`w-full h-full ${siteSettings.favicon ? 'object-contain p-0.5' : 'object-cover object-left'}`} />
-                </span>
-              ) : (
-                <span className="wl-latin w-10 h-10 shrink-0 rounded-full bg-[#630330] text-[#e8cf7a] flex items-center justify-center text-sm font-extrabold">W</span>
-              )}
-              <span className="wl-latin text-[17px] font-extrabold tracking-tight text-[#630330] dark:text-white">WISE<span className="text-[#D4AF37]">.</span></span>
-            </button>
-            <nav className="hidden md:flex items-center gap-1">
-              {PORTAL_NAV(lang).map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => scrollToSection(item.id)}
-                  className={`h-10 px-4 rounded-full text-[14px] transition ${activeSection === item.id ? 'bg-[#630330] text-white' : 'text-[#6e5560] dark:text-slate-300 hover:bg-[#faf6ef] dark:hover:bg-white/5'}`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </nav>
-            <div className="flex items-center gap-1">
-              <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" tone="light" />
-              <button
-                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                className="w-10 h-10 flex items-center justify-center rounded-full text-[#6e5560] hover:bg-[#faf6ef] dark:text-slate-300 dark:hover:bg-white/5 transition"
-                title={theme === 'light' ? 'โหมดมืด' : 'โหมดสว่าง'}
-              >
-                {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
-              </button>
-              <button
-                onClick={handleLogout}
-                className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-full text-[14px] text-[#630330] dark:text-[#e8cf7a] bg-[#630330]/[0.06] dark:bg-white/5 hover:bg-[#630330] hover:text-white transition"
-                title={currentT.logout}
-              >
-                <LogOut size={16} className={isRtl ? 'rotate-180' : ''} />
-                <span className="hidden sm:inline">{currentT.logout}</span>
-              </button>
-            </div>
-          </div>
-          {/* Section tabs on small screens */}
-          <nav className="md:hidden mx-auto mt-2 w-fit max-w-full flex items-center gap-1 p-1 rounded-full bg-white/80 dark:bg-[#1c0c14]/80 backdrop-blur-xl border border-[#efe4d2] dark:border-white/10 overflow-x-auto hide-scrollbar">
-            {PORTAL_NAV(lang).map(item => (
-              <button
-                key={item.id}
-                onClick={() => scrollToSection(item.id)}
-                className={`shrink-0 h-8 px-3.5 rounded-full text-[13px] transition ${activeSection === item.id ? 'bg-[#630330] text-white' : 'text-[#6e5560] dark:text-slate-300'}`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </nav>
-        </header>
-      ) : (
+      {isAdmin && (
       <header className="sticky top-0 z-[100] shrink-0 h-14 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800">
         <div className={`${isAdmin ? 'px-4 sm:px-6' : 'container mx-auto px-4'} h-full flex items-center justify-between gap-3`}>
           <button
@@ -806,7 +749,15 @@ const App: React.FC = () => {
       ) : (
         <StudentPortal
           lang={lang}
+          setLang={setLang}
           currentT={currentT}
+          studentStatuses={studentStatuses}
+          emblem={siteSettings.favicon || siteSettings.logo}
+          emblemIsIcon={!!siteSettings.favicon}
+          theme={theme}
+          onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+          onLogout={handleLogout}
+          onHome={() => { setViewState('landing'); window.history.back(); }}
           isRtl={isRtl}
           sites={sites}
           schedules={schedules}

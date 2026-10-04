@@ -112,6 +112,14 @@
     .wp-pattern { opacity: .07; -webkit-mask-image: linear-gradient(to bottom, #000, rgba(0,0,0,.35) 70%); mask-image: linear-gradient(to bottom, #000, rgba(0,0,0,.35) 70%); }
     .dark .wp-pattern { opacity: .05; }
     .wp { font-family: 'Kanit', 'Plus Jakarta Sans', 'Cairo', sans-serif; }
+    .wp-root { --wp-bg: #f8f1e6; }
+    .dark .wp-root { --wp-bg: #14070d; }
+    .wp-left { background: linear-gradient(160deg, #fdfaf4 0%, #f6eee2 60%, #f1e5d3 100%); }
+    .dark .wp-left { background: linear-gradient(160deg, #22101a 0%, #170a10 100%); }
+    .dark .wp-left .wl-wise { color: #fff; }
+    .dark .wp-left .wl-th { color: #e8cf7a; }
+    .wl-wise.wp-wise { font-size: clamp(78px, 7.6vw, 124px); }
+    @media (max-width: 1023px) { .wl-wise.wp-wise { font-size: clamp(76px, 20vw, 110px); } }
     .rtl .wp { font-family: 'Cairo', 'Kanit', 'Plus Jakarta Sans', sans-serif; }
     /* Background: faint star pattern, brighter around the cursor, water ripple on click */
     .wl-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
