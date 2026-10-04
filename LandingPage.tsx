@@ -403,20 +403,22 @@ const LandingPage: React.FC<LandingPageProps> = ({
         </button>
       </header>
 
-      <div className="landing-content-wrapper relative flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-5 sm:px-6 h-full pointer-events-none pt-20 pb-24 sm:py-24">
-        {/* Gold arch (mihrab) framing the title — draws itself in, drifts with the cursor */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[52%] w-[124vw] max-w-[880px] h-[80vh] max-h-[720px] pointer-events-none" aria-hidden="true">
-          <div ref={archRef} className="w-full h-full relative transition-transform duration-700 ease-out will-change-transform">
-            <svg viewBox="0 0 600 640" fill="none" preserveAspectRatio="none" className="w-full h-full">
-              <path className="wise-arch-path" d="M60 640 V300 C60 140 180 40 300 10 C420 40 540 140 540 300 V640" stroke="rgba(212,175,55,.5)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" pathLength={1} />
-              <path className="wise-arch-path wise-arch-path--inner" d="M92 640 V305 C92 165 196 76 300 46 C404 76 508 165 508 305 V640" stroke="rgba(212,175,55,.2)" strokeWidth="1" vectorEffect="non-scaling-stroke" pathLength={1} />
-            </svg>
-            <span className="wise-arch-dot absolute left-1/2 top-[1.4%] -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#D4AF37]" />
-          </div>
-        </div>
-
+      <div className="landing-content-wrapper relative flex-grow flex flex-col items-center justify-center w-full max-w-4xl z-20 px-5 sm:px-6 h-full pointer-events-none pt-20 pb-24 sm:pt-24 sm:pb-[max(170px,26vh)]">
         <div className="relative flex flex-col items-center text-center pointer-events-auto">
-          <span className="wise-rise text-[#D4AF37] text-[9.5px] min-[400px]:text-[10px] sm:text-[13px] font-semibold uppercase tracking-[0.14em] min-[400px]:tracking-[0.2em] sm:tracking-[0.35em] whitespace-nowrap" style={{ animationDelay: '150ms' }}>
+          {/* Gold arch (mihrab) anchored to the text block so it always frames it; legs fade out */}
+          <div
+            className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[22%] w-[150vw] sm:w-[min(130vw,900px)] h-[calc(100%+18vh)] pointer-events-none -z-10"
+            style={{ WebkitMaskImage: 'linear-gradient(to bottom, #000 60%, transparent 97%)', maskImage: 'linear-gradient(to bottom, #000 60%, transparent 97%)' }}
+            aria-hidden="true"
+          >
+            <div ref={archRef} className="w-full h-full relative transition-transform duration-700 ease-out will-change-transform">
+              <svg viewBox="0 0 600 640" fill="none" preserveAspectRatio="none" className="w-full h-full">
+                <path className="wise-arch-path" d="M50 640 V230 C50 100 190 32 300 10 C410 32 550 100 550 230 V640" stroke="rgba(212,175,55,.5)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" pathLength={1} />
+                <path className="wise-arch-path wise-arch-path--inner" d="M84 640 V236 C84 122 200 64 300 44 C400 64 516 122 516 236 V640" stroke="rgba(212,175,55,.2)" strokeWidth="1" vectorEffect="non-scaling-stroke" pathLength={1} />
+              </svg>
+              <span className="wise-arch-dot absolute left-1/2 top-[1.56%] -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#D4AF37]" />
+            </div>
+          </div>          <span className="wise-rise text-[#D4AF37] text-[9.5px] min-[400px]:text-[10px] sm:text-[13px] font-semibold uppercase tracking-[0.14em] min-[400px]:tracking-[0.2em] sm:tracking-[0.35em] whitespace-nowrap" style={{ animationDelay: '150ms' }}>
             Work-Integrated Science Education Unit
           </span>
 
