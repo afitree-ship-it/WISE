@@ -300,7 +300,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
                 <img src={emblem} alt="" className={`w-full h-full ${emblemIsIcon ? 'object-contain p-0.5' : 'object-cover object-left'}`} />
               </span>
             ) : <span className="wl-latin w-10 h-10 shrink-0 rounded-full bg-[#630330] text-[#e8cf7a] flex items-center justify-center text-[11px] font-extrabold">FST</span>}
-            <span className="hidden sm:block truncate text-[14px] text-[#630330] dark:text-[#e8cf7a]">{S.faculty}</span>
+            <span className="hidden sm:block lg:hidden xl:block truncate text-[14px] text-[#630330] dark:text-[#e8cf7a]">{S.faculty}</span>
           </button>
           <div className="flex items-center gap-1">
             <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" tone="light" />
@@ -308,7 +308,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
               {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
             </button>
             <button onClick={onLogout} className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-full text-[14px] text-[#630330] dark:text-[#e8cf7a] bg-[#630330]/[0.07] dark:bg-white/5 hover:bg-[#630330] hover:text-white transition" title={S.logout}>
-              <LogOut size={16} className={isRtl ? 'rotate-180' : ''} /><span className="hidden sm:inline">{S.logout}</span>
+              <LogOut size={16} className={`shrink-0 ${isRtl ? 'rotate-180' : ''}`} /><span className="hidden sm:inline whitespace-nowrap">{S.logout}</span>
             </button>
           </div>
         </div>
@@ -319,10 +319,10 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
           <div className="wl-rule" data-fit-rule><i /></div>
           <div className="wl-line wl-th"><span data-fit>หน่วยจัดการศึกษาวิทยาศาสตร์บูรณาการกับการทำงาน</span></div>
         </div>
-        <p className="relative mt-5 text-[19px] sm:text-[22px] font-medium text-[#2a0a17] dark:text-white">{currentT.landingHeading}</p>
+        <p className="wp-heading relative mt-5 text-[19px] sm:text-[22px] font-medium text-[#2a0a17] dark:text-white">{currentT.landingHeading}</p>
 
         {/* Quick stats: jump straight to a tab */}
-        <div className="relative mt-5 flex w-fit max-w-full rounded-2xl bg-white/75 dark:bg-white/[0.04] border border-[#efe4d2] dark:border-white/10 divide-x rtl:divide-x-reverse divide-[#efe4d2] dark:divide-white/10 overflow-hidden">
+        <div className="wp-stats relative mt-5 flex w-fit max-w-full rounded-2xl bg-white/75 dark:bg-white/[0.04] border border-[#efe4d2] dark:border-white/10 divide-x rtl:divide-x-reverse divide-[#efe4d2] dark:divide-white/10 overflow-hidden">
           {[
             { t: 'sites' as Tab, n: sites.filter(s => s.status === 'active').length, label: S.srcOpen, src: 'open' as const },
             { t: 'sites' as Tab, n: seniorSites.length, label: S.srcSenior, src: 'senior' as const },
