@@ -158,6 +158,20 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
   useFitLockup(lockupRef);
 
   const [tab, setTab] = useState<Tab>('all');
+  // Tab bar gets a backdrop only once it is stuck to the top, so it never draws a seam at rest
+  const tabBarRef = useRef<HTMLDivElement>(null);
+  const [tabsStuck, setTabsStuck] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    const check = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => {
+      const el = tabBarRef.current;
+      if (el) setTabsStuck(el.getBoundingClientRect().top <= 1 && window.scrollY > 0);
+    }); };
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
+    return () => { window.removeEventListener('scroll', check); window.removeEventListener('resize', check); cancelAnimationFrame(raf); };
+  }, []);
   const [showPast, setShowPast] = useState(false);
   const [source, setSource] = useState<'open' | 'senior' | 'all'>('all');
   const show = (t: Tab) => tab === 'all' || tab === t;
@@ -272,8 +286,8 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
   return (
     <div className="wp relative z-10 flex-grow lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
       {/* ================= LEFT: same identity as the landing ================= */}
-      <aside className="wp-left relative overflow-hidden flex flex-col px-5 sm:px-10 lg:px-12 pt-[max(18px,env(safe-area-inset-top))] pb-7 lg:pb-10">
-        <div className="wl-pattern opacity-[0.07]" aria-hidden="true" />
+      <aside className="wp-left relative flex flex-col px-5 sm:px-10 lg:px-12 pt-[max(18px,env(safe-area-inset-top))] pb-7 lg:pb-10">
+        <div className="wp-left-pattern wl-pattern opacity-[0.07]" aria-hidden="true" />
         <div className="relative flex items-center justify-between gap-2">
           <button onClick={onHome} className="flex items-center gap-2.5 min-w-0" title="หน้าแรก">
             {emblem ? (
@@ -339,7 +353,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
       {/* ================= RIGHT: content ================= */}
       <div id="wp-right" className="min-w-0 scroll-mt-0 px-4 sm:px-8 lg:px-11 pb-16">
         {/* Tabs */}
-        <div className="sticky top-0 z-20 -mx-4 sm:-mx-8 lg:-mx-11 px-4 sm:px-8 lg:px-11 pt-[max(14px,env(safe-area-inset-top))] pb-3 bg-gradient-to-b from-[var(--wp-bg)] via-[var(--wp-bg)] to-transparent">
+        <div ref={tabBarRef} className={`sticky top-0 z-20 -mx-4 sm:-mx-8 lg:-mx-11 px-4 sm:px-8 lg:px-11 pt-[max(14px,env(safe-area-inset-top))] pb-4 transition-[background-color,backdrop-filter] duration-300 ${tabsStuck ? 'wp-tabs-stuck' : ''}`}>
           <div className="flex items-center gap-1 p-1 w-fit max-w-full overflow-x-auto hide-scrollbar rounded-full bg-white/90 dark:bg-[#1c0c14]/90 backdrop-blur border border-[#efe4d2] dark:border-white/10 shadow-[0_10px_24px_-18px_rgba(99,3,48,0.45)]">
             {(Object.keys(S.tabs) as Tab[]).map(t => (
               <button key={t} ref={el => {
