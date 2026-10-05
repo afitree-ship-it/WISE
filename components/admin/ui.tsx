@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { X, CheckCircle2, AlertCircle, Info } from 'lucide-react';
-import { ApplicationStatus, Major } from '../../types';
+import { X, CheckCircle2, AlertCircle, Info, Briefcase, GraduationCap, Copy, Check } from 'lucide-react';
+import { ApplicationStatus, Major, InternshipType } from '../../types';
 
 /* ------------------------------------------------------------------ */
 /* Design tokens (Tailwind class strings)                              */
@@ -101,6 +101,24 @@ export const majorMeta = (m?: Major) => MAJOR_META[m as Major] || { short: '-', 
 
 export const MAJOR_LIST: Major[] = [Major.HALAL_FOOD, Major.DIGITAL_TECH, Major.INFO_TECH, Major.DATA_SCIENCE];
 
+/** Internship vs co-op: two distinct hues used everywhere in the admin (badges, row stripes, charts). */
+export const TYPE_META: Record<InternshipType, { label: string; short: string; pill: string; dot: string; bar: string; text: string; soft: string; hex: string }> = {
+  [InternshipType.INTERNSHIP]: {
+    label: 'ฝึกงาน', short: 'ฝึกงาน',
+    pill: 'bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30',
+    dot: 'bg-sky-500', bar: 'bg-sky-500', text: 'text-sky-600 dark:text-sky-400', soft: 'bg-sky-50 dark:bg-sky-500/10', hex: '#0ea5e9',
+  },
+  [InternshipType.COOP]: {
+    label: 'สหกิจศึกษา', short: 'สหกิจ',
+    pill: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-500/10 dark:text-fuchsia-300 dark:ring-fuchsia-500/30',
+    dot: 'bg-fuchsia-500', bar: 'bg-fuchsia-500', text: 'text-fuchsia-600 dark:text-fuchsia-400', soft: 'bg-fuchsia-50 dark:bg-fuchsia-500/10', hex: '#d946ef',
+  },
+};
+export const TYPE_LIST: InternshipType[] = [InternshipType.INTERNSHIP, InternshipType.COOP];
+export const typeMeta = (t?: InternshipType) => TYPE_META[t === InternshipType.COOP ? InternshipType.COOP : InternshipType.INTERNSHIP];
+export const TypeIcon: React.FC<{ type?: InternshipType; size?: number; className?: string }> = ({ type, size = 12, className }) =>
+  type === InternshipType.COOP ? <GraduationCap size={size} className={className} /> : <Briefcase size={size} className={className} />;
+
 /* ------------------------------------------------------------------ */
 /* Components                                                          */
 /* ------------------------------------------------------------------ */
@@ -111,6 +129,32 @@ export const StatusBadge: React.FC<{ status?: ApplicationStatus }> = ({ status }
     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ring-1 ring-inset whitespace-nowrap ${m.pill}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
       {m.label}
+    </span>
+  );
+};
+
+/** Student ID that copies itself to the clipboard on click. */
+export const StudentIdCopy: React.FC<{ id?: string | number; copied?: boolean; onCopy: (id: string) => void }> = ({ id, copied, onCopy }) => {
+  const text = String(id ?? '').trim();
+  if (!text) return <span className="text-xs text-slate-300 dark:text-slate-600">—</span>;
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onCopy(text); }}
+      title="คลิกเพื่อคัดลอกรหัส"
+      className={`group/id mt-0.5 inline-flex items-center gap-1.5 -ml-1 px-1 rounded-md font-mono text-xs transition ${copied ? 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10' : 'text-slate-500 dark:text-slate-400 hover:text-[#630330] hover:bg-[#630330]/[0.06] dark:hover:text-amber-300 dark:hover:bg-amber-400/10'}`}
+    >
+      {text}
+      {copied ? <Check size={12} /> : <Copy size={12} className="opacity-40 group-hover/id:opacity-100" />}
+    </button>
+  );
+};
+export const TypeBadge: React.FC<{ type?: InternshipType; short?: boolean }> = ({ type, short }) => {
+  const m = typeMeta(type);
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ring-1 ring-inset whitespace-nowrap ${m.pill}`}>
+      <TypeIcon type={type} size={11} />
+      {short ? m.short : m.label}
     </span>
   );
 };

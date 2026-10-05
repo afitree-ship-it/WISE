@@ -96,7 +96,13 @@ import {
   EmptyState,
   ToastStack,
   ToastItem,
-  ToastKind
+  ToastKind,
+  TYPE_META,
+  TYPE_LIST,
+  TypeBadge,
+  TypeIcon,
+  typeMeta,
+  StudentIdCopy,
 } from './components/admin/ui';
 
 interface AdminPanelProps {
@@ -171,6 +177,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [adminStudentMajorFilter, setAdminStudentMajorFilter] = useState<Major | 'all'>('all');
   const [adminStudentYearFilter, setAdminStudentYearFilter] = useState<string | 'all'>(currentYearBE);
   const [adminStudentTermFilter, setAdminStudentTermFilter] = useState<string | 'all'>('all');
+  const [adminStudentTypeFilter, setAdminStudentTypeFilter] = useState<InternshipType | 'all'>('all');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
   const [studentViewMode, setStudentViewMode] = useState<'table' | 'cards'>(() =>
@@ -202,14 +210,50 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     return result;
   }, [studentStatuses, adminStudentYearFilter, adminStudentTermFilter, adminStudentMajorFilter]);
 
-  const studentStats = useMemo(() => {
-    const total = scopedStudentsForStats.length;
-    const accepted = scopedStudentsForStats.filter(s => s.status === ApplicationStatus.ACCEPTED).length;
-    const preparing = scopedStudentsForStats.filter(s => s.status === ApplicationStatus.PREPARING).length;
-    const pending = scopedStudentsForStats.filter(s => s.status === ApplicationStatus.PENDING || !s.status).length;
-    const rejected = scopedStudentsForStats.filter(s => s.status === ApplicationStatus.REJECTED).length;
-    return { total, accepted, preparing, pending, rejected };
+  const isType = (s: StudentStatusRecord, t: InternshipType) => (s.internshipType === InternshipType.COOP ? InternshipType.COOP : InternshipType.INTERNSHIP) === t;
+  // Internship / co-op cards use the same year/term/major scope, before the type filter
+  const typeStats = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return TYPE_LIST.map(t => {
+      const list = scopedStudentsForStats.filter(s => isType(s, t));
+      return {
+        type: t,
+        total: list.length,
+        accepted: list.filter(s => s.status === ApplicationStatus.ACCEPTED).length,
+        active: list.filter(s => s.status === ApplicationStatus.ACCEPTED && s.startDate && s.startDate <= today && (!s.endDate || s.endDate >= today)).length,
+      };
+    });
   }, [scopedStudentsForStats]);
+  const scopedByType = useMemo(
+    () => (adminStudentTypeFilter === 'all' ? scopedStudentsForStats : scopedStudentsForStats.filter(s => isType(s, adminStudentTypeFilter))),
+    [scopedStudentsForStats, adminStudentTypeFilter]
+  );
+
+  const studentStats = useMemo(() => {
+    const total = scopedByType.length;
+    const accepted = scopedByType.filter(s => s.status === ApplicationStatus.ACCEPTED).length;
+    const preparing = scopedByType.filter(s => s.status === ApplicationStatus.PREPARING).length;
+    const pending = scopedByType.filter(s => s.status === ApplicationStatus.PENDING || !s.status).length;
+    const rejected = scopedByType.filter(s => s.status === ApplicationStatus.REJECTED).length;
+    return { total, accepted, preparing, pending, rejected };
+  }, [scopedByType]);
+
+  const copyStudentId = async (id: string) => {
+    const text = String(id || '').trim();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } finally { ta.remove(); }
+    }
+    setCopiedId(text);
+    notify(`คัดลอกรหัส ${text} แล้ว`);
+    setTimeout(() => setCopiedId(c => (c === text ? null : c)), 1500);
+  };
 
   // Modal local state for easy date picking & presets
   const [modalStartDate, setModalStartDate] = useState('');
@@ -604,8 +648,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (adminStudentTermFilter !== 'all') {
       result = result.filter(s => String(s.term || '').trim() === adminStudentTermFilter);
     }
+    if (adminStudentTypeFilter !== 'all') {
+      result = result.filter(s => isType(s, adminStudentTypeFilter));
+    }
     return result;
-  }, [studentStatuses, adminStudentSearch, adminStudentStatusFilter, adminStudentMajorFilter, adminStudentYearFilter, adminStudentTermFilter]);
+  }, [studentStatuses, adminStudentSearch, adminStudentStatusFilter, adminStudentMajorFilter, adminStudentYearFilter, adminStudentTermFilter, adminStudentTypeFilter]);
 
   const selectedStudents = useMemo(
     () => studentStatuses.filter(s => selectedStudentIds.includes(s.id)),
@@ -1092,11 +1139,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setAdminStudentMajorFilter('all');
     setAdminStudentYearFilter(toAll ? 'all' : currentYearBE);
     setAdminStudentTermFilter('all');
+    setAdminStudentTypeFilter('all');
     if (toAll) setAdminStudentSearch('');
   };
 
   const hasActiveStudentFilters =
-    adminStudentStatusFilter !== 'all' || adminStudentMajorFilter !== 'all' || adminStudentYearFilter !== currentYearBE || adminStudentTermFilter !== 'all' || adminStudentSearch !== '';
+    adminStudentStatusFilter !== 'all' || adminStudentMajorFilter !== 'all' || adminStudentYearFilter !== currentYearBE || adminStudentTermFilter !== 'all' || adminStudentTypeFilter !== 'all' || adminStudentSearch !== '';
 
   // Stats modal data
   const statsData = useMemo(() => {
@@ -1512,6 +1560,32 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           {/* ======================= STUDENTS ======================= */}
           {adminActiveTab === 'students' && (
             <div className="space-y-4 wise-fade-in">
+              {/* Internship vs co-op: click to filter */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {typeStats.map(ts => {
+                  const m = TYPE_META[ts.type];
+                  const active = adminStudentTypeFilter === ts.type;
+                  const all = typeStats.reduce((n, x) => n + x.total, 0);
+                  return (
+                    <button
+                      key={ts.type}
+                      onClick={() => setAdminStudentTypeFilter(active ? 'all' : ts.type)}
+                      aria-pressed={active}
+                      className={`${card} relative overflow-hidden text-left p-4 flex items-center gap-4 transition hover:border-slate-300 dark:hover:border-slate-700 ${active ? 'ring-2 ring-offset-0 border-transparent ' + (ts.type === InternshipType.COOP ? 'ring-fuchsia-500' : 'ring-sky-500') : ''}`}
+                    >
+                      <span className={`absolute inset-y-0 left-0 w-1.5 ${m.bar}`} />
+                      <span className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center ${m.soft} ${m.text}`}><TypeIcon type={ts.type} size={20} /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className={`block text-xs font-semibold ${m.text}`}>{m.label}</span>
+                        <span className="block text-2xl font-bold tabular-nums text-slate-900 dark:text-white leading-tight">{ts.total}<span className="ml-1 text-xs font-medium text-slate-400">คน · {pct(ts.total, all)}%</span></span>
+                        <span className="block mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">ตอบรับแล้ว {ts.accepted} · กำลังฝึก {ts.active}</span>
+                      </span>
+                      <span className={`hidden sm:inline text-[11px] font-medium ${active ? m.text : 'text-slate-400'}`}>{active ? 'กำลังกรอง' : 'คลิกเพื่อกรอง'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* KPI cards */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <button
@@ -1675,18 +1749,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         const m = statusMeta(record.status);
                         return (
                           <tr key={record.id} className={`group transition-colors ${isSelected ? 'bg-[#630330]/[0.04] dark:bg-amber-400/[0.06]' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
-                            <td className="pl-4 pr-2 py-2.5">
+                            <td className="relative pl-4 pr-2 py-2.5">
+                              <span className={`absolute inset-y-1 left-0 w-1 rounded-r ${typeMeta(record.internshipType).bar}`} title={typeMeta(record.internshipType).label} />
                               <input type="checkbox" checked={isSelected} onChange={() => toggleStudentSelection(record.id)} className="wise-check" aria-label={`เลือก ${record.name}`} />
                             </td>
                             <td className="px-3 py-2.5">
-                              <button onClick={() => handleEditStudent(record)} className="text-left group/name">
+                              <button onClick={() => handleEditStudent(record)} className="block text-left group/name">
                                 <div className="font-semibold text-slate-900 dark:text-white group-hover/name:text-[#630330] dark:group-hover/name:text-amber-300 transition whitespace-nowrap">{record.name}</div>
-                                <div className="text-xs text-slate-400 font-mono">{record.studentId}</div>
                               </button>
+                              <StudentIdCopy id={record.studentId} copied={copiedId === String(record.studentId || '').trim()} onCopy={copyStudentId} />
                             </td>
                             <td className="px-3 py-2.5">
-                              <MajorBadge major={record.major} />
-                              <div className="text-[11px] text-slate-400 mt-0.5 whitespace-nowrap">{record.internshipType === InternshipType.INTERNSHIP ? 'ฝึกงาน' : 'สหกิจศึกษา'}</div>
+                              <div className="flex flex-col items-start gap-1">
+                                <MajorBadge major={record.major} />
+                                <TypeBadge type={record.internshipType} />
+                              </div>
                             </td>
                             <td className="px-3 py-2.5 max-w-[240px]">
                               <div className="text-slate-800 dark:text-slate-200 truncate" title={record.location}>{record.location || <span className="text-slate-300 dark:text-slate-600">—</span>}</div>
@@ -1739,17 +1816,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   {filteredAdminStudents.map(record => {
                     const isSelected = selectedStudentIds.includes(record.id);
                     return (
-                      <div key={record.id} className={`${card} p-4 flex flex-col gap-3 transition ${isSelected ? 'ring-2 ring-[#630330] dark:ring-amber-400 border-transparent' : 'hover:border-slate-300 dark:hover:border-slate-700'}`}>
+                      <div key={record.id} className={`${card} relative overflow-hidden p-4 flex flex-col gap-3 transition ${isSelected ? 'ring-2 ring-[#630330] dark:ring-amber-400 border-transparent' : 'hover:border-slate-300 dark:hover:border-slate-700'}`}>
+                        <span className={`absolute inset-x-0 top-0 h-1 ${typeMeta(record.internshipType).bar}`} />
                         <div className="flex items-start gap-3">
                           <input type="checkbox" checked={isSelected} onChange={() => toggleStudentSelection(record.id)} className="wise-check mt-1" aria-label={`เลือก ${record.name}`} />
                           <div className="min-w-0 flex-1">
                             <h4 className="font-semibold text-slate-900 dark:text-white leading-snug break-words">{record.name}</h4>
-                            <p className="text-xs text-slate-400 font-mono">{record.studentId}</p>
+                            <StudentIdCopy id={record.studentId} copied={copiedId === String(record.studentId || '').trim()} onCopy={copyStudentId} />
                           </div>
                           <StatusBadge status={record.status} />
                         </div>
                         <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
-                          <div className="flex items-center gap-2"><MajorBadge major={record.major} /><span className="text-slate-400">{record.internshipType === InternshipType.INTERNSHIP ? 'ฝึกงาน' : 'สหกิจ'} · เทอม {record.term || '-'}/{record.academicYear || '-'}</span></div>
+                          <div className="flex flex-wrap items-center gap-1.5"><MajorBadge major={record.major} /><TypeBadge type={record.internshipType} short /><span className="text-slate-400">เทอม {record.term || '-'}/{record.academicYear || '-'}</span></div>
                           <div className="flex items-center gap-2"><Building2 size={13} className="text-slate-400 shrink-0" /><span className="truncate">{record.location || '—'}{record.position ? ` · ${record.position}` : ''}</span></div>
                           <div className="flex items-center gap-2"><Calendar size={13} className="text-slate-400 shrink-0" /><span>{formatRange(record.startDate, record.endDate) || 'ยังไม่ระบุระยะเวลา'}</span></div>
                           <div className="flex items-center gap-2"><UserCheck size={13} className="text-slate-400 shrink-0" /><span className="truncate">{record.supervisor || <span className="text-slate-400">ยังไม่ระบุอาจารย์นิเทศ</span>}</span></div>

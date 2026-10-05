@@ -3,7 +3,7 @@ import {
   Users, CheckCircle2, UserCheck, Activity, Building2, CalendarDays, AlertCircle, Clock, CalendarX, ChevronRight, MapPin, Briefcase, GraduationCap
 } from 'lucide-react';
 import { StudentStatusRecord, ApplicationStatus, Major, InternshipType, ScheduleEvent, LocalizedString } from '../types';
-import { STATUS_META, STATUS_ORDER, MAJOR_META, MAJOR_LIST, Segmented, selectCls, card } from './admin/ui';
+import { STATUS_META, STATUS_ORDER, MAJOR_META, MAJOR_LIST, TYPE_META, TYPE_LIST, TypeIcon, Segmented, selectCls, card } from './admin/ui';
 import { parseISO, formatTH, TH_MONTHS_SHORT } from './admin/DatePicker';
 
 export interface DashboardFilters {
@@ -137,6 +137,9 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
     const byStatus: Record<string, number> = {};
     const byMajor: Record<string, Record<string, number>> = {};
     const byType: Record<string, number> = {};
+    const typeAccepted: Record<string, number> = {}, typeActive: Record<string, number> = {};
+    const typeByMajor: Record<string, Record<string, number>> = {};
+    const typeLocations: Record<string, Record<string, number>> = {};
     const locations: Record<string, number> = {};
     const supervisors: Record<string, number> = {};
     const months: Record<string, number> = {};
@@ -146,14 +149,19 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
       byStatus[st] = (byStatus[st] || 0) + 1;
       byMajor[s.major] = byMajor[s.major] || {};
       byMajor[s.major][st] = (byMajor[s.major][st] || 0) + 1;
-      byType[s.internshipType] = (byType[s.internshipType] || 0) + 1;
+      const ty = s.internshipType === InternshipType.COOP ? InternshipType.COOP : InternshipType.INTERNSHIP;
+      byType[ty] = (byType[ty] || 0) + 1;
+      if (st === ApplicationStatus.ACCEPTED) typeAccepted[ty] = (typeAccepted[ty] || 0) + 1;
+      typeByMajor[ty] = typeByMajor[ty] || {};
+      typeByMajor[ty][s.major] = (typeByMajor[ty][s.major] || 0) + 1;
+      if (s.location && s.location.trim()) { typeLocations[ty] = typeLocations[ty] || {}; typeLocations[ty][s.location.trim()] = 1; }
       if (s.location) locations[s.location.trim()] = (locations[s.location.trim()] || 0) + 1;
       if (s.supervisor && s.supervisor.trim()) { withSup++; supervisors[s.supervisor.trim()] = (supervisors[s.supervisor.trim()] || 0) + 1; }
       const a = parseISO(s.startDate), b = parseISO(s.endDate);
       if (a) {
         const k = `${a.getFullYear()}-${String(a.getMonth() + 1).padStart(2, '0')}`;
         months[k] = (months[k] || 0) + 1;
-        if (a <= today && (!b || b >= today) && st === ApplicationStatus.ACCEPTED) active++;
+        if (a <= today && (!b || b >= today) && st === ApplicationStatus.ACCEPTED) { active++; typeActive[ty] = (typeActive[ty] || 0) + 1; }
       }
     });
     const accepted = byStatus[ApplicationStatus.ACCEPTED] || 0;
@@ -180,7 +188,7 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
     const stalePending = scoped.filter(s => (s.status === ApplicationStatus.PENDING || !s.status) && (s.lastUpdated || 0) < staleCutoff);
     const noDates = scoped.filter(s => s.status === ApplicationStatus.ACCEPTED && !s.startDate);
 
-    return { total, byStatus, byMajor, byType, accepted, withSup, active, topLocations, topSupervisors, timeline, distinctLocations, noSupervisor, stalePending, noDates };
+    return { total, byStatus, byMajor, byType, typeAccepted, typeActive, typeByMajor, typeLocations, accepted, withSup, active, topLocations, topSupervisors, timeline, distinctLocations, noSupervisor, stalePending, noDates };
   }, [scoped]);
 
   const upcoming = useMemo(() => {
@@ -248,6 +256,61 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
         <Stat icon={<UserCheck size={16} />} label="มีอาจารย์นิเทศ" value={<>{d.withSup}<span className="text-base font-medium text-slate-400">/{d.total}</span></>} sub={`ครอบคลุม ${pct(d.withSup, d.total)}%`} />
         <Stat className="col-span-2 lg:col-span-1" icon={<Building2 size={16} />} label="สถานประกอบการ" value={d.distinctLocations} sub="แห่งที่มีนักศึกษาฝึก" />
       </div>
+
+      {/* Internship vs co-op */}
+      <Panel title="ฝึกงาน และ สหกิจศึกษา" subtitle="จำนวนนักศึกษาแยกตามรูปแบบการฝึก">
+        <div className="h-3 rounded-full overflow-hidden flex bg-slate-100 dark:bg-slate-800 mb-4">
+          {TYPE_LIST.map(t => {
+            const n = d.byType[t] || 0;
+            return n ? (
+              <div key={t} className={`h-full ${TYPE_META[t].bar} first:rounded-l-full last:rounded-r-full hover:opacity-85 transition`} style={{ width: `${pct(n, d.total)}%` }}
+                onMouseMove={(e) => tip.show(e, <TipRow color={TYPE_META[t].hex} label={TYPE_META[t].label} value={`${n} คน · ${pct(n, d.total)}%`} />)} onMouseLeave={tip.hide} />
+            ) : null;
+          })}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {TYPE_LIST.map(t => {
+            const m = TYPE_META[t];
+            const n = d.byType[t] || 0;
+            const majors = d.typeByMajor[t] || {};
+            const maxM = Math.max(1, ...MAJOR_LIST.map(mj => majors[mj] || 0));
+            return (
+              <div key={t} className={`rounded-xl p-4 ${m.soft}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className={`flex items-center gap-1.5 text-sm font-semibold ${m.text}`}><TypeIcon type={t} size={15} />{m.label}</p>
+                    <p className="mt-1 text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{n}<span className="ml-1 text-sm font-medium text-slate-400">คน · {pct(n, d.total)}%</span></p>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  {[
+                    { label: 'ตอบรับแล้ว', v: d.typeAccepted[t] || 0 },
+                    { label: 'กำลังฝึก', v: d.typeActive[t] || 0 },
+                    { label: 'สถานที่', v: Object.keys(d.typeLocations[t] || {}).length },
+                  ].map(x => (
+                    <div key={x.label} className="rounded-lg bg-white/70 dark:bg-slate-900/50 py-2">
+                      <div className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{x.v}</div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">{x.label}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 space-y-1.5">
+                  {MAJOR_LIST.map(mj => {
+                    const v = majors[mj] || 0;
+                    return (
+                      <div key={mj} className="grid grid-cols-[64px_1fr_24px] items-center gap-2 text-[11px]">
+                        <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300"><span className={`w-1.5 h-1.5 rounded-full ${MAJOR_META[mj].dot}`} />{MAJOR_META[mj].short}</span>
+                        <div className="h-1.5 rounded-full bg-white/80 dark:bg-slate-800 overflow-hidden"><div className={`h-full ${m.bar}`} style={{ width: `${(v / maxM) * 100}%` }} /></div>
+                        <span className="text-right tabular-nums text-slate-500">{v}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
 
       {/* Status + by major */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
