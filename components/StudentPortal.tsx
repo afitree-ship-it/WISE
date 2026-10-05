@@ -35,7 +35,7 @@ const STRINGS = {
     seniors: (n: number) => `รุ่นพี่ ${n} คน`, seniorWent: 'รุ่นพี่เคยไปฝึก', years: 'ปีการศึกษา', positions: 'ตำแหน่งที่รุ่นพี่เคยทำ',
     intern: 'ฝึกงาน', coop: 'สหกิจศึกษา', noSites: 'ไม่พบสถานที่ที่ค้นหา', clear: 'ล้างตัวกรอง',
     found: (n: number) => `${n} แห่ง`, alsoOpen: 'เปิดรับอยู่ด้วย', website: 'เว็บไซต์',
-    seniorNote: 'ข้อมูลรวมจากนักศึกษาที่ได้รับการตอบรับในปีที่ผ่านมา ไม่แสดงชื่อรายบุคคล',
+    seniorNote: 'ข้อมูลรวมจากนักศึกษาที่ได้รับการตอบรับในปีที่ผ่านมา ไม่แสดงชื่อรายบุคคล', byMajor: 'เลือกสาขาวิชา',
   },
   [Language.EN]: {
     faculty: 'Faculty of Science and Technology', logout: 'Log out',
@@ -55,7 +55,7 @@ const STRINGS = {
     seniors: (n: number) => `${n} seniors`, seniorWent: 'Seniors trained here', years: 'Years', positions: 'Roles seniors held',
     intern: 'Internship', coop: 'Co-op', noSites: 'No sites match your search', clear: 'Clear filters',
     found: (n: number) => `${n} sites`, alsoOpen: 'Also open now', website: 'Website',
-    seniorNote: 'Aggregated from accepted students in past years. No individual names are shown.',
+    seniorNote: 'Aggregated from accepted students in past years. No individual names are shown.', byMajor: 'Filter by major',
   },
   [Language.AR]: {
     faculty: 'كلية العلوم والتكنولوجيا', logout: 'تسجيل الخروج',
@@ -75,7 +75,7 @@ const STRINGS = {
     seniors: (n: number) => `${n} طلاب سابقين`, seniorWent: 'تدرّب هنا طلاب سابقون', years: 'السنوات', positions: 'الأدوار السابقة',
     intern: 'تدريب ميداني', coop: 'تعليم تعاوني', noSites: 'لا توجد نتائج مطابقة', clear: 'مسح عوامل التصفية',
     found: (n: number) => `${n} جهة`, alsoOpen: 'متاحة الآن أيضًا', website: 'الموقع',
-    seniorNote: 'بيانات مجمّعة من الطلاب المقبولين سابقًا، دون عرض الأسماء.',
+    seniorNote: 'بيانات مجمّعة من الطلاب المقبولين سابقًا، دون عرض الأسماء.', byMajor: 'اختر التخصص',
   },
   [Language.MS]: {
     faculty: 'Fakulti Sains dan Teknologi', logout: 'Log keluar',
@@ -95,7 +95,7 @@ const STRINGS = {
     seniors: (n: number) => `${n} senior`, seniorWent: 'Senior pernah berlatih di sini', years: 'Tahun', positions: 'Jawatan senior',
     intern: 'Latihan industri', coop: 'Ko-op', noSites: 'Tiada tempat sepadan', clear: 'Kosongkan penapis',
     found: (n: number) => `${n} tempat`, alsoOpen: 'Juga dibuka sekarang', website: 'Laman web',
-    seniorNote: 'Data terkumpul daripada pelajar yang diterima sebelum ini. Tiada nama ditunjukkan.',
+    seniorNote: 'Data terkumpul daripada pelajar yang diterima sebelum ini. Tiada nama ditunjukkan.', byMajor: 'Pilih jurusan',
   },
 };
 
@@ -245,13 +245,18 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
   }, [studentStatuses, sites, lang]);
 
   const q = searchTerm.trim().toLowerCase();
-  const openSites = useMemo(() => sites.filter(s => s.status === 'active'
-    && (activeMajor === 'all' || s.major === activeMajor)
-    && (!q || [loc(s.name), loc(s.position), loc(s.location)].some(v => v.toLowerCase().includes(q)))), [sites, activeMajor, q, lang]);
-  const seniorList = useMemo(() => seniorSites.filter(g =>
-    (activeMajor === 'all' || g.majors.includes(activeMajor as Major))
-    && (!q || [g.name, ...g.positions, g.site ? loc(g.site.location) : ''].some(v => v.toLowerCase().includes(q)))), [seniorSites, activeMajor, q, lang]);
-  const totalSeniors = seniorSites.reduce((n, g) => n + g.count, 0);
+  // Search first, then major: the pre-major lists give the per-major counts on the filter buttons
+  const openSearched = useMemo(() => sites.filter(s => s.status === 'active'
+    && (!q || [loc(s.name), loc(s.position), loc(s.location)].some(v => v.toLowerCase().includes(q)))), [sites, q, lang]);
+  const seniorSearched = useMemo(() => seniorSites.filter(g =>
+    !q || [g.name, ...g.positions, g.site ? loc(g.site.location) : ''].some(v => v.toLowerCase().includes(q))), [seniorSites, q, lang]);
+  const openSites = useMemo(() => openSearched.filter(s => activeMajor === 'all' || s.major === activeMajor), [openSearched, activeMajor]);
+  const seniorList = useMemo(() => seniorSearched.filter(g => activeMajor === 'all' || g.majors.includes(activeMajor as Major)), [seniorSearched, activeMajor]);
+  const majorCount = (m: Major | 'all') => {
+    const o = source === 'senior' ? 0 : openSearched.filter(s => m === 'all' || s.major === m).length;
+    const sn = source === 'open' ? 0 : seniorSearched.filter(g => m === 'all' || g.majors.includes(m as Major)).length;
+    return o + sn;
+  };  const totalSeniors = seniorSites.reduce((n, g) => n + g.count, 0);
 
   /* ---------- helpers ---------- */
   const onFormClick = (e: React.MouseEvent, form: DocumentForm) => {
@@ -528,13 +533,25 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
               ))}
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar mb-4 -mx-1 px-1">
-              {majorChips.map(c => (
-                <button key={c.id} onClick={() => setActiveMajor(c.id)}
-                  className={`shrink-0 h-8 px-3.5 rounded-full text-[12.5px] transition flex items-center gap-1.5 ${activeMajor === c.id ? 'bg-[#630330] text-white' : 'bg-white/80 dark:bg-white/5 text-[#6e5560] dark:text-slate-300 border border-[#efe4d2] dark:border-white/10 hover:border-[#D4AF37]'}`}>
-                  {c.dot && <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />}{c.label}
-                </button>
-              ))}
+            {/* Major filter: wraps onto as many lines as needed, so every major is visible without sideways scrolling */}
+            <div className="mb-5 p-3 rounded-2xl bg-white/60 dark:bg-white/[0.03] border border-[#efe4d2] dark:border-white/10">
+              <p className="mb-2 px-1 flex items-center gap-1.5 text-[12.5px] text-[#a8862a]"><GraduationCap size={14} />{S.byMajor}</p>
+              <div className="flex flex-wrap gap-2">
+                {majorChips.map(c => {
+                  const on = activeMajor === c.id;
+                  const n = majorCount(c.id);
+                  return (
+                    <button key={c.id} onClick={() => setActiveMajor(c.id)} aria-pressed={on}
+                      className={`inline-flex items-center gap-2 min-h-[40px] ps-3.5 pe-2 py-1.5 rounded-xl text-[13.5px] text-start leading-snug transition ${on
+                        ? 'bg-[#630330] text-white shadow-[0_8px_18px_-10px_rgba(99,3,48,0.7)]'
+                        : `bg-white dark:bg-white/5 text-[#4a2a38] dark:text-slate-200 border border-[#efe4d2] dark:border-white/10 hover:border-[#D4AF37] ${n === 0 ? 'opacity-55' : ''}`}`}>
+                      {c.dot ? <span className={`w-2.5 h-2.5 shrink-0 rounded-full ring-2 ${on ? 'ring-white/40' : 'ring-white dark:ring-transparent'} ${c.dot}`} /> : <Building2 size={15} className="shrink-0" />}
+                      <span>{c.label}</span>
+                      <span className={`wl-latin shrink-0 min-w-[24px] h-6 px-1.5 rounded-lg text-[12px] font-bold inline-flex items-center justify-center tabular-nums ${on ? 'bg-white/20 text-white' : 'bg-[#faf6ef] dark:bg-white/10 text-[#8a6a14] dark:text-[#e8cf7a]'}`}>{n}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {source !== 'senior' && openSites.length > 0 && (
