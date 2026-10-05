@@ -266,8 +266,8 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
   const monitorForms = forms.filter(f => f.category === FormCategory.MONITORING);
 
   const sectionTitle = (icon: React.ReactNode, title: string, sub?: string, right?: React.ReactNode) => (
-    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
-      <div className="min-w-0">
+    <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3 mb-4">
+      <div className="min-w-0 sm:min-w-fit">
         <h2 className="flex items-center gap-2.5 text-[21px] sm:text-[23px] font-medium text-[#2a0a17] dark:text-white">
           <span className="w-8 h-8 shrink-0 rounded-lg bg-[#630330] text-[#e8cf7a] flex items-center justify-center">{icon}</span>{title}
         </h2>
@@ -507,7 +507,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
         {show('sites') && (
           <section className="pt-10">
             {sectionTitle(<Building2 size={17} />, currentT.internshipSites, S.sitesSub,
-              <div className="relative w-full sm:w-72">
+              <div className="relative w-full sm:w-auto sm:flex-1 sm:min-w-[300px] sm:max-w-sm">
                 <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-[#a8862a]" />
                 <input type="search" placeholder={currentT.searchPlaceholder} value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                   className="w-full h-11 ps-10 pe-9 rounded-full bg-white dark:bg-white/5 border border-[#e5d6c0] dark:border-white/10 text-[14px] text-[#2a0a17] dark:text-white placeholder:text-[#a8949e] outline-none focus:border-[#630330] dark:focus:border-[#D4AF37] focus:ring-4 focus:ring-[#630330]/10 transition" />
@@ -518,9 +518,9 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
             {/* Source switch: clearly different colour for each source */}
             <div className="grid grid-cols-3 gap-2 mb-3">
               {([
+                { id: 'all', label: S.srcAll, n: openSites.length + seniorList.length, icon: <Building2 size={16} />, on: 'bg-[#2a0a17] text-white border-[#2a0a17] dark:bg-white dark:text-[#2a0a17]' },
                 { id: 'open', label: S.srcOpen, n: openSites.length, icon: <Briefcase size={16} />, on: 'bg-[#630330] text-white border-[#630330]' },
                 { id: 'senior', label: S.srcSenior, n: seniorList.length, icon: <Users size={16} />, on: 'bg-gradient-to-b from-[#f3dc93] to-[#d9b44c] text-[#2a0114] border-[#d9b44c]' },
-                { id: 'all', label: S.srcAll, n: openSites.length + seniorList.length, icon: <Building2 size={16} />, on: 'bg-[#2a0a17] text-white border-[#2a0a17] dark:bg-white dark:text-[#2a0a17]' },
               ] as const).map(o => (
                 <button key={o.id} onClick={() => setSource(o.id)}
                   className={`flex items-center gap-2 p-2.5 sm:p-3 rounded-2xl border text-start transition ${source === o.id ? o.on : 'bg-white/80 dark:bg-white/[0.03] border-[#efe4d2] dark:border-white/10 text-[#6e5560] dark:text-slate-300 hover:border-[#D4AF37]'}`}>
