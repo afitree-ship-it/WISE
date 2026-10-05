@@ -119,6 +119,22 @@
     .dark .wp-left .wl-wise { color: #fff; }
     .dark .wp-left .wl-th { color: #e8cf7a; }
     .wl-wise.wp-wise { font-size: clamp(78px, 7.6vw, 124px); }
+    /* Left half stays put on desktop; on short screens WISE and the arch shrink to fit */
+    @media (min-width: 1024px) and (min-height: 600px) {
+      .wp-left { position: sticky; top: 0; height: 100dvh; }
+      .wp-left .wp-arch { flex: 1 1 auto; height: auto; min-height: 180px; max-height: 400px; width: 100%; max-width: 560px; margin-top: auto; }
+    }
+    @media (min-width: 1024px) and (max-height: 759px) {
+      .wl-wise.wp-wise { font-size: clamp(60px, 5.6vw, 88px); }
+      .wp-left .wp-lockup { margin-top: 22px; }
+      .wp-left .wp-arch { margin-top: 20px; }
+      .wp-left .wp-arch-in { padding-top: 34px; padding-bottom: 16px; }
+      .wp-left .wp-arch-num { font-size: 44px; }
+    }
+    @media (min-width: 1024px) and (max-height: 599px) {
+      .wp-left { align-self: start; }
+      .wp-left .wp-arch { height: 240px; }
+    }
     @media (max-width: 1023px) { .wl-wise.wp-wise { font-size: clamp(76px, 20vw, 110px); } }
     .rtl .wp { font-family: 'Cairo', 'Kanit', 'Plus Jakarta Sans', sans-serif; }
     /* Background: faint star pattern, brighter around the cursor, water ripple on click */

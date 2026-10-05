@@ -272,7 +272,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
   return (
     <div className="wp relative z-10 flex-grow lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
       {/* ================= LEFT: same identity as the landing ================= */}
-      <aside className="wp-left relative overflow-hidden lg:sticky lg:top-0 lg:h-[100dvh] flex flex-col px-5 sm:px-10 lg:px-12 pt-[max(18px,env(safe-area-inset-top))] pb-7 lg:pb-10">
+      <aside className="wp-left relative overflow-hidden flex flex-col px-5 sm:px-10 lg:px-12 pt-[max(18px,env(safe-area-inset-top))] pb-7 lg:pb-10">
         <div className="wl-pattern opacity-[0.07]" aria-hidden="true" />
         <div className="relative flex items-center justify-between gap-2">
           <button onClick={onHome} className="flex items-center gap-2.5 min-w-0" title="หน้าแรก">
@@ -294,7 +294,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
           </div>
         </div>
 
-        <div ref={lockupRef} className="wl-lockup relative mt-8 lg:mt-12 self-start" dir="ltr">
+        <div ref={lockupRef} className="wp-lockup wl-lockup relative mt-8 lg:mt-12 self-start" dir="ltr">
           <div className="wl-wise wp-wise select-none"><span data-fit-target className="inline-block">WISE</span><em>.</em></div>
           <div className="wl-line wl-en"><span data-fit>Work-Integrated Science Education Unit</span></div>
           <div className="wl-rule" data-fit-rule><i /></div>
@@ -303,30 +303,30 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
         <p className="relative mt-5 text-[19px] sm:text-[22px] font-medium text-[#2a0a17] dark:text-white">{currentT.landingHeading}</p>
 
         {/* Quick stats: jump straight to a tab */}
-        <div className="relative mt-5 grid grid-cols-3 gap-2 max-w-[460px]">
+        <div className="relative mt-5 flex w-fit max-w-full rounded-2xl bg-white/75 dark:bg-white/[0.04] border border-[#efe4d2] dark:border-white/10 divide-x rtl:divide-x-reverse divide-[#efe4d2] dark:divide-white/10 overflow-hidden">
           {[
             { t: 'sites' as Tab, n: sites.filter(s => s.status === 'active').length, label: S.srcOpen, src: 'open' as const },
             { t: 'sites' as Tab, n: seniorSites.length, label: S.srcSenior, src: 'senior' as const },
             { t: 'docs' as Tab, n: forms.length, label: S.tabs.docs, src: null },
           ].map((x, i) => (
             <button key={i} onClick={() => { if (x.src) setSource(x.src); go(x.t); }}
-              className="text-start px-3 py-2.5 rounded-2xl bg-white/70 dark:bg-white/[0.04] border border-[#efe4d2] dark:border-white/10 hover:border-[#D4AF37] transition">
-              <span className="wl-latin block text-[22px] font-extrabold leading-none text-[#630330] dark:text-white tabular-nums">{x.n}</span>
-              <span className="block mt-1 text-[12px] font-light text-[#7d6470] dark:text-slate-400 leading-tight">{x.label}</span>
+              className="flex items-baseline gap-2 px-4 sm:px-5 py-3 hover:bg-[#faf6ef] dark:hover:bg-white/5 transition">
+              <span className="wl-latin text-[22px] font-extrabold leading-none text-[#630330] dark:text-white tabular-nums">{x.n}</span>
+              <span className="text-[12.5px] font-light text-[#7d6470] dark:text-slate-400 whitespace-nowrap">{x.label}</span>
             </button>
           ))}
         </div>
 
         {/* Arch: next deadline */}
-        <div className="relative mt-7 lg:mt-auto min-h-[250px] lg:min-h-[300px] lg:max-h-[46vh] flex-1 lg:flex-none lg:h-[330px] rounded-t-[200px] rounded-b-[26px] bg-[#630330] text-white overflow-hidden shadow-[0_40px_70px_-35px_rgba(99,3,48,0.7)]">
+        <div className="wp-arch relative mt-7 shrink-0 h-[270px] sm:h-[300px] rounded-t-[200px] rounded-b-[26px] bg-[#630330] text-white overflow-hidden shadow-[0_40px_70px_-35px_rgba(99,3,48,0.7)]">
           <div className="wl-pattern opacity-[0.18]" />
           <div className="absolute inset-x-4 top-4 bottom-0 rounded-t-[190px] border border-[#e8cf7a]/40" />
           <div className="absolute w-[460px] h-[460px] left-1/2 -top-[220px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.45),transparent_62%)]" />
-          <div className="relative h-full flex flex-col items-center justify-end text-center px-6 pt-16 pb-6">
+          <div className="wp-arch-in relative h-full flex flex-col items-center justify-end text-center px-6 pt-16 pb-6">
             <span className="text-[12.5px] text-[#e8cf7a]">{S.nextUp}</span>
             {next && nextDate ? (
               <>
-                <span className="wl-latin mt-1 text-[60px] font-extrabold leading-none tabular-nums">{nextDate.getDate()}</span>
+                <span className="wp-arch-num wl-latin mt-1 text-[60px] font-extrabold leading-none tabular-nums">{nextDate.getDate()}</span>
                 <span className="mt-1 text-[14px] text-white/80">{fmt(nextDate, { month: 'long', year: 'numeric' })}</span>
                 <p className="mt-2 text-[17px] font-medium leading-snug line-clamp-2 [text-wrap:balance]">{loc(next.ev.event)}</p>
                 {badge(next.st) && <span className="mt-3 inline-flex items-center h-7 px-3 rounded-full bg-[#D4AF37] text-[#2a0114] text-[12.5px] font-medium">{badge(next.st)!.text}</span>}
