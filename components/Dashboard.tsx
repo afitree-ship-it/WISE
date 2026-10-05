@@ -2,7 +2,8 @@ import React, { useMemo, useState, useRef, useCallback } from 'react';
 import {
   Users, CheckCircle2, UserCheck, Activity, Building2, CalendarDays, AlertCircle, Clock, CalendarX, ChevronRight, MapPin, Briefcase, GraduationCap
 } from 'lucide-react';
-import { StudentStatusRecord, ApplicationStatus, Major, InternshipType, ScheduleEvent, LocalizedString } from '../types';
+import { StudentStatusRecord, ApplicationStatus, Major, InternshipType, ScheduleEvent, LocalizedString, Language } from '../types';
+import { localize } from '../localize';
 import { STATUS_META, STATUS_ORDER, MAJOR_META, MAJOR_LIST, TYPE_META, TYPE_LIST, TypeIcon, Segmented, selectCls, card } from './admin/ui';
 import { parseISO, formatTH, TH_MONTHS_SHORT } from './admin/DatePicker';
 
@@ -76,9 +77,21 @@ const Stat: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactN
   </div>
 );
 
+const Section: React.FC<{ n: number; title: string; hint?: string; children: React.ReactNode }> = ({ n, title, hint, children }) => (
+  <section className="space-y-3">
+    <h2 className="flex items-center gap-2.5">
+      <span className="w-6 h-6 shrink-0 rounded-md bg-[#630330] text-white dark:bg-amber-400 dark:text-slate-900 text-xs font-bold flex items-center justify-center tabular-nums">{n}</span>
+      <span className="text-[15px] font-semibold text-slate-900 dark:text-white">{title}</span>
+      {hint && <span className="hidden sm:inline text-xs text-slate-400">{hint}</span>}
+      <span className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+    </h2>
+    {children}
+  </section>
+);
+
 const pct = (n: number, t: number) => (t > 0 ? Math.round((n / t) * 100) : 0);
 
-const getLocalized = (l?: LocalizedString) => (l ? l.th || l.en || '' : '');
+const getLocalized = (l?: LocalizedString) => localize(l, Language.TH);
 
 /* ------------------------------------------------------------------ */
 /* Donut                                                               */
@@ -117,6 +130,7 @@ const Donut: React.FC<{ data: { key: string; label: string; value: number; color
 const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, filters, onFiltersChange, onOpenStudent }) => {
   const tip = useTooltip();
   const wrapRef = useRef<HTMLDivElement>(null);
+  const [openAttn, setOpenAttn] = useState<string | null>(null);
 
   const yearOptions = useMemo(
     () => Array.from(new Set(students.map(s => String(s.academicYear || '').trim()).filter(y => /^\d+$/.test(y)))).sort((a, b) => b.localeCompare(a)),
@@ -213,12 +227,22 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
   const chip = (active: boolean) =>
     `shrink-0 h-8 px-3 rounded-full text-xs font-medium transition flex items-center gap-1.5 ${active ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-400'}`;
 
+  const typeTotal = TYPE_LIST.reduce((n, t) => n + (d.byType[t] || 0), 0);
+  const attention = [
+    { key: 'sup', icon: <UserCheck size={16} />, label: 'ตอบรับแล้ว แต่ยังไม่มีอาจารย์นิเทศ', list: d.noSupervisor, tone: 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30' },
+    { key: 'stale', icon: <Clock size={16} />, label: 'รอตรวจสอบนานเกิน 14 วัน', list: d.stalePending, tone: 'text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-300 dark:bg-rose-500/10 dark:border-rose-500/30' },
+    { key: 'dates', icon: <CalendarX size={16} />, label: 'ตอบรับแล้ว แต่ยังไม่ระบุวันฝึก', list: d.noDates, tone: 'text-sky-700 bg-sky-50 border-sky-200 dark:text-sky-300 dark:bg-sky-500/10 dark:border-sky-500/30' },
+  ];
+  const openList = attention.find(a => a.key === openAttn);
+  const n0 = mode === 'admin' ? 1 : 0;
+
   return (
-    <div ref={wrapRef} className="space-y-4">
+    <div ref={wrapRef} className="space-y-7">
       {tip.node}
 
-      {/* Filters — one row above the charts */}
-      <div className="flex flex-col lg:flex-row lg:items-center gap-2.5 lg:gap-4">
+      {/* Filters */}
+      <div className={`${card} p-3 flex flex-col lg:flex-row lg:items-center gap-2.5 lg:gap-3`}>
+        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 lg:pl-1">แสดงข้อมูลของ</span>
         <div className="relative w-full sm:w-48">
           <select
             value={filters.years.length === 1 ? filters.years[0] : filters.years.length === 0 ? 'all' : 'multi'}
@@ -238,265 +262,232 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
           className="h-10"
           options={[{ value: 'all', label: 'ทุกเทอม' }, { value: '1', label: 'เทอม 1' }, { value: '2', label: 'เทอม 2' }]}
         />
-        <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
+        <div className="flex flex-wrap gap-1.5">
           <button className={chip(filters.majors.length === 0)} onClick={() => onFiltersChange({ ...filters, majors: [] })}>ทุกสาขา</button>
           {MAJOR_LIST.map(m => (
-            <button key={m} className={chip(filters.majors.includes(m))} onClick={() => toggle('majors', m)}>
+            <button key={m} className={chip(filters.majors.includes(m))} onClick={() => toggle('majors', m)} title={MAJOR_META[m].full}>
               <span className={`w-2 h-2 rounded-full ${MAJOR_META[m].dot}`} />{MAJOR_META[m].short}
             </button>
           ))}
         </div>
       </div>
 
-      {/* KPI tiles */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Stat icon={<Users size={16} />} label="นักศึกษาทั้งหมด" value={d.total} sub={`ฝึกงาน ${d.byType[InternshipType.INTERNSHIP] || 0} · สหกิจ ${d.byType[InternshipType.COOP] || 0}`} />
-        <Stat icon={<CheckCircle2 size={16} />} label="อัตราตอบรับ" value={`${pct(d.accepted, d.total)}%`} sub={`ตอบรับแล้ว ${d.accepted} คน`} accent="text-emerald-600 dark:text-emerald-400" />
-        <Stat icon={<Activity size={16} />} label="กำลังฝึกอยู่ตอนนี้" value={d.active} sub="อยู่ในช่วงวันฝึก ณ วันนี้" />
-        <Stat icon={<UserCheck size={16} />} label="มีอาจารย์นิเทศ" value={<>{d.withSup}<span className="text-base font-medium text-slate-400">/{d.total}</span></>} sub={`ครอบคลุม ${pct(d.withSup, d.total)}%`} />
-        <Stat className="col-span-2 lg:col-span-1" icon={<Building2 size={16} />} label="สถานประกอบการ" value={d.distinctLocations} sub="แห่งที่มีนักศึกษาฝึก" />
-      </div>
-
-      {/* Internship vs co-op */}
-      <Panel title="ฝึกงาน และ สหกิจศึกษา" subtitle="จำนวนนักศึกษาแยกตามรูปแบบการฝึก">
-        <div className="h-3 rounded-full overflow-hidden flex bg-slate-100 dark:bg-slate-800 mb-4">
-          {TYPE_LIST.map(t => {
-            const n = d.byType[t] || 0;
-            return n ? (
-              <div key={t} className={`h-full ${TYPE_META[t].bar} first:rounded-l-full last:rounded-r-full hover:opacity-85 transition`} style={{ width: `${pct(n, d.total)}%` }}
-                onMouseMove={(e) => tip.show(e, <TipRow color={TYPE_META[t].hex} label={TYPE_META[t].label} value={`${n} คน · ${pct(n, d.total)}%`} />)} onMouseLeave={tip.hide} />
-            ) : null;
-          })}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {TYPE_LIST.map(t => {
-            const m = TYPE_META[t];
-            const n = d.byType[t] || 0;
-            const majors = d.typeByMajor[t] || {};
-            const maxM = Math.max(1, ...MAJOR_LIST.map(mj => majors[mj] || 0));
-            return (
-              <div key={t} className={`rounded-xl p-4 ${m.soft}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className={`flex items-center gap-1.5 text-sm font-semibold ${m.text}`}><TypeIcon type={t} size={15} />{m.label}</p>
-                    <p className="mt-1 text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{n}<span className="ml-1 text-sm font-medium text-slate-400">คน · {pct(n, d.total)}%</span></p>
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  {[
-                    { label: 'ตอบรับแล้ว', v: d.typeAccepted[t] || 0 },
-                    { label: 'กำลังฝึก', v: d.typeActive[t] || 0 },
-                    { label: 'สถานที่', v: Object.keys(d.typeLocations[t] || {}).length },
-                  ].map(x => (
-                    <div key={x.label} className="rounded-lg bg-white/70 dark:bg-slate-900/50 py-2">
-                      <div className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{x.v}</div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">{x.label}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 space-y-1.5">
-                  {MAJOR_LIST.map(mj => {
-                    const v = majors[mj] || 0;
-                    return (
-                      <div key={mj} className="grid grid-cols-[64px_1fr_24px] items-center gap-2 text-[11px]">
-                        <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300"><span className={`w-1.5 h-1.5 rounded-full ${MAJOR_META[mj].dot}`} />{MAJOR_META[mj].short}</span>
-                        <div className="h-1.5 rounded-full bg-white/80 dark:bg-slate-800 overflow-hidden"><div className={`h-full ${m.bar}`} style={{ width: `${(v / maxM) * 100}%` }} /></div>
-                        <span className="text-right tabular-nums text-slate-500">{v}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Panel>
-
-      {/* Status + by major */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-        <Panel title="สถานะการสมัคร" subtitle="สัดส่วนนักศึกษาตามสถานะ" className="xl:col-span-2">
-          <div className="flex flex-col sm:flex-row items-center gap-6">
-            <div className="relative">
-              <Donut data={statusData} total={d.total} tip={tip} />
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{d.total}</span>
-                <span className="text-[11px] text-slate-400">คน</span>
-              </div>
-            </div>
-            <ul className="flex-1 w-full space-y-2.5">
-              {statusData.map(s => (
-                <li key={s.key} className="flex items-center gap-2.5 text-sm">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
-                  <span className="text-slate-600 dark:text-slate-300">{s.label}</span>
-                  <span className="ml-auto font-semibold tabular-nums text-slate-900 dark:text-white">{s.value}</span>
-                  <span className="w-10 text-right text-xs tabular-nums text-slate-400">{pct(s.value, d.total)}%</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Panel>
-
-        <Panel
-          title="แยกตามสาขาวิชา"
-          subtitle="จำนวนนักศึกษาและสถานะในแต่ละสาขา"
-          className="xl:col-span-3"
-          right={
-            <div className="hidden sm:flex flex-wrap gap-x-3 gap-y-1 justify-end">
-              {STATUS_ORDER.map(st => (
-                <span key={st} className="flex items-center gap-1.5 text-[11px] text-slate-500"><span className="w-2 h-2 rounded-sm" style={{ background: STATUS_META[st].hex }} />{STATUS_META[st].label}</span>
-              ))}
-            </div>
-          }
-        >
-          <div className="space-y-4">
-            {MAJOR_LIST.map(m => {
-              const row = d.byMajor[m] || {};
-              const n = Object.values(row).reduce((a, b) => a + b, 0);
+      {/* 1 — what needs action (admin only) */}
+      {mode === 'admin' && (
+        <Section n={1} title="สิ่งที่ต้องดำเนินการ" hint="กดเพื่อดูรายชื่อ แล้วกดชื่อเพื่อแก้ไข">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {attention.map(a => {
+              const on = openAttn === a.key;
+              const none = a.list.length === 0;
               return (
-                <div key={m} className="grid grid-cols-[88px_1fr_36px] sm:grid-cols-[140px_1fr_40px] items-center gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-slate-800 dark:text-slate-100 flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${MAJOR_META[m].dot}`} />{MAJOR_META[m].short}</div>
-                    <div className="hidden sm:block text-[11px] text-slate-400 truncate">{MAJOR_META[m].full}</div>
-                  </div>
-                  <div className="h-6 rounded-md bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div className="h-full flex gap-[2px]" style={{ width: `${(n / maxMajor) * 100}%` }}>
-                      {STATUS_ORDER.map(st => row[st] ? (
-                        <div key={st} className="h-full first:rounded-l-md last:rounded-r-md transition-opacity hover:opacity-80"
-                          style={{ width: `${(row[st] / n) * 100}%`, background: STATUS_META[st].hex }}
-                          onMouseMove={(e) => tip.show(e, <div className="space-y-1"><p className="font-semibold">{MAJOR_META[m].short} · {MAJOR_META[m].full}</p><TipRow color={STATUS_META[st].hex} label={STATUS_META[st].label} value={`${row[st]} คน`} /></div>)}
-                          onMouseLeave={tip.hide}
-                        />
-                      ) : null)}
-                    </div>
-                  </div>
-                  <span className="text-sm font-semibold tabular-nums text-right text-slate-900 dark:text-white">{n}</span>
-                </div>
+                <button key={a.key} onClick={() => setOpenAttn(on ? null : a.key)} disabled={none} aria-expanded={on}
+                  className={`text-left rounded-xl border p-4 flex items-center gap-3 transition ${none ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-70' : a.tone} ${on ? 'ring-2 ring-offset-1 ring-current dark:ring-offset-slate-950' : ''}`}>
+                  <span className="shrink-0">{none ? <CheckCircle2 size={16} className="text-emerald-500" /> : a.icon}</span>
+                  <span className="flex-1 min-w-0 text-sm leading-snug">{a.label}</span>
+                  <span className={`text-2xl font-bold tabular-nums ${none ? 'text-slate-300 dark:text-slate-600' : ''}`}>{a.list.length}</span>
+                  {!none && <ChevronRight size={15} className={`shrink-0 transition ${on ? 'rotate-90' : ''}`} />}
+                </button>
               );
             })}
           </div>
-        </Panel>
-      </div>
-
-      {/* Timeline + type */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-        <Panel title="เริ่มฝึกในแต่ละเดือน" subtitle="จำนวนนักศึกษาตามเดือนที่เริ่มฝึก" className="xl:col-span-3">
-          {d.timeline.length === 0 ? (
-            <p className="text-sm text-slate-400 py-10 text-center">ยังไม่มีข้อมูลวันเริ่มฝึก</p>
-          ) : (
-            <div className="flex items-end gap-1.5 h-44 pt-4">
-              {d.timeline.map(t => (
-                <div key={t.key} className="flex-1 min-w-0 h-full flex flex-col items-center justify-end gap-1.5 group"
-                  onMouseMove={(e) => tip.show(e, <TipRow label={t.label} value={`${t.value} คน`} />)} onMouseLeave={tip.hide}>
-                  <span className={`text-[11px] tabular-nums text-slate-500 transition ${t.value === maxMonth ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>{t.value}</span>
-                  <div className="w-full max-w-[36px] rounded-t-[4px] bg-[#630330] dark:bg-amber-400 group-hover:opacity-80 transition" style={{ height: `${(t.value / maxMonth) * 100}%`, minHeight: t.value ? 3 : 0 }} />
-                  <span className="text-[10px] text-slate-400 whitespace-nowrap truncate max-w-full">{t.label}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Panel>
-
-        <Panel title="สถานที่ฝึกยอดนิยม" subtitle="จำนวนนักศึกษาต่อสถานประกอบการ" className="xl:col-span-2">
-          {d.topLocations.length === 0 ? (
-            <p className="text-sm text-slate-400 py-10 text-center">ยังไม่มีข้อมูลสถานที่</p>
-          ) : (
-            <ul className="space-y-3">
-              {d.topLocations.map(([loc, n]) => (
-                <li key={loc}>
-                  <div className="flex items-center justify-between gap-3 text-sm mb-1">
-                    <span className="truncate text-slate-700 dark:text-slate-200 flex items-center gap-1.5"><MapPin size={12} className="text-slate-400 shrink-0" />{loc}</span>
-                    <span className="tabular-nums font-semibold text-slate-900 dark:text-white">{n}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-slate-700 dark:bg-slate-300" style={{ width: `${(n / maxLoc) * 100}%` }} /></div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
-
-      <div className={`grid grid-cols-1 ${mode === 'admin' ? 'xl:grid-cols-3' : 'xl:grid-cols-2'} gap-4`}>
-        {mode === 'admin' && (
-          <Panel title="ต้องติดตาม" subtitle="รายการที่ควรดำเนินการต่อ">
-            <div className="space-y-2">
-              {[
-                { icon: <UserCheck size={15} />, label: 'ตอบรับแล้วแต่ยังไม่มีอาจารย์นิเทศ', list: d.noSupervisor, tone: 'text-amber-600 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-300' },
-                { icon: <Clock size={15} />, label: 'รอตรวจสอบนานเกิน 14 วัน', list: d.stalePending, tone: 'text-rose-600 bg-rose-50 dark:bg-rose-500/10 dark:text-rose-300' },
-                { icon: <CalendarX size={15} />, label: 'ตอบรับแล้วแต่ยังไม่ระบุวันฝึก', list: d.noDates, tone: 'text-sky-600 bg-sky-50 dark:bg-sky-500/10 dark:text-sky-300' },
-              ].map(item => (
-                <details key={item.label} className="group rounded-lg border border-slate-200 dark:border-slate-800 open:bg-slate-50/60 dark:open:bg-slate-800/30">
-                  <summary className="flex items-center gap-3 p-3 cursor-pointer list-none">
-                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.tone}`}>{item.icon}</span>
-                    <span className="flex-1 text-sm text-slate-700 dark:text-slate-200">{item.label}</span>
-                    <span className="text-sm font-semibold tabular-nums text-slate-900 dark:text-white">{item.list.length}</span>
-                    <ChevronRight size={15} className="text-slate-400 transition group-open:rotate-90" />
-                  </summary>
-                  {item.list.length > 0 && (
-                    <ul className="px-3 pb-3 space-y-0.5 max-h-48 overflow-y-auto custom-scrollbar">
-                      {item.list.slice(0, 30).map(s => (
-                        <li key={s.id}>
-                          <button onClick={() => onOpenStudent?.(s)} className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-left text-xs hover:bg-white dark:hover:bg-slate-800">
-                            <span className="truncate text-slate-700 dark:text-slate-200">{s.name}</span>
-                            <span className="text-slate-400 font-mono shrink-0">{s.studentId}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </details>
-              ))}
-            </div>
-          </Panel>
-        )}
-
-        <Panel title="ภาระงานอาจารย์นิเทศ" subtitle="จำนวนนักศึกษาที่ดูแล">
-          {d.topSupervisors.length === 0 ? (
-            <p className="text-sm text-slate-400 py-8 text-center">ยังไม่มีการระบุอาจารย์นิเทศ</p>
-          ) : (
-            <ul className="space-y-3">
-              {d.topSupervisors.map(([name, n]) => (
-                <li key={name}>
-                  <div className="flex items-center justify-between gap-3 text-sm mb-1">
-                    <span className="truncate text-slate-700 dark:text-slate-200">{name}</span>
-                    <span className="tabular-nums font-semibold text-slate-900 dark:text-white">{n}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-[#630330] dark:bg-amber-400" style={{ width: `${(n / maxSup) * 100}%` }} /></div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-
-        <Panel title="กำหนดการที่กำลังจะมาถึง" subtitle="วันสำคัญถัดไป" right={<CalendarDays size={16} className="text-slate-400" />}>
-          {upcoming.length === 0 ? (
-            <p className="text-sm text-slate-400 py-8 text-center">ไม่มีกำหนดการ</p>
-          ) : (
-            <ul className="space-y-3">
-              {upcoming.map(ev => {
-                const sd = parseISO(ev.rawStartDate);
-                return (
-                  <li key={ev.id} className="flex items-center gap-3">
-                    <div className="w-11 shrink-0 text-center rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                      <div className="text-[10px] font-semibold bg-slate-50 dark:bg-slate-800 text-slate-500">{sd ? TH_MONTHS_SHORT[sd.getMonth()] : '—'}</div>
-                      <div className="text-base font-bold leading-6 tabular-nums text-slate-900 dark:text-white">{sd ? sd.getDate() : '?'}</div>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{getLocalized(ev.event)}</p>
-                      <p className="text-xs text-slate-400">{ev.rawStartDate ? formatTH(ev.rawStartDate) : ''}{ev.rawEndDate ? ` – ${formatTH(ev.rawEndDate)}` : ''}</p>
-                    </div>
+          {openList && openList.list.length > 0 && (
+            <div className={`${card} p-2 max-h-64 overflow-y-auto custom-scrollbar`}>
+              <ul className="grid sm:grid-cols-2 xl:grid-cols-3 gap-0.5">
+                {openList.list.slice(0, 60).map(s => (
+                  <li key={s.id}>
+                    <button onClick={() => onOpenStudent?.(s)} className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800">
+                      <span className="truncate text-slate-700 dark:text-slate-200">{s.name}</span>
+                      <span className="text-xs text-slate-400 font-mono shrink-0">{s.studentId}</span>
+                    </button>
                   </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* 2 — headline numbers */}
+      <Section n={n0 + 1} title="ตัวเลขสำคัญ">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className={`${card} p-4 sm:p-5`}>
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400"><span className="text-xs font-medium">นักศึกษาทั้งหมด</span><Users size={16} className="text-slate-400" /></div>
+            <div className="mt-2 text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{d.total}</div>
+            <div className="mt-2 h-1.5 rounded-full overflow-hidden flex bg-slate-100 dark:bg-slate-800">
+              {TYPE_LIST.map(t => (d.byType[t] ? <div key={t} className={TYPE_META[t].bar} style={{ width: `${pct(d.byType[t], typeTotal)}%` }} /> : null))}
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-x-3 text-[11px] text-slate-500 dark:text-slate-400">
+              {TYPE_LIST.map(t => <span key={t} className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${TYPE_META[t].dot}`} />{TYPE_META[t].short} {d.byType[t] || 0}</span>)}
+            </div>
+          </div>
+          <Stat icon={<CheckCircle2 size={16} />} label="ตอบรับแล้ว" value={<>{d.accepted}<span className="ml-1.5 text-base font-semibold text-emerald-600 dark:text-emerald-400">{pct(d.accepted, d.total)}%</span></>} sub="ของนักศึกษาทั้งหมด" />
+          <Stat icon={<Activity size={16} />} label="กำลังฝึกอยู่ตอนนี้" value={d.active} sub="อยู่ในช่วงวันฝึก ณ วันนี้" />
+          <Stat icon={<UserCheck size={16} />} label="มีอาจารย์นิเทศแล้ว" value={<>{d.withSup}<span className="text-base font-medium text-slate-400">/{d.total}</span></>} sub={`ครอบคลุม ${pct(d.withSup, d.total)}%`} />
+        </div>
+      </Section>
+
+      {/* 3 — who goes where, and how far along */}
+      <Section n={n0 + 2} title="รูปแบบการฝึก และ สถานะการสมัคร">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <Panel title="ฝึกงาน เทียบ สหกิจศึกษา" subtitle="จำนวนนักศึกษาในแต่ละรูปแบบ">
+            <div className="space-y-4">
+              {TYPE_LIST.map(t => {
+                const m = TYPE_META[t];
+                const n = d.byType[t] || 0;
+                return (
+                  <div key={t} className="flex items-center gap-4">
+                    <span className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center ${m.soft} ${m.text}`}><TypeIcon type={t} size={20} /></span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className={`text-sm font-semibold ${m.text}`}>{m.label}</span>
+                        <span className="text-xl font-bold tabular-nums text-slate-900 dark:text-white">{n}<span className="ml-1 text-xs font-medium text-slate-400">คน · {pct(n, typeTotal)}%</span></span>
+                      </div>
+                      <div className="mt-1.5 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><div className={`h-full rounded-full ${m.bar}`} style={{ width: `${pct(n, typeTotal)}%` }} /></div>
+                      <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">ตอบรับแล้ว {d.typeAccepted[t] || 0} · กำลังฝึก {d.typeActive[t] || 0} · สถานที่ {Object.keys(d.typeLocations[t] || {}).length} แห่ง</p>
+                    </div>
+                  </div>
                 );
               })}
-            </ul>
-          )}
-        </Panel>
-      </div>
+            </div>
+          </Panel>
 
-      <div className={`${card} px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-slate-500 dark:text-slate-400`}>
-        <span className="flex items-center gap-1.5"><Briefcase size={13} /> ฝึกงาน {d.byType[InternshipType.INTERNSHIP] || 0} คน ({pct(d.byType[InternshipType.INTERNSHIP] || 0, d.total)}%)</span>
-        <span className="flex items-center gap-1.5"><GraduationCap size={13} /> สหกิจศึกษา {d.byType[InternshipType.COOP] || 0} คน ({pct(d.byType[InternshipType.COOP] || 0, d.total)}%)</span>
-        {d.stalePending.length > 0 && mode === 'admin' && <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><AlertCircle size={13} /> มี {d.stalePending.length} รายการรอตรวจสอบนาน</span>}
-      </div>
+          <Panel title="สถานะการสมัคร" subtitle="นักศึกษาอยู่ขั้นตอนไหน">
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="relative">
+                <Donut data={statusData} total={d.total} tip={tip} />
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{d.total}</span>
+                  <span className="text-[11px] text-slate-400">คน</span>
+                </div>
+              </div>
+              <ul className="flex-1 w-full space-y-2.5">
+                {statusData.map(s => (
+                  <li key={s.key} className="flex items-center gap-2.5 text-sm">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
+                    <span className="text-slate-600 dark:text-slate-300">{s.label}</span>
+                    <span className="ml-auto font-semibold tabular-nums text-slate-900 dark:text-white">{s.value}</span>
+                    <span className="w-10 text-right text-xs tabular-nums text-slate-400">{pct(s.value, d.total)}%</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Panel>
+        </div>
+      </Section>
+
+      {/* 4 — by major and over time */}
+      <Section n={n0 + 3} title="แยกตามสาขา และ ช่วงเวลา">
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+          <Panel title="แต่ละสาขา" subtitle="จำนวนนักศึกษา แยกฝึกงาน / สหกิจ" className="xl:col-span-2"
+            right={<div className="flex gap-3">{TYPE_LIST.map(t => <span key={t} className="flex items-center gap-1.5 text-[11px] text-slate-500"><span className={`w-2 h-2 rounded-sm ${TYPE_META[t].bar}`} />{TYPE_META[t].short}</span>)}</div>}>
+            <div className="space-y-3.5">
+              {MAJOR_LIST.map(m => {
+                const n = Object.values(d.byMajor[m] || {}).reduce((a, b) => a + b, 0);
+                return (
+                  <div key={m} className="grid grid-cols-[96px_1fr_32px] items-center gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-slate-800 dark:text-slate-100 flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${MAJOR_META[m].dot}`} />{MAJOR_META[m].short}</div>
+                      <div className="text-[11px] text-slate-400 truncate">{MAJOR_META[m].full}</div>
+                    </div>
+                    <div className="h-5 rounded-md bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div className="h-full flex" style={{ width: `${(n / maxMajor) * 100}%` }}>
+                        {TYPE_LIST.map(t => {
+                          const v = d.typeByMajor[t]?.[m] || 0;
+                          return v ? <div key={t} className={`h-full ${TYPE_META[t].bar} hover:opacity-80`} style={{ width: `${(v / n) * 100}%` }}
+                            onMouseMove={(e) => tip.show(e, <TipRow color={TYPE_META[t].hex} label={`${MAJOR_META[m].short} · ${TYPE_META[t].label}`} value={`${v} คน`} />)} onMouseLeave={tip.hide} /> : null;
+                        })}
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold tabular-nums text-right text-slate-900 dark:text-white">{n}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
+
+          <Panel title="เริ่มฝึกในแต่ละเดือน" subtitle="จำนวนนักศึกษาตามเดือนที่เริ่มฝึก" className="xl:col-span-3">
+            {d.timeline.length === 0 ? (
+              <p className="text-sm text-slate-400 py-10 text-center">ยังไม่มีข้อมูลวันเริ่มฝึก</p>
+            ) : (
+              <div className="flex items-end gap-1.5 h-44 pt-4">
+                {d.timeline.map(t => (
+                  <div key={t.key} className="flex-1 min-w-0 h-full flex flex-col items-center justify-end gap-1.5 group"
+                    onMouseMove={(e) => tip.show(e, <TipRow label={t.label} value={`${t.value} คน`} />)} onMouseLeave={tip.hide}>
+                    <span className={`text-[11px] tabular-nums text-slate-500 transition ${t.value ? 'opacity-100' : 'opacity-0'}`}>{t.value || ''}</span>
+                    <div className="w-full max-w-[36px] rounded-t-[4px] bg-[#630330] dark:bg-amber-400 group-hover:opacity-80 transition" style={{ height: `${(t.value / maxMonth) * 100}%`, minHeight: t.value ? 3 : 0 }} />
+                    <span className="text-[10px] text-slate-400 whitespace-nowrap truncate max-w-full">{t.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
+        </div>
+      </Section>
+
+      {/* 5 — places, supervisors, dates */}
+      <Section n={n0 + 4} title="สถานที่ฝึก อาจารย์นิเทศ และกำหนดการ">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Panel title="สถานที่ฝึกยอดนิยม" subtitle={`จากทั้งหมด ${d.distinctLocations} แห่ง`} right={<Building2 size={16} className="text-slate-400" />}>
+            {d.topLocations.length === 0 ? (
+              <p className="text-sm text-slate-400 py-8 text-center">ยังไม่มีข้อมูลสถานที่</p>
+            ) : (
+              <ul className="space-y-3">
+                {d.topLocations.map(([loc, n]) => (
+                  <li key={loc}>
+                    <div className="flex items-center justify-between gap-3 text-sm mb-1">
+                      <span className="truncate text-slate-700 dark:text-slate-200 flex items-center gap-1.5"><MapPin size={12} className="text-slate-400 shrink-0" />{loc}</span>
+                      <span className="tabular-nums font-semibold text-slate-900 dark:text-white">{n}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-slate-700 dark:bg-slate-300" style={{ width: `${(n / maxLoc) * 100}%` }} /></div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          <Panel title="ภาระงานอาจารย์นิเทศ" subtitle="จำนวนนักศึกษาที่ดูแล" right={<UserCheck size={16} className="text-slate-400" />}>
+            {d.topSupervisors.length === 0 ? (
+              <p className="text-sm text-slate-400 py-8 text-center">ยังไม่มีการระบุอาจารย์นิเทศ</p>
+            ) : (
+              <ul className="space-y-3">
+                {d.topSupervisors.map(([name, n]) => (
+                  <li key={name}>
+                    <div className="flex items-center justify-between gap-3 text-sm mb-1">
+                      <span className="truncate text-slate-700 dark:text-slate-200">{name}</span>
+                      <span className="tabular-nums font-semibold text-slate-900 dark:text-white">{n}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-[#630330] dark:bg-amber-400" style={{ width: `${(n / maxSup) * 100}%` }} /></div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          <Panel title="กำหนดการที่กำลังจะมาถึง" subtitle="วันสำคัญถัดไป" right={<CalendarDays size={16} className="text-slate-400" />}>
+            {upcoming.length === 0 ? (
+              <p className="text-sm text-slate-400 py-8 text-center">ไม่มีกำหนดการ</p>
+            ) : (
+              <ul className="space-y-3">
+                {upcoming.map(ev => {
+                  const sd = parseISO(ev.rawStartDate);
+                  return (
+                    <li key={ev.id} className="flex items-center gap-3">
+                      <div className="w-11 shrink-0 text-center rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div className="text-[10px] font-semibold bg-slate-50 dark:bg-slate-800 text-slate-500">{sd ? TH_MONTHS_SHORT[sd.getMonth()] : '—'}</div>
+                        <div className="text-base font-bold leading-6 tabular-nums text-slate-900 dark:text-white">{sd ? sd.getDate() : '?'}</div>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{getLocalized(ev.event)}</p>
+                        <p className="text-xs text-slate-400">{ev.rawStartDate ? formatTH(ev.rawStartDate) : ''}{ev.rawEndDate ? ` – ${formatTH(ev.rawEndDate)}` : ''}</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Panel>
+        </div>
+      </Section>
     </div>
   );
 };

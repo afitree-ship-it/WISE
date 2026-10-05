@@ -20,6 +20,7 @@ import { ShareLinkModal } from './components/ShareLinkModal';
 import {
   Plus,
   Languages,
+  ListChecks,
   Pencil,
   Search,
   Trash2,
@@ -1560,74 +1561,88 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           {/* ======================= STUDENTS ======================= */}
           {adminActiveTab === 'students' && (
             <div className="space-y-4 wise-fade-in">
-              {/* Internship vs co-op: click to filter */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {typeStats.map(ts => {
-                  const m = TYPE_META[ts.type];
-                  const active = adminStudentTypeFilter === ts.type;
-                  const all = typeStats.reduce((n, x) => n + x.total, 0);
-                  return (
-                    <button
-                      key={ts.type}
-                      onClick={() => setAdminStudentTypeFilter(active ? 'all' : ts.type)}
-                      aria-pressed={active}
-                      className={`${card} relative overflow-hidden text-left p-4 flex items-center gap-4 transition hover:border-slate-300 dark:hover:border-slate-700 ${active ? 'ring-2 ring-offset-0 border-transparent ' + (ts.type === InternshipType.COOP ? 'ring-fuchsia-500' : 'ring-sky-500') : ''}`}
-                    >
-                      <span className={`absolute inset-y-0 left-0 w-1.5 ${m.bar}`} />
-                      <span className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center ${m.soft} ${m.text}`}><TypeIcon type={ts.type} size={20} /></span>
-                      <span className="min-w-0 flex-1">
-                        <span className={`block text-xs font-semibold ${m.text}`}>{m.label}</span>
-                        <span className="block text-2xl font-bold tabular-nums text-slate-900 dark:text-white leading-tight">{ts.total}<span className="ml-1 text-xs font-medium text-slate-400">คน · {pct(ts.total, all)}%</span></span>
-                        <span className="block mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">ตอบรับแล้ว {ts.accepted} · กำลังฝึก {ts.active}</span>
-                      </span>
-                      <span className={`hidden sm:inline text-[11px] font-medium ${active ? m.text : 'text-slate-400'}`}>{active ? 'กำลังกรอง' : 'คลิกเพื่อกรอง'}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              {/* ===== Zone 1: summary — every row is also a filter ===== */}
+              <section className={`${card} overflow-hidden`}>
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <BarChart3 size={16} className="text-slate-400" /> สรุปภาพรวม
+                    <span className="font-normal text-slate-400">· {adminStudentYearFilter === 'all' ? 'ทุกปีการศึกษา' : `ปีการศึกษา ${adminStudentYearFilter}`}{adminStudentTermFilter !== 'all' ? ` · เทอม ${adminStudentTermFilter}` : ''}</span>
+                  </h3>
+                  <span className="text-[11px] text-slate-400">กดที่ช่องใดก็ได้เพื่อกรองรายชื่อด้านล่าง</span>
+                </div>
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {/* Row A: internship vs co-op */}
+                  <div className="p-4 grid lg:grid-cols-[150px_minmax(0,1fr)] gap-3 lg:items-center">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">รูปแบบการฝึก</p>
+                      <p className="text-[11px] text-slate-400">ฝึกงาน หรือ สหกิจศึกษา</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {(() => {
+                        const all = typeStats.reduce((n, x) => n + x.total, 0);
+                        const opts = [
+                          { key: 'all' as const, label: 'ทุกรูปแบบ', n: all, sub: `ตอบรับแล้ว ${typeStats.reduce((n, x) => n + x.accepted, 0)}`, bar: 'bg-slate-400', text: 'text-slate-700 dark:text-slate-200', on: 'border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800', icon: <Users size={16} /> },
+                          ...typeStats.map(ts => ({
+                            key: ts.type, label: TYPE_META[ts.type].label, n: ts.total,
+                            sub: `ตอบรับ ${ts.accepted} · กำลังฝึก ${ts.active}`,
+                            bar: TYPE_META[ts.type].bar, text: TYPE_META[ts.type].text,
+                            on: ts.type === InternshipType.COOP ? 'border-fuchsia-500 bg-fuchsia-50 dark:bg-fuchsia-500/10' : 'border-sky-500 bg-sky-50 dark:bg-sky-500/10',
+                            icon: <TypeIcon type={ts.type} size={16} />,
+                          })),
+                        ];
+                        return opts.map(o => {
+                          const active = adminStudentTypeFilter === o.key;
+                          return (
+                            <button key={o.key} onClick={() => setAdminStudentTypeFilter(o.key === 'all' || active ? 'all' : o.key)} aria-pressed={active}
+                              className={`relative overflow-hidden text-left rounded-lg border-2 px-3.5 py-2.5 flex items-center gap-3 transition ${active ? o.on : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}>
+                              <span className={`absolute inset-y-0 left-0 w-1 ${o.bar}`} />
+                              <span className={`shrink-0 ${o.text}`}>{o.icon}</span>
+                              <span className="min-w-0 flex-1">
+                                <span className={`block text-xs font-semibold ${o.text}`}>{o.label}</span>
+                                <span className="block text-[11px] text-slate-400 truncate">{o.sub}</span>
+                              </span>
+                              <span className="text-xl font-bold tabular-nums text-slate-900 dark:text-white">{o.n}</span>
+                            </button>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
 
-              {/* KPI cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                <button
-                  onClick={() => setAdminStudentStatusFilter('all')}
-                  className={`${card} col-span-2 sm:col-span-1 text-left p-4 transition hover:border-slate-300 dark:hover:border-slate-700 ${adminStudentStatusFilter === 'all' ? 'ring-2 ring-slate-900 dark:ring-white border-transparent' : ''}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">ทั้งหมด</span>
-                    <Users size={15} className="text-slate-400" />
+                  {/* Row B: application status */}
+                  <div className="p-4 grid lg:grid-cols-[150px_minmax(0,1fr)] gap-3 lg:items-center">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">สถานะการสมัคร</p>
+                      <p className="text-[11px] text-slate-400">ขั้นตอนของนักศึกษาแต่ละคน</p>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
+                      {[{ key: 'all' as const, n: studentStats.total }, ...STATUS_ORDER.map(st => ({
+                        key: st,
+                        n: st === ApplicationStatus.ACCEPTED ? studentStats.accepted : st === ApplicationStatus.PREPARING ? studentStats.preparing : st === ApplicationStatus.PENDING ? studentStats.pending : studentStats.rejected,
+                      }))].map(o => {
+                        const active = adminStudentStatusFilter === o.key;
+                        const m = o.key === 'all' ? null : STATUS_META[o.key];
+                        return (
+                          <button key={o.key} onClick={() => setAdminStudentStatusFilter(o.key === 'all' || active ? 'all' : o.key)} aria-pressed={active}
+                            className={`text-left rounded-lg border-2 px-3 py-2 transition ${active ? 'border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}>
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 truncate">
+                                {m ? <span className={`w-2 h-2 rounded-full shrink-0 ${m.dot}`} /> : <Users size={12} className="shrink-0 text-slate-400" />}
+                                {m ? m.label : 'ทุกสถานะ'}
+                              </span>
+                              {m && <span className="text-[10px] tabular-nums text-slate-400">{pct(o.n, studentStats.total)}%</span>}
+                            </span>
+                            <span className={`block mt-0.5 text-xl font-bold tabular-nums ${m ? m.text : 'text-slate-900 dark:text-white'}`}>{o.n}</span>
+                            <span className="block mt-1 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                              <span className={`block h-full ${m ? m.bar : 'bg-slate-400'}`} style={{ width: `${m ? pct(o.n, studentStats.total) : 100}%` }} />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="mt-2 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">{studentStats.total}</div>
-                  <div className="mt-2.5 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex">
-                    {STATUS_ORDER.map(st => {
-                      const n = st === ApplicationStatus.ACCEPTED ? studentStats.accepted : st === ApplicationStatus.PREPARING ? studentStats.preparing : st === ApplicationStatus.PENDING ? studentStats.pending : studentStats.rejected;
-                      return <div key={st} className={STATUS_META[st].bar} style={{ width: `${pct(n, studentStats.total)}%` }} />;
-                    })}
-                  </div>
-                </button>
-                {STATUS_ORDER.map(st => {
-                  const n = st === ApplicationStatus.ACCEPTED ? studentStats.accepted : st === ApplicationStatus.PREPARING ? studentStats.preparing : st === ApplicationStatus.PENDING ? studentStats.pending : studentStats.rejected;
-                  const m = STATUS_META[st];
-                  const active = adminStudentStatusFilter === st;
-                  return (
-                    <button
-                      key={st}
-                      onClick={() => setAdminStudentStatusFilter(active ? 'all' : st)}
-                      className={`${card} text-left p-4 transition hover:border-slate-300 dark:hover:border-slate-700 ${active ? 'ring-2 ring-slate-900 dark:ring-white border-transparent' : ''}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                          <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />{m.label}
-                        </span>
-                        <span className="text-[11px] text-slate-400 tabular-nums">{pct(n, studentStats.total)}%</span>
-                      </div>
-                      <div className={`mt-2 text-2xl font-bold tabular-nums ${m.text}`}>{n}</div>
-                      <div className="mt-2.5 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                        <div className={`h-full ${m.bar} transition-all`} style={{ width: `${pct(n, studentStats.total)}%` }} />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                </div>
+              </section>
 
               {/* Toolbar */}
               <div className={`${card} p-3 flex flex-col xl:flex-row xl:items-center gap-2.5`}>
@@ -1697,14 +1712,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   )}
                 </div>
 
-                <div className="xl:ml-auto flex items-center justify-between gap-3">
-                  <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                    แสดง <b className="text-slate-900 dark:text-white tabular-nums">{filteredAdminStudents.length}</b> คน
+              </div>
+
+              {/* ===== Zone 3: list header — what is shown, active filters, colour key ===== */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-2">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2 mr-1">
+                    <ListChecks size={17} className="text-slate-400" /> รายชื่อนักศึกษา
+                    <span className="text-sm font-normal text-slate-400 tabular-nums">{filteredAdminStudents.length} คน</span>
+                  </h3>
+                  {[
+                    adminStudentTypeFilter !== 'all' && { label: TYPE_META[adminStudentTypeFilter].label, clear: () => setAdminStudentTypeFilter('all') },
+                    adminStudentStatusFilter !== 'all' && { label: STATUS_META[adminStudentStatusFilter].label, clear: () => setAdminStudentStatusFilter('all') },
+                    adminStudentMajorFilter !== 'all' && { label: MAJOR_META[adminStudentMajorFilter].short, clear: () => setAdminStudentMajorFilter('all') },
+                    adminStudentTermFilter !== 'all' && { label: `เทอม ${adminStudentTermFilter}`, clear: () => setAdminStudentTermFilter('all') },
+                    adminStudentSearch && { label: `“${adminStudentSearch}”`, clear: () => setAdminStudentSearch('') },
+                  ].filter(Boolean).map((f: any) => (
+                    <span key={f.label} className="inline-flex items-center gap-1 h-7 pl-2.5 pr-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200">
+                      {f.label}
+                      <button onClick={f.clear} className="w-5 h-5 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-white dark:hover:bg-slate-700" aria-label={`ล้าง ${f.label}`}><X size={12} /></button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between lg:justify-end gap-4">
+                  <span className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400">
+                    {TYPE_LIST.map(t => <span key={t} className="flex items-center gap-1.5"><span className={`w-1 h-4 rounded-full ${TYPE_META[t].bar}`} />{TYPE_META[t].label}</span>)}
                   </span>
                   <Segmented
                     value={studentViewMode}
                     onChange={setStudentViewMode}
-                    className="h-10"
+                    className="h-9"
                     options={[
                       { value: 'table', label: <><Table size={14} /><span className="sr-only sm:not-sr-only">ตาราง</span></> },
                       { value: 'cards', label: <><LayoutGrid size={14} /><span className="sr-only sm:not-sr-only">การ์ด</span></> },
