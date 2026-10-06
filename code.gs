@@ -1,5 +1,27 @@
 var ss = SpreadsheetApp.getActiveSpreadsheet();
 
+/* ================================================================== */
+/* ขั้นตอนครั้งแรก: อนุญาตให้สคริปต์ใช้ Google Drive                   */
+/* 1. เลือกฟังก์ชัน setupDrive ในแถบด้านบน แล้วกด Run                  */
+/* 2. Google จะขอสิทธิ์ → Review permissions → เลือกบัญชี → Allow       */
+/*    (ถ้าขึ้น "Google hasn't verified this app" ให้กด Advanced →        */
+/*     Go to ... (unsafe) เพราะเป็นสคริปต์ของเราเอง)                     */
+/* 3. ดูผลใน Execution log ว่าขึ้น "พร้อมใช้งาน"                         */
+/* 4. Deploy → Manage deployments → ดินสอ → New version → Deploy          */
+/* ================================================================== */
+function setupDrive() {
+  var lines = Object.keys(DRIVE_FOLDERS).map(function(k) {
+    var folder = driveFolder(k);
+    // Create and remove a small test file so every Drive permission the site needs is granted now
+    var test = folder.createFile(Utilities.newBlob("WISE test", "text/plain", "wise-permission-test.txt"));
+    shareByLink(test);
+    test.setTrashed(true);
+    return "พร้อมใช้งาน · " + DRIVE_FOLDERS[k] + " · " + folder.getUrl();
+  });
+  Logger.log(lines.join("\n"));
+  return lines;
+}
+
 // ระยะเวลาที่ช่อง "อาจารย์นิเทศ" ถูกล็อกไว้ให้ผู้กรอก (ต่ออายุอัตโนมัติด้วย heartbeat จากหน้าเว็บ)
 var LOCK_TTL_MS = 45 * 1000;
 var LOCK_CACHE_KEY = "supervisor_locks";
@@ -211,15 +233,6 @@ function shareByLink(file) {
   }
 }
 
-/**
- * Run this once from the Apps Script editor (select setupDrive, press Run) to grant Drive access
- * and create the sub-folders. Then deploy a new version.
- */
-function setupDrive() {
-  var out = Object.keys(DRIVE_FOLDERS).map(function(k) { return DRIVE_FOLDERS[k] + ": " + driveFolder(k).getUrl(); });
-  Logger.log(out.join("\n"));
-  return out;
-}
 
 // params.fileName, params.data (data URL or bare base64) -> { status, id, url }
 function handleUpload(params) {
