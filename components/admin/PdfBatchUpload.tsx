@@ -62,9 +62,9 @@ const DriveBanner: React.FC<{ drive: DriveStatus | null | 'checking' }> = ({ dri
     <div className={`${box} bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200`}>
       <Info size={15} className="shrink-0 mt-0.5" />
       <span>
-        <b>บัญชีเจ้าของ Apps Script เปิดโฟลเดอร์ WISE ไม่ได้</b> ไฟล์จะถูกเก็บในโฟลเดอร์ "WISE uploads" ของบัญชีนั้นแทน
-        {drive.url && <> (<a href={drive.url} target="_blank" rel="noreferrer" className="underline">เปิดดู</a>)</>}
-        {' '}แก้ได้โดยแชร์โฟลเดอร์ WISE ให้บัญชีเจ้าของสคริปต์เป็น Editor แล้ว Run <code>setupDrive</code> อีกครั้ง
+        {drive.reason === 'no_folder'
+          ? <><b>ยังไม่ได้กำหนดโฟลเดอร์ Drive</b> ไฟล์จะถูกเก็บในโฟลเดอร์ "WISE uploads" ของบัญชีเจ้าของสคริปต์แทน แก้ได้ที่ Apps Script → Project Settings → Script Properties → เพิ่ม <code>DRIVE_ROOT_ID</code> เป็นลิงก์โฟลเดอร์ แล้ว Run <code>setupDrive</code></>
+          : <><b>บัญชีเจ้าของ Apps Script เปิดโฟลเดอร์ WISE ไม่ได้</b> ไฟล์จะถูกเก็บในโฟลเดอร์ "WISE uploads" ของบัญชีนั้นแทน แก้ได้โดยแชร์โฟลเดอร์ WISE ให้บัญชีเจ้าของสคริปต์เป็น Editor แล้ว Run <code>setupDrive</code> อีกครั้ง</>}
       </span>
     </div>
   );

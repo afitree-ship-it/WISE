@@ -3,6 +3,8 @@ var BACKEND_VERSION = "2026-10-06";
 
 /* ================================================================== */
 /* ขั้นตอนครั้งแรก: อนุญาตให้สคริปต์ใช้ Google Drive                   */
+/* 0. Project Settings (รูปเฟือง) → Script Properties → Add property   */
+/*    ชื่อ DRIVE_ROOT_ID ค่า = ลิงก์หรือ ID ของโฟลเดอร์ Drive ที่เก็บไฟล์  */
 /* 1. เลือกฟังก์ชัน setupDrive ในแถบด้านบน แล้วกด Run                  */
 /* 2. Google จะขอสิทธิ์ → Review permissions → เลือกบัญชี → Allow       */
 /*    (ถ้าขึ้น "Google hasn't verified this app" ให้กด Advanced →        */
@@ -16,7 +18,9 @@ function setupDrive() {
   var root = driveRoot();
   var head = root.fallback
     ? "⚠ เปิดโฟลเดอร์ที่กำหนดไม่ได้ (" + root.reason + ")\n" +
-      "  บัญชี " + Session.getEffectiveUser().getEmail() + " ต้องมีสิทธิ์ Editor ในโฟลเดอร์ https://drive.google.com/drive/folders/" + DRIVE_ROOT_ID + "\n" +
+      (driveRootId()
+        ? "  บัญชี " + Session.getEffectiveUser().getEmail() + " ต้องมีสิทธิ์ Editor ในโฟลเดอร์ https://drive.google.com/drive/folders/" + driveRootId() + "\n"
+        : "  ไปที่ Project Settings (รูปเฟือง) → Script Properties → Add script property: DRIVE_ROOT_ID = ลิงก์หรือ ID ของโฟลเดอร์\n") +
       "  ระหว่างนี้ไฟล์จะถูกเก็บที่ " + root.folder.getUrl() + " แทน"
     : "✓ โฟลเดอร์หลัก: " + root.folder.getName();
   var lines = Object.keys(DRIVE_FOLDERS).map(function(k) {
@@ -220,8 +224,13 @@ function handleTranslate(params) {
 
 var UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 
-// All uploads live in this Drive folder, one sub-folder per kind of file
-var DRIVE_ROOT_ID = "1Tmz9c0uTuXyR2Qq6Z0UZF2Km23nQ5kpr";
+// All uploads live in one Drive folder, one sub-folder per kind of file. Its ID is kept in
+// Project Settings → Script Properties as DRIVE_ROOT_ID (the folder link works too), not in this file.
+function driveRootId() {
+  var v = String(PropertiesService.getScriptProperties().getProperty("DRIVE_ROOT_ID") || "").trim();
+  var m = /folders\/([\w-]+)/.exec(v);
+  return m ? m[1] : v;
+}
 var DRIVE_FOLDERS = {
   documents: "เอกสารดาวน์โหลด",
   photos: "รูปภาพนักศึกษา"
@@ -231,7 +240,8 @@ var DRIVE_FOLDERS = {
 // owner's own Drive is used instead so uploads still work (the admin page says which one is in use)
 function driveRoot() {
   try {
-    return { folder: DriveApp.getFolderById(DRIVE_ROOT_ID), fallback: false };
+    if (!driveRootId()) throw new Error("ยังไม่ได้ตั้ง DRIVE_ROOT_ID ใน Script Properties");
+    return { folder: DriveApp.getFolderById(driveRootId()), fallback: false };
   } catch (err) {
     if (/permission.*DriveApp|auth\/drive/i.test(String(err && err.message || err))) throw err; // Drive not authorised yet
     var props = PropertiesService.getScriptProperties();
@@ -264,16 +274,15 @@ function driveFolder(kind) {
 
 // Read-only health check shown on the admin upload screen
 function driveStatus() {
+  // Public answer: no folder ids or links, only whether uploads will work
+  if (!driveRootId()) return { status: "success", drive: true, fallback: true, reason: "no_folder" };
   try {
-    var r = DriveApp.getFolderById(DRIVE_ROOT_ID);
-    return { status: "success", drive: true, fallback: false, folder: r.getName(), url: r.getUrl() };
+    var r = DriveApp.getFolderById(driveRootId());
+    return { status: "success", drive: true, fallback: false, folder: r.getName() };
   } catch (err) {
     var msg = String(err && err.message || err);
-    if (/permission.*DriveApp|auth\/drive/i.test(msg)) return { status: "success", drive: false, reason: "not_authorized", message: msg };
-    var id = PropertiesService.getScriptProperties().getProperty("WISE_FALLBACK_ROOT");
-    var url = "";
-    if (id) { try { url = DriveApp.getFolderById(id).getUrl(); } catch (e2) {} }
-    return { status: "success", drive: true, fallback: true, reason: "no_access", message: msg, url: url };
+    if (/permission.*DriveApp|auth\/drive/i.test(msg)) return { status: "success", drive: false, reason: "not_authorized" };
+    return { status: "success", drive: true, fallback: true, reason: "no_access" };
   }
 }
 

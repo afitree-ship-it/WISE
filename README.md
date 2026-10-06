@@ -58,7 +58,7 @@ You need a Google account, Node.js 18+, and a free [Vercel](https://vercel.com) 
 
 1. Create a new Google Sheet.
 2. Open **Extensions → Apps Script**, delete the sample code, and paste in the contents of [`code.gs`](code.gs).
-3. Create a folder in Google Drive for uploads. Copy its ID from the URL (`drive.google.com/drive/folders/<ID>`) and put it in `DRIVE_ROOT_ID` near the top of `code.gs`.
+3. Create a folder in Google Drive for uploads. In Apps Script open **Project Settings (⚙) → Script Properties → Add script property**, name it `DRIVE_ROOT_ID`, and paste the folder's link or ID as the value. The ID stays out of the code.
 4. Choose the function **`setupDrive`** in the toolbar and click **Run**. Google asks for permission: **Review permissions → choose your account → Allow**. If it shows "Google hasn't verified this app", click **Advanced → Go to … (unsafe)**; it is your own script. The execution log should report that the folders are ready.
 5. **Deploy → New deployment → Web app**:
    - Execute as: **Me**
@@ -78,13 +78,13 @@ cd WISE
 npm install
 ```
 
-Put your web app URL in [`config.ts`](config.ts):
+Copy [`.env.example`](.env.example) to `.env.local` and put your web app URL in it:
 
-```ts
-export const SHEET_API_URL = "https://script.google.com/macros/s/XXXX/exec";
+```
+VITE_SHEET_API_URL=https://script.google.com/macros/s/XXXX/exec
 ```
 
-Then run it locally:
+`.env.local` is ignored by git, so the URL is not committed. Then run it locally:
 
 ```bash
 npm run dev
@@ -92,7 +92,9 @@ npm run dev
 
 ### 3. Deploy
 
-Import the repository into Vercel. It detects Vite automatically: build command `npm run build`, output folder `dist`.
+Import the repository into Vercel. It detects Vite automatically: build command `npm run build`, output folder `dist`. Under **Settings → Environment Variables**, add `VITE_SHEET_API_URL` with your web app URL, then redeploy.
+
+The URL is still visible to anyone who opens the site's network requests, as with any public web app. Keeping it out of the repository just means it is not published alongside the code.
 
 ### 4. First steps in the admin panel
 
