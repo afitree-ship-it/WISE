@@ -183,6 +183,46 @@ function handleTranslate(params) {
 }
 
 /* ------------------------------------------------------------------ */
+/* PDF upload to Google Drive (documents centre)                       */
+/* ------------------------------------------------------------------ */
+
+var UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
+
+function getUploadFolder() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty("UPLOAD_FOLDER_ID");
+  if (id) {
+    try { return DriveApp.getFolderById(id); } catch (err) {}
+  }
+  var folder = DriveApp.createFolder("WISE - เอกสารดาวน์โหลด");
+  props.setProperty("UPLOAD_FOLDER_ID", folder.getId());
+  return folder;
+}
+
+// params.fileName, params.data (data URL or bare base64) -> { status, id, url }
+function handleUpload(params) {
+  var name = String(params.fileName || "document.pdf").replace(/[\\\/:*?"<>|]/g, "_");
+  if (!/\.pdf$/i.test(name)) name += ".pdf";
+  var b64 = String(params.data || "");
+  var comma = b64.indexOf(",");
+  if (comma >= 0) b64 = b64.slice(comma + 1);
+  var bytes = Utilities.base64Decode(b64);
+  if (!bytes.length) return { status: "error", message: "empty file" };
+  if (bytes.length > UPLOAD_MAX_BYTES) return { status: "error", message: "file too large" };
+  // PDF files start with "%PDF"
+  if (!(bytes[0] === 37 && bytes[1] === 80 && bytes[2] === 68 && bytes[3] === 70)) return { status: "error", message: "not a pdf" };
+
+  var file = getUploadFolder().createFile(Utilities.newBlob(bytes, "application/pdf", name));
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (err) {
+    // Some Workspace domains block public links; fall back to people in the domain
+    try { file.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.VIEW); } catch (err2) {}
+  }
+  return { status: "success", id: file.getId(), url: "https://drive.google.com/file/d/" + file.getId() + "/view" };
+}
+
+/* ------------------------------------------------------------------ */
 /* HTTP entry points                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -192,6 +232,7 @@ function doGet(e) {
   if (type === "live") return jsonOut(handleLive());
   // Capability probe: lets the web app know this deployment can translate
   if (type === "translate") return jsonOut({ status: "success", translate: true });
+  if (type === "upload") return jsonOut({ status: "success", upload: true });
 
   // ดึงข้อมูลทุกชีตพร้อมกัน
   if (!type) {
@@ -230,6 +271,7 @@ function doPost(e) {
   if (type === "supervisor") return jsonOut(handleSupervisorSave(params));
   if (type === "settings") return jsonOut(handleSettingsSave(params));
   if (type === "translate") return jsonOut(handleTranslate(params));
+  if (type === "upload") return jsonOut(handleUpload(params));
 
   var sheetName = (type === "admins") ? "Admins" : (type === "studentStatuses" ? "StudentStatuses" : type);
   var sheet = ss.getSheetByName(sheetName) || ss.getSheetByName(type);

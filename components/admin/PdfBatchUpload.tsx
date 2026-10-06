@@ -1,0 +1,194 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { FileText, Upload, X, Check, AlertCircle, RefreshCw, Plus, Info } from 'lucide-react';
+import { FormCategory } from '../../types';
+import { Modal, btn, inputCls, iconBtn } from './ui';
+import { MAX_PDF_MB, isPdf, titleFromFileName, dragHasFiles } from '../../uploads';
+
+export type BatchItem = {
+  key: string;
+  file: File;
+  title: string;
+  category: FormCategory;
+  state: 'ready' | 'uploading' | 'done' | 'error';
+  error?: string;
+};
+
+export const CATEGORY_LABEL: Record<FormCategory, string> = {
+  [FormCategory.APPLICATION]: 'เอกสารสมัครงาน',
+  [FormCategory.MONITORING]: 'เอกสารระหว่างฝึกงาน',
+};
+
+const fmtSize = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+
+/** Splits dropped/picked files into accepted PDFs and rejected names (with the reason). */
+export const screenFiles = (files: FileList | File[]) => {
+  const ok: File[] = [];
+  const bad: string[] = [];
+  Array.from(files).forEach(f => {
+    if (!isPdf(f)) bad.push(`${f.name} (ไม่ใช่ PDF)`);
+    else if (f.size > MAX_PDF_MB * 1048576) bad.push(`${f.name} (ใหญ่เกิน ${MAX_PDF_MB} MB)`);
+    else ok.push(f);
+  });
+  return { ok, bad };
+};
+
+interface Props {
+  open: boolean;
+  initialFiles: File[];
+  initialCategory: FormCategory;
+  onClose: () => void;
+  /** Uploads one file and saves the document record; throws on failure. */
+  onUpload: (item: BatchItem) => Promise<void>;
+  onRejected: (names: string[]) => void;
+}
+
+const PdfBatchUpload: React.FC<Props> = ({ open, initialFiles, initialCategory, onClose, onUpload, onRejected }) => {
+  const [items, setItems] = useState<BatchItem[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [over, setOver] = useState(false);
+  const pickRef = useRef<HTMLInputElement>(null);
+
+  const toItems = (files: File[], category: FormCategory): BatchItem[] =>
+    files.map((file, i) => ({ key: `${Date.now()}-${i}-${file.name}`, file, title: titleFromFileName(file.name), category, state: 'ready' }));
+
+  useEffect(() => {
+    if (open) { setItems(toItems(initialFiles, initialCategory)); setBusy(false); }
+  }, [open, initialFiles, initialCategory]);
+
+  const addFiles = (files: FileList | File[]) => {
+    const { ok, bad } = screenFiles(files);
+    if (bad.length) onRejected(bad);
+    if (ok.length) setItems(prev => [...prev, ...toItems(ok, prev[prev.length - 1]?.category || initialCategory)]);
+  };
+
+  const patch = (key: string, p: Partial<BatchItem>) => setItems(prev => prev.map(it => (it.key === key ? { ...it, ...p } : it)));
+
+  const pending = items.filter(it => it.state !== 'done');
+  const doneCount = items.filter(it => it.state === 'done').length;
+  const missingTitle = pending.some(it => !it.title.trim());
+
+  const start = async () => {
+    setBusy(true);
+    let failed = 0;
+    for (const it of pending) {
+      patch(it.key, { state: 'uploading', error: undefined });
+      try {
+        await onUpload({ ...it, title: it.title.trim() });
+        patch(it.key, { state: 'done' });
+      } catch (err: any) {
+        failed++;
+        patch(it.key, {
+          state: 'error',
+          error: err?.message === 'NO_BACKEND' ? 'ระบบหลังบ้านยังไม่รองรับการอัปโหลด (ต้อง redeploy code.gs)' : 'อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง',
+        });
+      }
+    }
+    setBusy(false);
+    if (!failed) onClose();
+  };
+
+  const setAllCategory = (c: FormCategory) => setItems(prev => prev.map(it => (it.state === 'done' ? it : { ...it, category: c })));
+  const allSame = pending.length > 0 && pending.every(it => it.category === pending[0].category) ? pending[0].category : null;
+
+  return (
+    <Modal
+      open={open}
+      onClose={() => { if (!busy) onClose(); }}
+      title="อัปโหลดเอกสาร PDF"
+      subtitle="ลากไฟล์มาวางได้หลายไฟล์พร้อมกัน ตั้งชื่อที่จะแสดงให้นักศึกษาเห็น แล้วกดอัปโหลด"
+      icon={<Upload size={18} />}
+      size="lg"
+      footer={
+        <>
+          <span className="mr-auto text-xs text-slate-500 tabular-nums">
+            {busy ? `กำลังอัปโหลด ${doneCount + 1}/${items.length}` : doneCount ? `สำเร็จ ${doneCount}/${items.length}` : `${items.length} ไฟล์`}
+          </span>
+          <button type="button" onClick={onClose} disabled={busy} className={btn('secondary')}>{doneCount ? 'ปิด' : 'ยกเลิก'}</button>
+          <button type="button" onClick={start} disabled={busy || !pending.length || missingTitle} className={btn('primary')}>
+            {busy ? <RefreshCw size={15} className="animate-spin" /> : <Upload size={15} />}
+            {busy ? 'กำลังอัปโหลด…' : pending.some(it => it.state === 'error') ? 'ลองอีกครั้ง' : `อัปโหลด ${pending.length} ไฟล์`}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {/* Drop zone (adds more files) */}
+        <div
+          onDragOver={e => { if (dragHasFiles(e)) { e.preventDefault(); setOver(true); } }}
+          onDragLeave={() => setOver(false)}
+          onDrop={e => { e.preventDefault(); setOver(false); if (!busy) addFiles(e.dataTransfer.files); }}
+          onClick={() => !busy && pickRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickRef.current?.click(); } }}
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed cursor-pointer transition ${over ? 'border-[#630330] bg-[#630330]/5 dark:border-amber-400 dark:bg-amber-400/10' : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500'}`}
+        >
+          <input ref={pickRef} type="file" accept="application/pdf,.pdf" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = ''; }} />
+          <span className="w-9 h-9 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center"><Plus size={18} /></span>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-slate-800 dark:text-slate-100">{over ? 'ปล่อยเพื่อเพิ่มไฟล์' : 'ลากไฟล์ PDF มาวางเพิ่ม หรือคลิกเพื่อเลือก'}</span>
+            <span className="block text-[11px] text-slate-400">เลือกได้หลายไฟล์ · เฉพาะ .pdf · ไม่เกิน {MAX_PDF_MB} MB ต่อไฟล์</span>
+          </span>
+        </div>
+
+        {items.length > 0 && (
+          <>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-slate-500">ตั้งหมวดหมู่ทุกไฟล์เป็น</span>
+              {(Object.keys(CATEGORY_LABEL) as FormCategory[]).map(c => (
+                <button key={c} type="button" disabled={busy} onClick={() => setAllCategory(c)}
+                  className={`h-7 px-3 rounded-full font-medium transition ${allSame === c ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-400'}`}>
+                  {CATEGORY_LABEL[c]}
+                </button>
+              ))}
+            </div>
+
+            <ul className="space-y-2">
+              {items.map((it, idx) => (
+                <li key={it.key} className={`rounded-xl border p-3 transition ${it.state === 'done' ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-500/30 dark:bg-emerald-500/10' : it.state === 'error' ? 'border-rose-200 bg-rose-50/60 dark:border-rose-500/30 dark:bg-rose-500/10' : 'border-slate-200 dark:border-slate-700'}`}>
+                  <div className="flex items-start gap-3">
+                    <span className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center ${it.state === 'done' ? 'bg-emerald-500 text-white' : it.state === 'error' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300'}`}>
+                      {it.state === 'done' ? <Check size={17} /> : it.state === 'uploading' ? <RefreshCw size={16} className="animate-spin" /> : it.state === 'error' ? <AlertCircle size={17} /> : <FileText size={17} />}
+                    </span>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <label className="block">
+                        <span className="sr-only">ชื่อเอกสารของไฟล์ที่ {idx + 1}</span>
+                        <input
+                          value={it.title}
+                          onChange={e => patch(it.key, { title: e.target.value })}
+                          disabled={busy || it.state === 'done'}
+                          placeholder="ตั้งชื่อเอกสาร เช่น แบบฟอร์ม วบง. 01"
+                          className={`${inputCls} ${!it.title.trim() ? '!border-rose-300' : ''}`}
+                          autoFocus={idx === 0}
+                        />
+                      </label>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                        <span className="text-[11px] text-slate-400 truncate max-w-full" title={it.file.name}>{it.file.name} · {fmtSize(it.file.size)}</span>
+                        <span className="inline-flex p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800">
+                          {(Object.keys(CATEGORY_LABEL) as FormCategory[]).map(c => (
+                            <button key={c} type="button" disabled={busy || it.state === 'done'} onClick={() => patch(it.key, { category: c })}
+                              className={`h-6 px-2.5 rounded-md text-[11px] font-medium transition ${it.category === c ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>
+                              {CATEGORY_LABEL[c]}
+                            </button>
+                          ))}
+                        </span>
+                      </div>
+                      {it.error && <p className="text-[11px] text-rose-600 dark:text-rose-300">{it.error}</p>}
+                    </div>
+                    {it.state !== 'done' && (
+                      <button type="button" disabled={busy} onClick={() => setItems(prev => prev.filter(x => x.key !== it.key))} className={iconBtn} title="เอาไฟล์นี้ออก" aria-label="เอาไฟล์นี้ออก"><X size={16} /></button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        <p className="text-[11px] text-slate-400 flex items-start gap-1.5"><Info size={12} className="mt-0.5 shrink-0" /> ไฟล์จะถูกเก็บใน Google Drive ของระบบ และระบบจะแปลชื่อเอกสารเป็นภาษาอังกฤษ อาหรับ และมลายูให้อัตโนมัติ</p>
+      </div>
+    </Modal>
+  );
+};
+
+export default PdfBatchUpload;

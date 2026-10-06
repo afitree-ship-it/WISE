@@ -53,37 +53,61 @@ const TipRow: React.FC<{ color?: string; label: string; value: React.ReactNode }
 /* Small building blocks                                               */
 /* ------------------------------------------------------------------ */
 
-const Panel: React.FC<{ title: string; subtitle?: string; right?: React.ReactNode; className?: string; children: React.ReactNode }> = ({ title, subtitle, right, className = '', children }) => (
-  <section className={`${card} p-5 ${className}`}>
-    <header className="flex items-start justify-between gap-3 mb-4">
-      <div>
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h3>
-        {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
+/* Colour per zone, so each block reads as its own area at a glance */
+type Tone = 'slate' | 'rose' | 'amber' | 'emerald' | 'sky' | 'violet' | 'indigo' | 'teal' | 'fuchsia';
+const TONES: Record<Tone, { strip: string; chip: string; badge: string; tint: string; border: string; value: string; line: string }> = {
+  slate:   { strip: 'bg-slate-400',   chip: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',           badge: 'bg-slate-700 dark:bg-slate-300 dark:text-slate-900', tint: 'bg-white dark:bg-slate-900',                       border: 'border-slate-200/80 dark:border-slate-800',      value: 'text-slate-900 dark:text-white',        line: 'bg-slate-200 dark:bg-slate-800' },
+  rose:    { strip: 'bg-rose-500',    chip: 'bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300',            badge: 'bg-rose-600',    tint: 'bg-rose-50/70 dark:bg-rose-500/[0.07]',       border: 'border-rose-200 dark:border-rose-500/25',       value: 'text-rose-700 dark:text-rose-300',       line: 'bg-rose-200 dark:bg-rose-500/25' },
+  amber:   { strip: 'bg-amber-500',   chip: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',        badge: 'bg-amber-500',   tint: 'bg-amber-50/70 dark:bg-amber-500/[0.07]',     border: 'border-amber-200 dark:border-amber-500/25',     value: 'text-amber-700 dark:text-amber-300',     line: 'bg-amber-200 dark:bg-amber-500/25' },
+  emerald: { strip: 'bg-emerald-500', chip: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300', badge: 'bg-emerald-600', tint: 'bg-emerald-50/70 dark:bg-emerald-500/[0.07]', border: 'border-emerald-200 dark:border-emerald-500/25', value: 'text-emerald-700 dark:text-emerald-300', line: 'bg-emerald-200 dark:bg-emerald-500/25' },
+  sky:     { strip: 'bg-sky-500',     chip: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',                badge: 'bg-sky-600',     tint: 'bg-sky-50/70 dark:bg-sky-500/[0.07]',         border: 'border-sky-200 dark:border-sky-500/25',         value: 'text-sky-700 dark:text-sky-300',         line: 'bg-sky-200 dark:bg-sky-500/25' },
+  violet:  { strip: 'bg-violet-500',  chip: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',    badge: 'bg-violet-600',  tint: 'bg-violet-50/70 dark:bg-violet-500/[0.07]',   border: 'border-violet-200 dark:border-violet-500/25',   value: 'text-violet-700 dark:text-violet-300',   line: 'bg-violet-200 dark:bg-violet-500/25' },
+  indigo:  { strip: 'bg-indigo-500',  chip: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300',    badge: 'bg-indigo-600',  tint: 'bg-indigo-50/70 dark:bg-indigo-500/[0.07]',   border: 'border-indigo-200 dark:border-indigo-500/25',   value: 'text-indigo-700 dark:text-indigo-300',   line: 'bg-indigo-200 dark:bg-indigo-500/25' },
+  teal:    { strip: 'bg-teal-500',    chip: 'bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300',            badge: 'bg-teal-600',    tint: 'bg-teal-50/70 dark:bg-teal-500/[0.07]',       border: 'border-teal-200 dark:border-teal-500/25',       value: 'text-teal-700 dark:text-teal-300',       line: 'bg-teal-200 dark:bg-teal-500/25' },
+  fuchsia: { strip: 'bg-fuchsia-500', chip: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-300', badge: 'bg-fuchsia-600', tint: 'bg-fuchsia-50/70 dark:bg-fuchsia-500/[0.07]', border: 'border-fuchsia-200 dark:border-fuchsia-500/25', value: 'text-fuchsia-700 dark:text-fuchsia-300', line: 'bg-fuchsia-200 dark:bg-fuchsia-500/25' },
+};
+
+const Panel: React.FC<{ title: string; subtitle?: string; right?: React.ReactNode; icon?: React.ReactNode; tone?: Tone; className?: string; children: React.ReactNode }> = ({ title, subtitle, right, icon, tone = 'slate', className = '', children }) => {
+  const t = TONES[tone];
+  return (
+    <section className={`${card} relative overflow-hidden p-5 pt-6 ${className}`}>
+      <span className={`absolute inset-x-0 top-0 h-1 ${t.strip}`} />
+      <header className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex items-start gap-2.5 min-w-0">
+          {icon && <span className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${t.chip}`}>{icon}</span>}
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h3>
+            {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
+          </div>
+        </div>
+        {right}
+      </header>
+      {children}
+    </section>
+  );
+};
+
+const Stat: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: Tone; className?: string }> = ({ icon, label, value, sub, tone = 'slate', className = '' }) => {
+  const t = TONES[tone];
+  return (
+    <div className={`rounded-xl border p-4 sm:p-5 ${t.tint} ${t.border} ${className}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{label}</span>
+        <span className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${t.chip}`}>{icon}</span>
       </div>
-      {right}
-    </header>
-    {children}
-  </section>
-);
-
-const Stat: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode; sub?: React.ReactNode; accent?: string; className?: string }> = ({ icon, label, value, sub, accent = 'text-slate-900 dark:text-white', className = '' }) => (
-  <div className={`${card} p-4 sm:p-5 ${className}`}>
-    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-      <span className="text-xs font-medium">{label}</span>
-      <span className="text-slate-400">{icon}</span>
+      <div className={`mt-1 text-2xl sm:text-3xl font-bold tabular-nums tracking-tight ${t.value}`}>{value}</div>
+      {sub && <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{sub}</div>}
     </div>
-    <div className={`mt-2 text-2xl sm:text-3xl font-bold tabular-nums tracking-tight ${accent}`}>{value}</div>
-    {sub && <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{sub}</div>}
-  </div>
-);
+  );
+};
 
-const Section: React.FC<{ n: number; title: string; hint?: string; children: React.ReactNode }> = ({ n, title, hint, children }) => (
+const Section: React.FC<{ n: number; title: string; hint?: string; tone?: Tone; children: React.ReactNode }> = ({ n, title, hint, tone = 'slate', children }) => (
   <section className="space-y-3">
     <h2 className="flex items-center gap-2.5">
-      <span className="w-6 h-6 shrink-0 rounded-md bg-[#630330] text-white dark:bg-amber-400 dark:text-slate-900 text-xs font-bold flex items-center justify-center tabular-nums">{n}</span>
+      <span className={`w-6 h-6 shrink-0 rounded-md text-white text-xs font-bold flex items-center justify-center tabular-nums ${TONES[tone].badge}`}>{n}</span>
       <span className="text-[15px] font-semibold text-slate-900 dark:text-white">{title}</span>
       {hint && <span className="hidden sm:inline text-xs text-slate-400">{hint}</span>}
-      <span className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+      <span className={`flex-1 h-px ${TONES[tone].line}`} />
     </h2>
     {children}
   </section>
@@ -274,7 +298,7 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
 
       {/* 1 — what needs action (admin only) */}
       {mode === 'admin' && (
-        <Section n={1} title="สิ่งที่ต้องดำเนินการ" hint="กดเพื่อดูรายชื่อ แล้วกดชื่อเพื่อแก้ไข">
+        <Section n={1} tone="rose" title="สิ่งที่ต้องดำเนินการ" hint="กดเพื่อดูรายชื่อ แล้วกดชื่อเพื่อแก้ไข">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {attention.map(a => {
               const on = openAttn === a.key;
@@ -308,11 +332,11 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
       )}
 
       {/* 2 — headline numbers */}
-      <Section n={n0 + 1} title="ตัวเลขสำคัญ">
+      <Section n={n0 + 1} tone="indigo" title="ตัวเลขสำคัญ">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className={`${card} p-4 sm:p-5`}>
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400"><span className="text-xs font-medium">นักศึกษาทั้งหมด</span><Users size={16} className="text-slate-400" /></div>
-            <div className="mt-2 text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{d.total}</div>
+          <div className="rounded-xl border p-4 sm:p-5 bg-indigo-50/70 border-indigo-200 dark:bg-indigo-500/[0.07] dark:border-indigo-500/25">
+            <div className="flex items-center justify-between gap-2"><span className="text-xs font-medium text-slate-600 dark:text-slate-300">นักศึกษาทั้งหมด</span><span className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"><Users size={16} /></span></div>
+            <div className="mt-1 text-3xl font-bold tabular-nums text-indigo-700 dark:text-indigo-300">{d.total}</div>
             <div className="mt-2 h-1.5 rounded-full overflow-hidden flex bg-slate-100 dark:bg-slate-800">
               {TYPE_LIST.map(t => (d.byType[t] ? <div key={t} className={TYPE_META[t].bar} style={{ width: `${pct(d.byType[t], typeTotal)}%` }} /> : null))}
             </div>
@@ -320,16 +344,16 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
               {TYPE_LIST.map(t => <span key={t} className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${TYPE_META[t].dot}`} />{TYPE_META[t].short} {d.byType[t] || 0}</span>)}
             </div>
           </div>
-          <Stat icon={<CheckCircle2 size={16} />} label="ตอบรับแล้ว" value={<>{d.accepted}<span className="ml-1.5 text-base font-semibold text-emerald-600 dark:text-emerald-400">{pct(d.accepted, d.total)}%</span></>} sub="ของนักศึกษาทั้งหมด" />
-          <Stat icon={<Activity size={16} />} label="กำลังฝึกอยู่ตอนนี้" value={d.active} sub="อยู่ในช่วงวันฝึก ณ วันนี้" />
-          <Stat icon={<UserCheck size={16} />} label="มีอาจารย์นิเทศแล้ว" value={<>{d.withSup}<span className="text-base font-medium text-slate-400">/{d.total}</span></>} sub={`ครอบคลุม ${pct(d.withSup, d.total)}%`} />
+          <Stat tone="emerald" icon={<CheckCircle2 size={16} />} label="ตอบรับแล้ว" value={<>{d.accepted}<span className="ml-1.5 text-base font-semibold opacity-70">{pct(d.accepted, d.total)}%</span></>} sub="ของนักศึกษาทั้งหมด" />
+          <Stat tone="sky" icon={<Activity size={16} />} label="กำลังฝึกอยู่ตอนนี้" value={d.active} sub="อยู่ในช่วงวันฝึก ณ วันนี้" />
+          <Stat tone="violet" icon={<UserCheck size={16} />} label="มีอาจารย์นิเทศแล้ว" value={<>{d.withSup}<span className="text-base font-medium text-slate-400">/{d.total}</span></>} sub={`ครอบคลุม ${pct(d.withSup, d.total)}%`} />
         </div>
       </Section>
 
       {/* 3 — who goes where, and how far along */}
-      <Section n={n0 + 2} title="รูปแบบการฝึก และ สถานะการสมัคร">
+      <Section n={n0 + 2} tone="sky" title="รูปแบบการฝึก และ สถานะการสมัคร">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <Panel title="ฝึกงาน เทียบ สหกิจศึกษา" subtitle="จำนวนนักศึกษาในแต่ละรูปแบบ">
+          <Panel tone="sky" icon={<Briefcase size={16} />} title="ฝึกงาน เทียบ สหกิจศึกษา" subtitle="จำนวนนักศึกษาในแต่ละรูปแบบ">
             <div className="space-y-4">
               {TYPE_LIST.map(t => {
                 const m = TYPE_META[t];
@@ -351,7 +375,7 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
             </div>
           </Panel>
 
-          <Panel title="สถานะการสมัคร" subtitle="นักศึกษาอยู่ขั้นตอนไหน">
+          <Panel tone="emerald" icon={<CheckCircle2 size={16} />} title="สถานะการสมัคร" subtitle="นักศึกษาอยู่ขั้นตอนไหน">
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <div className="relative">
                 <Donut data={statusData} total={d.total} tip={tip} />
@@ -376,9 +400,9 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
       </Section>
 
       {/* 4 — by major and over time */}
-      <Section n={n0 + 3} title="แยกตามสาขา และ ช่วงเวลา">
+      <Section n={n0 + 3} tone="violet" title="แยกตามสาขา และ ช่วงเวลา">
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-          <Panel title="แต่ละสาขา" subtitle="จำนวนนักศึกษา แยกฝึกงาน / สหกิจ" className="xl:col-span-2"
+          <Panel tone="violet" icon={<GraduationCap size={16} />} title="แต่ละสาขา" subtitle="จำนวนนักศึกษา แยกฝึกงาน / สหกิจ" className="xl:col-span-2"
             right={<div className="flex gap-3">{TYPE_LIST.map(t => <span key={t} className="flex items-center gap-1.5 text-[11px] text-slate-500"><span className={`w-2 h-2 rounded-sm ${TYPE_META[t].bar}`} />{TYPE_META[t].short}</span>)}</div>}>
             <div className="space-y-3.5">
               {MAJOR_LIST.map(m => {
@@ -405,7 +429,7 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
             </div>
           </Panel>
 
-          <Panel title="เริ่มฝึกในแต่ละเดือน" subtitle="จำนวนนักศึกษาตามเดือนที่เริ่มฝึก" className="xl:col-span-3">
+          <Panel tone="rose" icon={<CalendarDays size={16} />} title="เริ่มฝึกในแต่ละเดือน" subtitle="จำนวนนักศึกษาตามเดือนที่เริ่มฝึก" className="xl:col-span-3">
             {d.timeline.length === 0 ? (
               <p className="text-sm text-slate-400 py-10 text-center">ยังไม่มีข้อมูลวันเริ่มฝึก</p>
             ) : (
@@ -425,9 +449,9 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
       </Section>
 
       {/* 5 — places, supervisors, dates */}
-      <Section n={n0 + 4} title="สถานที่ฝึก อาจารย์นิเทศ และกำหนดการ">
+      <Section n={n0 + 4} tone="teal" title="สถานที่ฝึก อาจารย์นิเทศ และกำหนดการ">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Panel title="สถานที่ฝึกยอดนิยม" subtitle={`จากทั้งหมด ${d.distinctLocations} แห่ง`} right={<Building2 size={16} className="text-slate-400" />}>
+          <Panel tone="teal" icon={<Building2 size={16} />} title="สถานที่ฝึกยอดนิยม" subtitle={`จากทั้งหมด ${d.distinctLocations} แห่ง`}>
             {d.topLocations.length === 0 ? (
               <p className="text-sm text-slate-400 py-8 text-center">ยังไม่มีข้อมูลสถานที่</p>
             ) : (
@@ -438,14 +462,14 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
                       <span className="truncate text-slate-700 dark:text-slate-200 flex items-center gap-1.5"><MapPin size={12} className="text-slate-400 shrink-0" />{loc}</span>
                       <span className="tabular-nums font-semibold text-slate-900 dark:text-white">{n}</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-slate-700 dark:bg-slate-300" style={{ width: `${(n / maxLoc) * 100}%` }} /></div>
+                    <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-teal-500" style={{ width: `${(n / maxLoc) * 100}%` }} /></div>
                   </li>
                 ))}
               </ul>
             )}
           </Panel>
 
-          <Panel title="ภาระงานอาจารย์นิเทศ" subtitle="จำนวนนักศึกษาที่ดูแล" right={<UserCheck size={16} className="text-slate-400" />}>
+          <Panel tone="violet" icon={<UserCheck size={16} />} title="ภาระงานอาจารย์นิเทศ" subtitle="จำนวนนักศึกษาที่ดูแล">
             {d.topSupervisors.length === 0 ? (
               <p className="text-sm text-slate-400 py-8 text-center">ยังไม่มีการระบุอาจารย์นิเทศ</p>
             ) : (
@@ -456,14 +480,14 @@ const Dashboard: React.FC<DashboardProps> = ({ students, schedules = [], mode, f
                       <span className="truncate text-slate-700 dark:text-slate-200">{name}</span>
                       <span className="tabular-nums font-semibold text-slate-900 dark:text-white">{n}</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-[#630330] dark:bg-amber-400" style={{ width: `${(n / maxSup) * 100}%` }} /></div>
+                    <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-violet-500" style={{ width: `${(n / maxSup) * 100}%` }} /></div>
                   </li>
                 ))}
               </ul>
             )}
           </Panel>
 
-          <Panel title="กำหนดการที่กำลังจะมาถึง" subtitle="วันสำคัญถัดไป" right={<CalendarDays size={16} className="text-slate-400" />}>
+          <Panel tone="amber" icon={<CalendarDays size={16} />} title="กำหนดการที่กำลังจะมาถึง" subtitle="วันสำคัญถัดไป">
             {upcoming.length === 0 ? (
               <p className="text-sm text-slate-400 py-8 text-center">ไม่มีกำหนดการ</p>
             ) : (

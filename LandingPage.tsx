@@ -34,7 +34,10 @@ import {
   Check,
   ShieldAlert,
   RefreshCw,
-  Zap
+  Zap,
+  Eye,
+  EyeOff,
+  KeyRound
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -76,6 +79,9 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [capsOn, setCapsOn] = useState(false);
+  const [shake, setShake] = useState(false);
 
   const [failedAttempts, setFailedAttempts] = useState(() => {
     return parseInt(localStorage.getItem('wise_failed_attempts') || '0');
@@ -229,7 +235,19 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
   const maxAttempts = 5;
   const lockoutDuration = 60; // seconds
-  const shakeRef = useRef<boolean>(false);
+  const AL = lang === Language.TH ? {
+    title: 'เข้าสู่ระบบเจ้าหน้าที่', sub: 'สำหรับผู้ดูแลระบบและอาจารย์ที่ได้รับสิทธิ์', label: 'รหัสผ่าน', placeholder: 'กรอกรหัสผ่าน',
+    show: 'แสดงรหัสผ่าน', hide: 'ซ่อนรหัสผ่าน', submit: 'เข้าสู่ระบบ', checking: 'กำลังตรวจสอบ...', entering: 'กำลังเข้าสู่ระบบ...',
+    success: 'ยืนยันตัวตนสำเร็จ', successSub: 'กำลังพาไปยังหน้าจัดการ', wrong: 'รหัสผ่านไม่ถูกต้อง', caps: 'Caps Lock เปิดอยู่',
+    left: (n: number) => `เหลืออีก ${n} ครั้ง`, lockedTitle: 'ระงับการเข้าสู่ระบบชั่วคราว', lockedSub: 'กรอกรหัสผิดครบ 5 ครั้ง',
+    tryAgainIn: 'ลองใหม่ได้ในอีก', foot: 'ผิดครบ 5 ครั้ง ระบบจะล็อกไว้ 1 นาที',
+  } : {
+    title: 'Staff sign in', sub: 'For administrators and authorised staff', label: 'Password', placeholder: 'Enter password',
+    show: 'Show password', hide: 'Hide password', submit: 'Sign in', checking: 'Checking...', entering: 'Signing in...',
+    success: 'Verified', successSub: 'Opening the admin panel', wrong: 'Incorrect password.', caps: 'Caps Lock is on',
+    left: (n: number) => `${n} attempt${n === 1 ? '' : 's'} left`, lockedTitle: 'Sign-in paused', lockedSub: 'Too many incorrect attempts',
+    tryAgainIn: 'Try again in', foot: 'After 5 wrong attempts, sign-in is locked for 1 minute',
+  };
 
   useEffect(() => {
     const checkMobile = () => {
@@ -298,8 +316,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
         setLoginError(true);
         setAdminPassInput('');
         
-        shakeRef.current = true;
-        setTimeout(() => { shakeRef.current = false; }, 500);
+        setShake(true);
+        setTimeout(() => setShake(false), 450);
 
         if (newAttempts >= maxAttempts) {
           const lockedUntil = Date.now() + (lockoutDuration * 1000);
@@ -710,123 +728,107 @@ const LandingPage: React.FC<LandingPageProps> = ({
       )}
 
       {showAdminLogin && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-3xl reveal-anim overflow-y-auto touch-auto">
-          <div className={`w-full max-w-[420px] my-auto flex flex-col items-center relative p-6 sm:p-14 rounded-[2rem] sm:rounded-[3rem] border transition-all duration-300 ${loginSuccess ? 'border-emerald-500/50 bg-emerald-950/20' : lockoutTimeLeft > 0 ? 'border-rose-900 bg-rose-950/20' : 'border-white/10 bg-white/5'} shadow-3xl ${shakeRef.current ? 'animate-shake' : ''}`}>
-            <button onClick={() => setShowAdminLogin(false)} className="absolute top-4 right-4 sm:top-8 sm:right-8 p-2 sm:p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all">
-              <X size={20} className="sm:w-6 sm:h-6" />
-            </button>
-            
-            <div className={`inline-flex p-4 sm:p-7 rounded-full ${loginSuccess ? 'bg-emerald-500/20 text-emerald-400 scale-110' : lockoutTimeLeft > 0 ? 'bg-rose-500/20 text-rose-500' : 'bg-[#D4AF37]/10 text-[#D4AF37]'} mb-4 sm:mb-8 shadow-[0_0_50px_rgba(212,175,55,0.1)] relative transition-all duration-700`}>
-              {loginSuccess ? <ShieldCheck size={40} className="sm:w-[48px] sm:h-[48px]" /> : lockoutTimeLeft > 0 ? <Lock size={40} className="sm:w-[48px] sm:h-[48px]" /> : <Fingerprint size={40} className={`${isVerifying ? 'opacity-20 scale-95' : ''} sm:w-[48px] sm:h-[48px] transition-all duration-700`} />}
-              {isVerifying && !loginSuccess && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <svg className="w-full h-full absolute inset-0 -rotate-90" viewBox="0 0 100 100">
-                    {/* Clearer Background Track */}
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="46"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      strokeDasharray="289"
-                      strokeDashoffset="0"
-                      className="text-[#D4AF37] opacity-10"
-                    />
-                    {/* Dynamic Loading Line */}
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="46"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="5"
-                      strokeDasharray="289"
-                      strokeDashoffset="289"
-                      strokeLinecap="round"
-                      className="text-[#D4AF37] animate-loading-line-dynamic drop-shadow-[0_0_12px_rgba(212,175,55,0.8)]"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#D4AF37]/0 via-[#D4AF37]/15 to-[#D4AF37]/0 animate-spin-slow"></div>
-                </div>
-              )}
+        <div
+          className="fixed inset-0 z-[101] flex items-end sm:items-center justify-center sm:p-6 bg-[#12000a]/80 backdrop-blur-xl wise-fade-in touch-auto"
+          onMouseDown={() => { if (!isVerifying && !loginSuccess) setShowAdminLogin(false); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-login-title"
+            onMouseDown={(e) => e.stopPropagation()}
+            className={`wise-pop-in w-full sm:max-w-[420px] max-h-[92svh] overflow-y-auto custom-scrollbar rounded-t-[28px] sm:rounded-[28px] bg-[#2a0114]/95 border shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] relative transition-colors ${loginSuccess ? 'border-emerald-400/40' : lockoutTimeLeft > 0 ? 'border-rose-400/30' : 'border-white/10'} ${shake ? 'animate-shake' : ''}`}
+          >
+            <div className="pointer-events-none absolute inset-0 rounded-[inherit] overflow-hidden">
+              <div className="absolute -top-24 -right-16 w-72 h-72 rounded-full bg-[#D4AF37]/15 blur-3xl" />
+              <div className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-[#7A0B3D]/60 blur-3xl" />
             </div>
-            
-            <h3 className="text-lg sm:text-2xl font-black text-white uppercase mb-2 text-center tracking-tighter opacity-90">
-              {loginSuccess ? 'ACCESS GRANTED' : lockoutTimeLeft > 0 ? 'SYSTEM LOCKED' : 'SECURE AUTHENTICATION'}
-            </h3>
-            
-            {failedAttempts > 0 && lockoutTimeLeft === 0 && !loginSuccess && (
-              <p className="text-rose-400 text-[10px] font-black uppercase mb-4 tracking-wider text-center">
-                จำนวนครั้งที่เหลือ: {maxAttempts - failedAttempts}
-              </p>
-            )}
 
-            {lockoutTimeLeft > 0 && (
-              <div className="w-full text-center mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 animate-pulse">
-                <p className="text-rose-500 text-xs font-black uppercase mb-2 tracking-widest flex items-center justify-center gap-2">
-                  <AlertTriangle size={14} /> SECURITY PROTOCOL ACTIVE
-                </p>
-                <p className="text-white text-3xl font-black">00:{lockoutTimeLeft < 10 ? `0${lockoutTimeLeft}` : lockoutTimeLeft}</p>
-                <p className="text-rose-400 text-[9px] font-bold uppercase mt-2">Temporary lockout due to repeated failures.</p>
-              </div>
-            )}
-            
-            <form onSubmit={handleAdminSubmit} className="w-full space-y-4 sm:space-y-6">
-              <div className="relative group overflow-hidden rounded-xl sm:rounded-2xl">
-                <input 
-                  type="password" 
-                  autoFocus={!isMobile}
-                  disabled={lockoutTimeLeft > 0 || isVerifying || loginSuccess}
-                  placeholder="••••••" 
-                  value={adminPassInput} 
-                  onChange={e => {
-                    setAdminPassInput(e.target.value);
-                    if (loginError) setLoginError(false);
-                  }} 
-                  className={`w-full px-4 py-4 sm:py-7 rounded-xl sm:rounded-2xl bg-white/5 border-2 outline-none font-black text-center text-4xl sm:text-6xl tracking-[0.2em] transition-all duration-500
-                    ${loginSuccess ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' : lockoutTimeLeft > 0 ? 'border-rose-900/50 text-rose-900 opacity-50' : loginError ? 'border-rose-500 text-rose-500 bg-rose-500/10' : 'border-white/10 focus:border-[#D4AF37] text-[#D4AF37]'}`}
-                />
-                {(isVerifying || loginSuccess) && (
-                   <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent animate-scan-beam-slow"></div>
-                )}
-                {isVerifying && !loginSuccess && (
-                  <div className="absolute inset-0 bg-[#D4AF37]/5 pointer-events-none animate-pulse-soft"></div>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-4">
-                <button 
-                  type="submit" 
-                  disabled={lockoutTimeLeft > 0 || !adminPassInput || isVerifying || loginSuccess}
-                  className={`group/btn w-full py-4 sm:py-6 rounded-xl sm:rounded-2xl font-black uppercase text-xs sm:text-base shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all active:scale-95 flex items-center justify-center gap-3
-                    ${loginSuccess ? 'bg-emerald-500 text-white shadow-emerald-500/30' : lockoutTimeLeft > 0 ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : isVerifying ? 'bg-slate-700 text-white shadow-xl' : 'bg-[#630330] hover:bg-[#7a0b3d] text-white hover:shadow-mangosteen'}`}
-                >
-                  {loginSuccess ? (
-                    <>
-                      <Zap size={20} className="animate-bounce" />
-                      กำลังเข้าระบบ...
-                    </>
-                  ) : isVerifying ? (
-                    <>
-                      <RefreshCw className="animate-spin" size={20} />
-                      กำลังเข้าระบบ...
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck size={20} className="group-hover/btn:scale-110 transition-transform" />
-                      {lang === Language.TH ? 'ยืนยันตัวตน' : 'VERIFY ACCESS'}
-                    </>
-                  )}
+            <div className="relative p-6 sm:p-8">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className={`w-12 h-12 shrink-0 rounded-2xl border flex items-center justify-center transition-colors ${loginSuccess ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300' : lockoutTimeLeft > 0 ? 'bg-rose-500/15 border-rose-400/30 text-rose-300' : 'bg-[#D4AF37]/15 border-[#D4AF37]/30 text-[#E8CF7A]'}`}>
+                  {loginSuccess ? <ShieldCheck size={22} /> : lockoutTimeLeft > 0 ? <Lock size={22} /> : <LockKeyhole size={22} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 id="admin-login-title" className="text-lg sm:text-xl font-bold text-white leading-tight">
+                    {loginSuccess ? AL.success : lockoutTimeLeft > 0 ? AL.lockedTitle : AL.title}
+                  </h3>
+                  <p className="text-[13px] text-white/55 mt-0.5">
+                    {loginSuccess ? AL.successSub : lockoutTimeLeft > 0 ? AL.lockedSub : AL.sub}
+                  </p>
+                </div>
+                <button onClick={() => setShowAdminLogin(false)} disabled={isVerifying || loginSuccess} className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition disabled:opacity-30" aria-label="close">
+                  <X size={18} />
                 </button>
-                
-                {loginError && !lockoutTimeLeft && (
-                   <p className="text-rose-500 text-[10px] font-bold uppercase text-center tracking-widest flex items-center justify-center gap-2 animate-bounce">
-                     <ShieldAlert size={14} /> รหัสผิดพลาด
-                   </p>
-                )}
               </div>
-            </form>
+
+              {lockoutTimeLeft > 0 ? (
+                <div className="mt-6 rounded-2xl bg-rose-500/10 border border-rose-400/25 p-5 text-center">
+                  <p className="text-[12px] text-rose-200/80">{AL.tryAgainIn}</p>
+                  <p className="mt-1 text-4xl font-bold tabular-nums text-white">
+                    {Math.floor(lockoutTimeLeft / 60)}:{String(lockoutTimeLeft % 60).padStart(2, '0')}
+                  </p>
+                  <div className="mt-4 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full bg-rose-400 transition-[width] duration-1000 ease-linear" style={{ width: `${(lockoutTimeLeft / lockoutDuration) * 100}%` }} />
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleAdminSubmit} className="mt-6 space-y-4">
+                  <div>
+                    <label htmlFor="admin-pass" className="block text-[12px] font-medium text-white/70 mb-1.5">{AL.label}</label>
+                    <div className={`flex items-center gap-1 p-1.5 rounded-2xl bg-white shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ring-2 transition ${loginSuccess ? 'ring-emerald-400' : loginError ? 'ring-rose-400' : 'ring-transparent focus-within:ring-[#D4AF37]'}`}>
+                      <KeyRound size={18} className="ml-2.5 text-slate-300 shrink-0" />
+                      <input
+                        id="admin-pass"
+                        type={showPass ? 'text' : 'password'}
+                        autoFocus={!isMobile}
+                        autoComplete="current-password"
+                        disabled={isVerifying || loginSuccess}
+                        placeholder={AL.placeholder}
+                        value={adminPassInput}
+                        onChange={e => { setAdminPassInput(e.target.value); if (loginError) setLoginError(false); }}
+                        onKeyUp={e => setCapsOn(e.getModifierState && e.getModifierState('CapsLock'))}
+                        onKeyDown={e => setCapsOn(e.getModifierState && e.getModifierState('CapsLock'))}
+                        className="flex-1 min-w-0 h-11 sm:h-12 px-1 bg-transparent outline-none text-base font-semibold text-[#2a0114] placeholder:text-slate-400 placeholder:font-normal disabled:opacity-60"
+                      />
+                      <button type="button" onClick={() => setShowPass(v => !v)} className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" aria-label={showPass ? AL.hide : AL.show} title={showPass ? AL.hide : AL.show}>
+                        {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
+                      </button>
+                    </div>
+
+                    <div className="min-h-[20px] mt-2 text-[12px]">
+                      {loginError ? (
+                        <p className="flex items-center gap-1.5 text-rose-300"><ShieldAlert size={14} /> {AL.wrong} {AL.left(maxAttempts - failedAttempts)}</p>
+                      ) : capsOn ? (
+                        <p className="flex items-center gap-1.5 text-amber-300"><AlertTriangle size={14} /> {AL.caps}</p>
+                      ) : failedAttempts > 0 ? (
+                        <p className="text-white/45">{AL.left(maxAttempts - failedAttempts)}</p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={!adminPassInput || isVerifying || loginSuccess}
+                    className={`w-full h-12 rounded-2xl text-[15px] font-semibold flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:cursor-not-allowed ${loginSuccess ? 'bg-emerald-500 text-white' : 'bg-[#630330] hover:bg-[#7a0b3d] text-white disabled:bg-white/10 disabled:text-white/40'}`}
+                  >
+                    {loginSuccess ? <><Check size={18} /> {AL.entering}</> : isVerifying ? <><RefreshCw size={17} className="animate-spin" /> {AL.checking}</> : <><ChevronRight size={18} /> {AL.submit}</>}
+                  </button>
+
+                  {failedAttempts > 0 && !loginSuccess && (
+                    <div className="flex items-center justify-center gap-1.5" aria-hidden="true">
+                      {Array.from({ length: maxAttempts }).map((_, i) => (
+                        <span key={i} className={`w-1.5 h-1.5 rounded-full ${i < failedAttempts ? 'bg-rose-400' : 'bg-white/20'}`} />
+                      ))}
+                    </div>
+                  )}
+                </form>
+              )}
+
+              <p className="mt-6 pt-4 border-t border-white/10 text-[11px] text-white/40 flex items-center gap-1.5">
+                <ShieldCheck size={13} className="shrink-0" /> {AL.foot}
+              </p>
+            </div>
           </div>
         </div>
       )}

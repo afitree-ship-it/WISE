@@ -17,6 +17,8 @@ import {
 import { translateTexts, localizeDate, sameInAll, isUntranslated, Localized4 } from "./translate";
 import { localize } from './localize';
 import { ShareLinkModal } from './components/ShareLinkModal';
+import PdfBatchUpload, { BatchItem, screenFiles } from './components/admin/PdfBatchUpload';
+import { uploadPdf, dragHasFiles, MAX_PDF_MB } from './uploads';
 import {
   Plus,
   Languages,
@@ -300,6 +302,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadMethod, setUploadMethod] = useState<'url' | 'file'>('url');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showBatchUpload, setShowBatchUpload] = useState(false);
+  const [batchFiles, setBatchFiles] = useState<File[]>([]);
+  const [batchCategory, setBatchCategory] = useState<FormCategory>(FormCategory.APPLICATION);
+  const [dropTarget, setDropTarget] = useState<FormCategory | 'any' | null>(null);
+  const batchPickRef = useRef<HTMLInputElement>(null);
   const studentStatusFormRef = useRef<HTMLFormElement>(null);
 
   // Custom Delete Modal State
@@ -768,13 +775,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const thTitle = formData.get('title') as string;
     const category = formData.get('category') as FormCategory;
     let url = formData.get('url') as string || "#";
-    let fileData = null;
     if (uploadMethod === 'file' && selectedFile) {
       setIsTranslating(true);
       try {
-        fileData = await fileToBase64(selectedFile);
-        url = fileData;
-      } catch (err) { console.error("File read error:", err); }
+        url = await uploadPdf(selectedFile);
+      } catch (err: any) {
+        setIsTranslating(false);
+        notify(err?.message === 'NO_BACKEND' ? 'ระบบหลังบ้านยังไม่รองรับการอัปโหลด ต้อง redeploy code.gs ก่อน' : 'อัปโหลดไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง', 'error');
+        return;
+      }
       setIsTranslating(false);
     }
     setIsTranslating(true);
@@ -786,23 +795,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       category,
       url: url.startsWith('http') || url.startsWith('data:') ? url : (url === "#" ? "#" : `https://${url}`)
     };
-    const syncPayload = fileData
-      ? { ...newForm, url: `PENDING_UPLOAD:${selectedFile?.name}`, _fileData: fileData, _fileName: selectedFile?.name }
-      : newForm;
-
     const updated = editingForm ? forms.map(f => f.id === editingForm.id ? newForm : f) : [newForm, ...forms];
     setForms(updated);
-    if (fileData) {
-      syncToSheets('uploadForm', [syncPayload], 'add', syncPayload);
-    } else {
-      syncToSheets('forms', updated, editingForm ? 'update' : 'add', newForm);
-    }
+    syncToSheets('forms', updated, editingForm ? 'update' : 'add', newForm);
     notify(editingForm ? 'แก้ไขเอกสารแล้ว' : 'เพิ่มเอกสารแล้ว');
 
     setShowFormModal(false);
     setEditingForm(null);
     setSelectedFile(null);
     setUploadMethod('url');
+  };
+
+  // Batch PDF upload: one file at a time, each becomes its own document record
+  const openBatchUpload = (files: File[], category: FormCategory = FormCategory.APPLICATION) => {
+    const { ok, bad } = screenFiles(files);
+    if (bad.length) notify(`ข้ามไฟล์: ${bad.join(', ')}`, 'error');
+    if (!ok.length && files.length) return;
+    setBatchFiles(ok);
+    setBatchCategory(category);
+    setShowBatchUpload(true);
+  };
+
+  const uploadBatchItem = async (item: BatchItem) => {
+    const url = await uploadPdf(item.file);
+    const results = await performBatchTranslation([{ key: 'title', value: item.title }]);
+    const newForm: DocumentForm = {
+      id: `frm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: results['title'] || sameInAll(item.title),
+      category: item.category,
+      url,
+    };
+    setForms(prev => [newForm, ...prev]);
+    await syncToSheets('forms', [], 'add', newForm);
   };
 
   const handleSaveSite = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -1030,8 +1054,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.type !== 'application/pdf') {
-        notify('กรุณาเลือกไฟล์ PDF เท่านั้น', 'error');
+      const { bad } = screenFiles([file]);
+      if (bad.length) {
+        notify(`ข้ามไฟล์: ${bad[0]}`, 'error');
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
@@ -1099,7 +1124,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setNewAdminPass('');
       setShowAdminPasswordModal(true);
     }
-    else { setEditingForm(null); setSelectedFile(null); setUploadMethod('url'); setShowFormModal(true); }
+    else { openBatchUpload([]); }
   };
 
   const handleEditStudent = (record: StudentStatusRecord) => {
@@ -1113,27 +1138,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setShowAdminStatusModal(true);
   };
 
-  const applyPresetTerm1 = () => {
-    const curYear = new Date().getFullYear();
-    setModalStartDate(`${curYear}-06-01`);
-    setModalEndDate(`${curYear}-10-31`);
-  };
-
-  const applyPresetTerm2 = () => {
-    const curYear = new Date().getFullYear();
-    setModalStartDate(`${curYear}-11-01`);
-    setModalEndDate(`${curYear + 1}-03-31`);
-  };
-
-  const applyPresetDuration = (months: number) => {
-    const base = modalStartDate ? new Date(modalStartDate) : new Date();
-    if (isNaN(base.getTime())) return;
-    const startStr = base.toISOString().split('T')[0];
-    const end = new Date(base);
-    end.setMonth(end.getMonth() + months);
-    setModalStartDate(startStr);
-    setModalEndDate(end.toISOString().split('T')[0]);
-  };
 
   const resetStudentFilters = (toAll = false) => {
     setAdminStudentStatusFilter('all');
@@ -1995,14 +1999,47 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {/* ======================= FORMS ======================= */}
           {adminActiveTab === 'forms' && (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 wise-fade-in">
+            <div className="space-y-4 wise-fade-in">
+            {/* Drop zone: drag several PDFs here, name them, upload */}
+            <div
+              onDragOver={e => { if (dragHasFiles(e)) { e.preventDefault(); setDropTarget('any'); } }}
+              onDragLeave={() => setDropTarget(null)}
+              onDrop={e => { e.preventDefault(); setDropTarget(null); openBatchUpload(Array.from(e.dataTransfer.files)); }}
+              className={`relative rounded-xl border-2 border-dashed px-5 py-6 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left transition ${dropTarget === 'any' ? 'border-[#630330] bg-[#630330]/5 dark:border-amber-400 dark:bg-amber-400/10' : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900'}`}
+            >
+              <input ref={batchPickRef} type="file" accept="application/pdf,.pdf" multiple className="hidden" onChange={e => { if (e.target.files?.length) openBatchUpload(Array.from(e.target.files)); e.currentTarget.value = ''; }} />
+              <span className={`w-12 h-12 shrink-0 rounded-xl flex items-center justify-center transition ${dropTarget === 'any' ? 'bg-[#630330] text-white dark:bg-amber-400 dark:text-slate-900' : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300'}`}><Upload size={22} /></span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">{dropTarget === 'any' ? 'ปล่อยไฟล์เพื่อเริ่มตั้งชื่อ' : 'ลากไฟล์ PDF มาวางที่นี่ ได้หลายไฟล์พร้อมกัน'}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">หลังวางไฟล์ จะได้ตั้งชื่อและเลือกหมวดของแต่ละไฟล์ก่อนอัปโหลด · หรือลากไปวางบนหมวดด้านล่างโดยตรง</p>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2 shrink-0">
+                <button type="button" onClick={() => batchPickRef.current?.click()} className={btn('primary')}><Upload size={15} /> เลือกไฟล์ PDF</button>
+                <button type="button" onClick={() => { setEditingForm(null); setSelectedFile(null); setUploadMethod('url'); setShowFormModal(true); }} className={btn('secondary')}><LinkIcon size={15} /> เพิ่มเป็นลิงก์</button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               {[
                 { cat: FormCategory.APPLICATION, title: 'เอกสารสมัครงาน', sub: 'Application' },
                 { cat: FormCategory.MONITORING, title: 'เอกสารระหว่างฝึกงาน', sub: 'Monitoring' },
               ].map(group => {
                 const list = forms.filter(f => f.category === group.cat);
+                const isOver = dropTarget === group.cat;
                 return (
-                  <section key={group.cat} className={`${card} overflow-hidden`}>
+                  <section
+                    key={group.cat}
+                    onDragOver={e => { if (dragHasFiles(e)) { e.preventDefault(); e.stopPropagation(); setDropTarget(group.cat); } }}
+                    onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
+                    onDrop={e => { e.preventDefault(); e.stopPropagation(); setDropTarget(null); openBatchUpload(Array.from(e.dataTransfer.files), group.cat); }}
+                    className={`${card} overflow-hidden relative transition ${isOver ? '!border-[#630330] ring-4 ring-[#630330]/10 dark:!border-amber-400 dark:ring-amber-400/10' : ''}`}
+                  >
+                    {isOver && (
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-white/90 dark:bg-slate-900/90 pointer-events-none">
+                        <Upload size={22} className="text-[#630330] dark:text-amber-400" />
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">วางเพื่อเพิ่มใน “{group.title}”</p>
+                      </div>
+                    )}
                     <header className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
                       <div>
                         <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{group.title}</h3>
@@ -2010,7 +2047,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     </header>
                     {list.length === 0 ? (
-                      <EmptyState icon={<FileText size={20} />} title="ยังไม่มีเอกสารในหมวดนี้" />
+                      <EmptyState icon={<FileText size={20} />} title="ยังไม่มีเอกสารในหมวดนี้" desc="ลากไฟล์ PDF มาวางในกรอบนี้ได้เลย" />
                     ) : (
                       <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                         {list.map(form => {
@@ -2042,6 +2079,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </section>
                 );
               })}
+            </div>
             </div>
           )}
 
@@ -2408,19 +2446,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 />
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] text-slate-400 mr-1">กำหนดเร็ว</span>
-              {[
-                { label: 'เทอม 1 (มิ.ย.–ต.ค.)', fn: applyPresetTerm1 },
-                { label: 'เทอม 2 (พ.ย.–มี.ค.)', fn: applyPresetTerm2 },
-                { label: '+2 เดือน', fn: () => applyPresetDuration(2) },
-                { label: '+4 เดือน', fn: () => applyPresetDuration(4) },
-              ].map(p => (
-                <button key={p.label} type="button" onClick={p.fn} className="h-7 px-2.5 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:border-slate-400 hover:text-slate-900 dark:hover:text-white transition">
-                  {p.label}
-                </button>
-              ))}
-            </div>
           </section>
 
           <section className="space-y-3">
@@ -2541,16 +2566,37 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             {uploadMethod === 'url' ? (
               <input name="url" defaultValue={editingForm?.url?.startsWith('data:') ? '' : editingForm?.url} placeholder="https://drive.google.com/…" className={inputCls} />
             ) : (
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full py-8 px-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-center hover:border-slate-400 dark:hover:border-slate-500 transition">
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="application/pdf" className="hidden" />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={e => { if (dragHasFiles(e)) { e.preventDefault(); setDropTarget('any'); } }}
+                onDragLeave={() => setDropTarget(null)}
+                onDrop={e => {
+                  e.preventDefault(); setDropTarget(null);
+                  const { ok, bad } = screenFiles(Array.from(e.dataTransfer.files).slice(0, 1));
+                  if (bad.length) notify(`ข้ามไฟล์: ${bad.join(', ')}`, 'error');
+                  if (ok[0]) setSelectedFile(ok[0]);
+                }}
+                className={`w-full py-8 px-4 border-2 border-dashed rounded-xl text-center transition ${dropTarget === 'any' ? 'border-[#630330] bg-[#630330]/5 dark:border-amber-400' : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500'}`}
+              >
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="application/pdf,.pdf" className="hidden" />
                 <Upload size={22} className="mx-auto text-slate-400 mb-2" />
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{selectedFile ? selectedFile.name : 'คลิกเพื่อเลือกไฟล์ PDF'}</p>
-                {!selectedFile && <p className="text-[11px] text-slate-400 mt-0.5">รองรับเฉพาะไฟล์ .pdf</p>}
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{selectedFile ? selectedFile.name : 'ลากไฟล์ PDF มาวาง หรือคลิกเพื่อเลือก'}</p>
+                {!selectedFile && <p className="text-[11px] text-slate-400 mt-0.5">เฉพาะ .pdf · ไม่เกิน {MAX_PDF_MB} MB</p>}
               </button>
             )}
           </div>
         </form>
       </Modal>
+
+      <PdfBatchUpload
+        open={showBatchUpload}
+        initialFiles={batchFiles}
+        initialCategory={batchCategory}
+        onClose={() => setShowBatchUpload(false)}
+        onUpload={uploadBatchItem}
+        onRejected={names => notify(`ข้ามไฟล์: ${names.join(', ')}`, 'error')}
+      />
 
       {/* SUMMARY */}
       <Modal

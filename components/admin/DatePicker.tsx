@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X, ArrowRight } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, ChevronDown, X, ArrowRight } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
 /* Thai date helpers (values are always ISO YYYY-MM-DD strings)        */
@@ -138,28 +138,66 @@ const Popover: React.FC<{
 };
 
 /* ------------------------------------------------------------------ */
+/* Typed dates: dd/mm/yyyy with a Buddhist-Era year (Gregorian accepted) */
+/* ------------------------------------------------------------------ */
+
+const TH_WEEKDAY_SHORT = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+
+const toText = (iso?: string) => {
+  const d = parseISO(iso);
+  return d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear() + 543}` : '';
+};
+
+/** '' = empty, null = not a valid date, otherwise ISO */
+const parseText = (t: string): string | null => {
+  const s = t.trim();
+  if (!s) return '';
+  const m = /^(\d{1,2})[/\-. ](\d{1,2})[/\-. ](\d{2}|\d{4})$/.exec(s);
+  if (!m) return null;
+  let y = Number(m[3]);
+  if (y < 100) y += 2500;          // "69" -> 2569
+  if (y > 2400) y -= 543;          // Buddhist Era -> Gregorian
+  const d = new Date(y, Number(m[2]) - 1, Number(m[1]));
+  if (d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[1])) return null;
+  return toISO(d);
+};
+
+/** Inserts the slashes while typing digits: 1506 -> 15/06/ */
+const autoSlash = (raw: string, prev: string) => {
+  if (raw.length < prev.length) return raw;
+  if (/^\d{2}$/.test(raw)) return `${raw}/`;
+  if (/^\d{1,2}\/\d{2}$/.test(raw)) return `${raw}/`;
+  if (/^\d{8}$/.test(raw)) return `${raw.slice(0, 2)}/${raw.slice(2, 4)}/${raw.slice(4)}`;
+  return raw.slice(0, 10);
+};
+
+/* ------------------------------------------------------------------ */
 /* Calendar month grid                                                 */
 /* ------------------------------------------------------------------ */
 
 interface CalendarProps {
   view: Date; // first of month being shown
   onViewChange: (d: Date) => void;
-  start: Date | null;
-  end: Date | null;
-  hover: Date | null;
-  onHover: (d: Date | null) => void;
+  selected: Date | null;
+  rangeStart?: Date | null;
+  rangeEnd?: Date | null;
+  /** When set, hovering previews the range from rangeStart to the hovered day */
+  previewRange?: boolean;
   onPick: (d: Date) => void;
   min?: Date | null;
-  showNav?: 'both' | 'prev' | 'next' | 'none';
-  rangeMode: boolean;
 }
 
-const Calendar: React.FC<CalendarProps> = ({ view, onViewChange, start, end, hover, onHover, onPick, min, showNav = 'both', rangeMode }) => {
-  const [mode, setMode] = useState<'days' | 'months' | 'years'>('days');
+const Calendar: React.FC<CalendarProps> = ({ view, onViewChange, selected, rangeStart, rangeEnd, previewRange, onPick, min }) => {
   const today = useMemo(() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }, []);
+  const [hover, setHover] = useState<Date | null>(null);
   const y = view.getFullYear(), m = view.getMonth();
-  const [yearPage, setYearPage] = useState(y - 5);
-  useEffect(() => setYearPage(y - 5), [y]);
+
+  const years = useMemo(() => {
+    const set = new Set<number>();
+    for (let yr = today.getFullYear() - 8; yr <= today.getFullYear() + 4; yr++) set.add(yr);
+    set.add(y);
+    return Array.from(set).sort((a, b) => a - b);
+  }, [today, y]);
 
   const cells = useMemo(() => {
     const first = new Date(y, m, 1);
@@ -172,110 +210,183 @@ const Calendar: React.FC<CalendarProps> = ({ view, onViewChange, start, end, hov
     return arr;
   }, [y, m]);
 
-  const rangeEnd = end || (rangeMode && start && hover && hover > start ? hover : null);
+  const rs = rangeStart || null;
+  const re = rangeEnd || (previewRange && rs && hover && hover > rs ? hover : null);
 
-  const navBtn = 'w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition';
+  const navBtn = 'w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition';
+  const selCls = 'h-9 pl-2.5 pr-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-[#630330] dark:focus:border-amber-400 cursor-pointer appearance-none w-full';
+  const chev = <ChevronDown size={13} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />;
 
   return (
-    <div className="w-[17.5rem]">
-      <div className="flex items-center justify-between mb-2">
-        <div className="w-8">
-          {(showNav === 'both' || showNav === 'prev') && mode === 'days' && (
-            <button type="button" className={navBtn} onClick={() => onViewChange(new Date(y, m - 1, 1))} aria-label="เดือนก่อนหน้า"><ChevronLeft size={16} /></button>
-          )}
-          {mode === 'years' && <button type="button" className={navBtn} onClick={() => setYearPage(p => p - 12)} aria-label="ก่อนหน้า"><ChevronLeft size={16} /></button>}
-        </div>
-        <div className="flex items-center gap-1">
-          <button type="button" onClick={() => setMode(mode === 'months' ? 'days' : 'months')} className={`h-8 px-2.5 rounded-lg text-sm font-semibold transition ${mode === 'months' ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-100 dark:hover:bg-slate-800'} text-slate-900 dark:text-white`}>
-            {TH_MONTHS[m]}
-          </button>
-          <button type="button" onClick={() => setMode(mode === 'years' ? 'days' : 'years')} className={`h-8 px-2.5 rounded-lg text-sm font-semibold transition tabular-nums ${mode === 'years' ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-100 dark:hover:bg-slate-800'} text-slate-900 dark:text-white`}>
-            {y + 543}
-          </button>
-        </div>
-        <div className="w-8 flex justify-end">
-          {(showNav === 'both' || showNav === 'next') && mode === 'days' && (
-            <button type="button" className={navBtn} onClick={() => onViewChange(new Date(y, m + 1, 1))} aria-label="เดือนถัดไป"><ChevronRight size={16} /></button>
-          )}
-          {mode === 'years' && <button type="button" className={navBtn} onClick={() => setYearPage(p => p + 12)} aria-label="ถัดไป"><ChevronRight size={16} /></button>}
-        </div>
+    <div className="w-[19rem] max-w-full">
+      <div className="flex items-center gap-1.5 mb-2">
+        <button type="button" className={navBtn} onClick={() => onViewChange(new Date(y, m - 1, 1))} aria-label="เดือนก่อนหน้า"><ChevronLeft size={17} /></button>
+        <span className="relative flex-1 min-w-0">
+          <select aria-label="เดือน" value={m} onChange={e => onViewChange(new Date(y, Number(e.target.value), 1))} className={selCls}>
+            {TH_MONTHS.map((label, i) => <option key={i} value={i}>{label}</option>)}
+          </select>
+          {chev}
+        </span>
+        <span className="relative w-[5.5rem] shrink-0">
+          <select aria-label="ปี พ.ศ." value={y} onChange={e => onViewChange(new Date(Number(e.target.value), m, 1))} className={`${selCls} tabular-nums`}>
+            {years.map(yr => <option key={yr} value={yr}>{yr + 543}</option>)}
+          </select>
+          {chev}
+        </span>
+        <button type="button" className={navBtn} onClick={() => onViewChange(new Date(y, m + 1, 1))} aria-label="เดือนถัดไป"><ChevronRight size={17} /></button>
       </div>
 
-      {mode === 'months' && (
-        <div className="grid grid-cols-3 gap-1.5 py-1">
-          {TH_MONTHS_SHORT.map((label, i) => (
-            <button key={i} type="button" onClick={() => { onViewChange(new Date(y, i, 1)); setMode('days'); }}
-              className={`h-11 rounded-lg text-sm font-medium transition ${i === m ? 'bg-[#630330] text-white dark:bg-amber-400 dark:text-slate-900' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {mode === 'years' && (
-        <div className="grid grid-cols-3 gap-1.5 py-1">
-          {Array.from({ length: 12 }, (_, i) => yearPage + i).map(yr => (
-            <button key={yr} type="button" onClick={() => { onViewChange(new Date(yr, m, 1)); setMode('days'); }}
-              className={`h-11 rounded-lg text-sm font-medium tabular-nums transition ${yr === y ? 'bg-[#630330] text-white dark:bg-amber-400 dark:text-slate-900' : yr === today.getFullYear() ? 'ring-1 ring-inset ring-slate-300 dark:ring-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-              {yr + 543}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {mode === 'days' && (
-        <>
-          <div className="grid grid-cols-7 mb-1">
-            {TH_DAYS.map((d, i) => (
-              <div key={d} className={`h-7 flex items-center justify-center text-[11px] font-medium ${i === 0 ? 'text-rose-400' : 'text-slate-400'}`}>{d}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7" onMouseLeave={() => onHover(null)}>
-            {cells.map((d, i) => {
-              if (!d) return <div key={i} className="h-10" />;
-              const disabled = !!min && d < min;
-              const isStart = sameDay(d, start);
-              const isEnd = sameDay(d, rangeEnd);
-              const inRange = !!start && !!rangeEnd && d > start && d < rangeEnd;
-              const isToday = sameDay(d, today);
-              const selected = isStart || isEnd;
-              return (
-                <div key={i} className={`h-10 flex items-center justify-center relative ${inRange ? 'bg-[#630330]/[0.07] dark:bg-amber-400/10' : ''} ${isStart && rangeEnd && !isEnd ? 'bg-gradient-to-r from-transparent from-50% to-[#630330]/[0.07] dark:to-amber-400/10 to-50%' : ''} ${isEnd && start && !isStart ? 'bg-gradient-to-l from-transparent from-50% to-[#630330]/[0.07] dark:to-amber-400/10 to-50%' : ''}`}>
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => onPick(d)}
-                    onMouseEnter={() => onHover(d)}
-                    className={`w-9 h-9 rounded-full text-sm tabular-nums transition relative ${
-                      selected
-                        ? 'bg-[#630330] text-white font-semibold dark:bg-amber-400 dark:text-slate-900'
-                        : disabled
-                          ? 'text-slate-300 dark:text-slate-700 cursor-not-allowed'
-                          : `hover:bg-slate-100 dark:hover:bg-slate-800 ${d.getDay() === 0 ? 'text-rose-500' : 'text-slate-700 dark:text-slate-200'}`
-                    } ${isToday && !selected ? 'ring-1 ring-inset ring-[#630330]/40 dark:ring-amber-400/50 font-semibold' : ''}`}
-                  >
-                    {d.getDate()}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
+      <div className="grid grid-cols-7 mb-1">
+        {TH_DAYS.map((d, i) => (
+          <div key={d} className={`h-7 flex items-center justify-center text-[11px] font-medium ${i === 0 ? 'text-rose-400' : 'text-slate-400'}`}>{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7" onMouseLeave={() => setHover(null)}>
+        {cells.map((d, i) => {
+          if (!d) return <div key={i} className="h-10" />;
+          const disabled = !!min && d < min;
+          const isSel = sameDay(d, selected);
+          const isStart = sameDay(d, rs);
+          const isEnd = sameDay(d, re);
+          const inRange = !!rs && !!re && d > rs && d < re;
+          const isToday = sameDay(d, today);
+          const strong = isSel || isStart || isEnd;
+          return (
+            <div key={i} className={`h-10 flex items-center justify-center relative ${inRange ? 'bg-[#630330]/[0.07] dark:bg-amber-400/10' : ''} ${isStart && re && !isEnd ? 'bg-gradient-to-r from-transparent from-50% to-[#630330]/[0.07] dark:to-amber-400/10 to-50%' : ''} ${isEnd && rs && !isStart ? 'bg-gradient-to-l from-transparent from-50% to-[#630330]/[0.07] dark:to-amber-400/10 to-50%' : ''}`}>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onPick(d)}
+                onMouseEnter={() => setHover(d)}
+                aria-label={formatTH(toISO(d), false)}
+                aria-pressed={isSel}
+                className={`w-9 h-9 rounded-full text-sm tabular-nums transition relative ${
+                  isSel
+                    ? 'bg-[#630330] text-white font-semibold dark:bg-amber-400 dark:text-slate-900'
+                    : strong
+                      ? 'bg-[#630330]/15 text-[#630330] font-semibold dark:bg-amber-400/20 dark:text-amber-200'
+                      : disabled
+                        ? 'text-slate-300 dark:text-slate-700 cursor-not-allowed'
+                        : `hover:bg-slate-100 dark:hover:bg-slate-800 ${d.getDay() === 0 ? 'text-rose-500' : 'text-slate-700 dark:text-slate-200'}`
+                } ${isToday && !isSel ? 'ring-1 ring-inset ring-[#630330]/40 dark:ring-amber-400/50 font-semibold' : ''}`}
+              >
+                {d.getDate()}
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
 
 /* ------------------------------------------------------------------ */
-/* Trigger styling                                                      */
+/* One date field: type it, or open the calendar                      */
 /* ------------------------------------------------------------------ */
 
-const triggerCls = (open: boolean) =>
-  `w-full min-h-10 px-3 py-2 rounded-lg border bg-white dark:bg-slate-900 text-sm text-left flex items-center gap-2 transition outline-none ${
-    open
-      ? 'border-[#630330] ring-4 ring-[#630330]/10 dark:border-amber-400 dark:ring-amber-400/10'
-      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-  }`;
+const DateField: React.FC<{
+  value: string;
+  onChange: (v: string) => void;
+  label?: string;
+  placeholder?: string;
+  min?: string;
+  rangeStart?: string;
+  rangeEnd?: string;
+  previewRange?: boolean;
+  /** Increment to open the calendar from outside (e.g. after the start date is chosen) */
+  openSignal?: number;
+}> = ({ value, onChange, label, placeholder = 'วว/ดด/ปปปป', min, rangeStart, rangeEnd, previewRange, openSignal }) => {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(() => toText(value));
+  const [invalid, setInvalid] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const sel = parseISO(value);
+  const minD = parseISO(min);
+  const [view, setView] = useState<Date>(() => { const d = sel || minD || new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+
+  useEffect(() => { if (!focused) { setText(toText(value)); setInvalid(false); } }, [value, focused]);
+  useEffect(() => {
+    if (!open) return;
+    const d = parseISO(value) || parseISO(min) || new Date();
+    setView(new Date(d.getFullYear(), d.getMonth(), 1));
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (openSignal) setOpen(true); }, [openSignal]);
+
+  const commit = (t: string) => {
+    const iso = parseText(t);
+    if (iso === null) { setInvalid(true); return; }
+    if (iso && minD && parseISO(iso)! < minD) { setInvalid(true); return; }
+    setInvalid(false);
+    if (iso !== value) onChange(iso);
+  };
+
+  const weekday = sel ? TH_WEEKDAY_SHORT[sel.getDay()] : '';
+
+  return (
+    <div className="min-w-0">
+      {label && <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">{label}</span>}
+      <div
+        ref={boxRef}
+        className={`h-10 pl-3 pr-1 rounded-lg border bg-white dark:bg-slate-900 flex items-center gap-1.5 transition ${
+          invalid ? 'border-rose-400 ring-4 ring-rose-400/10'
+            : open || focused ? 'border-[#630330] ring-4 ring-[#630330]/10 dark:border-amber-400 dark:ring-amber-400/10'
+              : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+        }`}
+      >
+        <input
+          ref={inputRef}
+          value={text}
+          inputMode="numeric"
+          placeholder={placeholder}
+          aria-label={label || 'วันที่'}
+          aria-invalid={invalid}
+          onFocus={() => setFocused(true)}
+          onBlur={() => { setFocused(false); commit(text); }}
+          onChange={e => {
+            const next = autoSlash(e.target.value, text);
+            setText(next);
+            if (invalid) setInvalid(false);
+            // Apply as soon as a full date is typed, so the form never submits a stale value
+            if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(next) && parseText(next)) commit(next);
+            if (!next) onChange('');
+          }}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(text); setOpen(false); } }}
+          className="flex-1 min-w-0 bg-transparent outline-none text-sm tabular-nums text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+        />
+        {weekday && !invalid && <span className="text-[11px] text-slate-400 shrink-0">{weekday}</span>}
+        {value && (
+          <button type="button" tabIndex={-1} onClick={() => { onChange(''); setText(''); inputRef.current?.focus(); }} className="w-7 h-7 shrink-0 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label="ล้างวันที่"><X size={14} /></button>
+        )}
+        <button type="button" onClick={() => setOpen(o => !o)} className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-md transition ${open ? 'bg-[#630330] text-white dark:bg-amber-400 dark:text-slate-900' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`} aria-label="เปิดปฏิทิน" title="เปิดปฏิทิน">
+          <CalendarIcon size={16} />
+        </button>
+      </div>
+      {invalid && <span className="block mt-1 text-[11px] text-rose-500">{minD && parseText(text) ? `ต้องไม่ก่อน ${formatTH(min)}` : 'พิมพ์เป็น วว/ดด/ปปปป เช่น 15/06/2569'}</span>}
+
+      <Popover anchor={boxRef} open={open} onClose={() => setOpen(false)}>
+        <div className="p-3">
+          {label && <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 px-1">เลือก{label}</p>}
+          <Calendar
+            view={view}
+            onViewChange={setView}
+            selected={sel}
+            rangeStart={parseISO(rangeStart)}
+            rangeEnd={parseISO(rangeEnd)}
+            previewRange={previewRange}
+            min={minD}
+            onPick={d => { const iso = toISO(d); setText(toText(iso)); setInvalid(false); onChange(iso); setOpen(false); }}
+          />
+          <div className="flex justify-between pt-2 mt-1 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" onClick={() => { const t = toISO(new Date()); if (minD && new Date() < minD) return; onChange(t); setOpen(false); }} className="h-8 px-2.5 rounded-lg text-xs font-semibold text-[#630330] dark:text-amber-300 hover:bg-slate-100 dark:hover:bg-slate-800">วันนี้</button>
+            <button type="button" onClick={() => { onChange(''); setOpen(false); }} className="h-8 px-2.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">ล้าง</button>
+          </div>
+        </div>
+      </Popover>
+    </div>
+  );
+};
 
 /* ------------------------------------------------------------------ */
 /* Single date                                                         */
@@ -287,41 +398,15 @@ export const DatePicker: React.FC<{
   name?: string;
   placeholder?: string;
   min?: string;
-}> = ({ value, onChange, name, placeholder = 'เลือกวันที่', min }) => {
-  const [open, setOpen] = useState(false);
-  const anchor = useRef<HTMLButtonElement>(null);
-  const sel = parseISO(value);
-  const [view, setView] = useState<Date>(() => { const d = sel || new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
-  const [hover, setHover] = useState<Date | null>(null);
-
-  useEffect(() => { if (open) { const d = parseISO(value) || new Date(); setView(new Date(d.getFullYear(), d.getMonth(), 1)); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <>
-      {name && <input type="hidden" name={name} value={value} />}
-      <button ref={anchor} type="button" onClick={() => setOpen(o => !o)} className={triggerCls(open)}>
-        <CalendarIcon size={15} className="text-slate-400 shrink-0" />
-        <span className={`flex-1 truncate ${value ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}>{value ? formatTH(value, false) : placeholder}</span>
-        {value && (
-          <span role="button" tabIndex={-1} onClick={(e) => { e.stopPropagation(); onChange(''); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label="ล้าง"><X size={14} /></span>
-        )}
-      </button>
-      <Popover anchor={anchor} open={open} onClose={() => setOpen(false)}>
-        <div className="p-3 flex flex-col items-center">
-          <Calendar view={view} onViewChange={setView} start={sel} end={null} hover={hover} onHover={setHover} rangeMode={false}
-            min={parseISO(min)} onPick={(d) => { onChange(toISO(d)); setOpen(false); }} />
-          <div className="w-full flex justify-between pt-2 mt-1 border-t border-slate-100 dark:border-slate-800">
-            <button type="button" onClick={() => { onChange(toISO(new Date())); setOpen(false); }} className="h-8 px-2.5 rounded-lg text-xs font-semibold text-[#630330] dark:text-amber-300 hover:bg-slate-100 dark:hover:bg-slate-800">วันนี้</button>
-            <button type="button" onClick={() => { onChange(''); setOpen(false); }} className="h-8 px-2.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">ล้าง</button>
-          </div>
-        </div>
-      </Popover>
-    </>
-  );
-};
+}> = ({ value, onChange, name, placeholder, min }) => (
+  <>
+    {name && <input type="hidden" name={name} value={value} />}
+    <DateField value={value} onChange={onChange} placeholder={placeholder} min={min} />
+  </>
+);
 
 /* ------------------------------------------------------------------ */
-/* Date range                                                          */
+/* Date range: two fields + always-visible quick ranges                */
 /* ------------------------------------------------------------------ */
 
 export interface RangePreset {
@@ -337,102 +422,53 @@ export const DateRangePicker: React.FC<{
   endName?: string;
   presets?: RangePreset[];
   placeholder?: string;
-}> = ({ start, end, onChange, startName, endName, presets = [], placeholder = 'เลือกช่วงวันที่' }) => {
-  const [open, setOpen] = useState(false);
-  const anchor = useRef<HTMLButtonElement>(null);
-  const [hover, setHover] = useState<Date | null>(null);
-  const [picking, setPicking] = useState<'start' | 'end'>('start');
-  const [view, setView] = useState<Date>(() => new Date());
-  const [twoUp, setTwoUp] = useState(false);
-
-  const s = parseISO(start), e = parseISO(end);
-
-  useEffect(() => {
-    if (!open) return;
-    const base = s || new Date();
-    setView(new Date(base.getFullYear(), base.getMonth(), 1));
-    setPicking(s && !e ? 'end' : 'start');
-    setTwoUp(window.innerWidth >= (presets.length ? 940 : 760));
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const pick = (d: Date) => {
-    if (picking === 'start' || !s) {
-      onChange(toISO(d), '');
-      setPicking('end');
-    } else {
-      if (d < s) { onChange(toISO(d), ''); setPicking('end'); return; }
-      onChange(start, toISO(d));
-      setPicking('start');
-      setTimeout(() => setOpen(false), 180);
-    }
-  };
-
+}> = ({ start, end, onChange, startName, endName, presets = [], placeholder }) => {
+  const [openEnd, setOpenEnd] = useState(0);
   const dur = durationLabel(start, end);
-  const next = new Date(view.getFullYear(), view.getMonth() + 1, 1);
+  const activePreset = presets.find(p => { const [a, b] = p.get(start); return a === start && b === end && !!start; });
 
   return (
-    <>
+    <div className="space-y-2">
       {startName && <input type="hidden" name={startName} value={start} />}
       {endName && <input type="hidden" name={endName} value={end} />}
-      <button ref={anchor} type="button" onClick={() => setOpen(o => !o)} className={triggerCls(open)}>
-        <CalendarIcon size={15} className="text-slate-400 shrink-0" />
-        {start || end ? (
-          <span className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
-            <span className="text-slate-900 dark:text-slate-100">{start ? formatTH(start) : 'เริ่ม?'}</span>
-            <ArrowRight size={13} className="text-slate-400" />
-            <span className={end ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}>{end ? formatTH(end) : 'สิ้นสุด?'}</span>
-            {dur && <span className="ml-1 px-1.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] text-slate-500 dark:text-slate-400">{dur}</span>}
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
+        <DateField
+          label="วันเริ่ม"
+          value={start}
+          rangeStart={start}
+          rangeEnd={end}
+          onChange={s => {
+            const keepEnd = end && s && end >= s ? end : '';
+            onChange(s, keepEnd);
+            if (s && !keepEnd) setOpenEnd(n => n + 1); // go straight on to the end date
+          }}
+        />
+        <ArrowRight size={15} className="hidden min-[420px]:block text-slate-300 mb-3" />
+        <DateField
+          label="วันสิ้นสุด"
+          value={end}
+          min={start}
+          rangeStart={start}
+          rangeEnd={end}
+          previewRange
+          openSignal={openEnd}
+          onChange={e => onChange(start, e)}
+        />
+      </div>
+      {(presets.length > 0 || dur || placeholder) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {presets.length > 0 && <span className="text-[11px] text-slate-400 mr-0.5">ช่วงด่วน</span>}
+          {presets.map(p => (
+            <button key={p.label} type="button" onClick={() => { const [a, b] = p.get(start); onChange(a, b); }}
+              className={`h-7 px-2.5 rounded-full text-[11px] font-medium transition ${activePreset === p ? 'bg-[#630330] text-white dark:bg-amber-400 dark:text-slate-900' : 'border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>
+              {p.label}
+            </button>
+          ))}
+          <span className="ml-auto text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
+            {dur ? <>รวม <b className="font-semibold text-slate-700 dark:text-slate-200">{dur}</b></> : !start && !end && placeholder ? placeholder : start && !end ? 'เลือกวันสิ้นสุด' : ''}
           </span>
-        ) : (
-          <span className="flex-1 text-slate-400">{placeholder}</span>
-        )}
-        {(start || end) && (
-          <span role="button" tabIndex={-1} onClick={(ev) => { ev.stopPropagation(); onChange('', ''); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label="ล้าง"><X size={14} /></span>
-        )}
-      </button>
-
-      <Popover anchor={anchor} open={open} onClose={() => setOpen(false)}>
-        <div className="flex flex-col sm:flex-row">
-          {presets.length > 0 && (
-            <div className="flex sm:flex-col gap-1 p-2 sm:p-3 sm:w-40 border-b sm:border-b-0 sm:border-r border-slate-100 dark:border-slate-800 overflow-x-auto hide-scrollbar">
-              <p className="hidden sm:block text-[11px] font-semibold text-slate-400 px-2 pb-1">ช่วงเวลาด่วน</p>
-              {presets.map(p => (
-                <button key={p.label} type="button"
-                  onClick={() => { const [a, b] = p.get(start); onChange(a, b); setPicking('start'); setOpen(false); }}
-                  className="shrink-0 h-8 px-2.5 rounded-lg text-xs font-medium text-left text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap">
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="p-3">
-            <div className="flex items-center gap-2 mb-3">
-              <button type="button" onClick={() => setPicking('start')} className={`flex-1 text-left px-3 py-1.5 rounded-lg border transition ${picking === 'start' ? 'border-[#630330] dark:border-amber-400 bg-[#630330]/[0.04] dark:bg-amber-400/10' : 'border-slate-200 dark:border-slate-700'}`}>
-                <span className="block text-[10px] text-slate-400">วันเริ่ม</span>
-                <span className="block text-sm font-medium text-slate-900 dark:text-white">{start ? formatTH(start) : '—'}</span>
-              </button>
-              <ArrowRight size={14} className="text-slate-300 shrink-0" />
-              <button type="button" onClick={() => start && setPicking('end')} className={`flex-1 text-left px-3 py-1.5 rounded-lg border transition ${picking === 'end' ? 'border-[#630330] dark:border-amber-400 bg-[#630330]/[0.04] dark:bg-amber-400/10' : 'border-slate-200 dark:border-slate-700'}`}>
-                <span className="block text-[10px] text-slate-400">วันสิ้นสุด</span>
-                <span className="block text-sm font-medium text-slate-900 dark:text-white">{end ? formatTH(end) : '—'}</span>
-              </button>
-            </div>
-            <div className="flex gap-5 justify-center">
-              <Calendar view={view} onViewChange={setView} start={s} end={e} hover={hover} onHover={setHover} onPick={pick} rangeMode={picking === 'end'} showNav={twoUp ? 'prev' : 'both'} />
-              {twoUp && (
-                <Calendar view={next} onViewChange={(d) => setView(new Date(d.getFullYear(), d.getMonth() - 1, 1))} start={s} end={e} hover={hover} onHover={setHover} onPick={pick} rangeMode={picking === 'end'} showNav="next" />
-              )}
-            </div>
-            <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-100 dark:border-slate-800">
-              <span className="text-xs text-slate-500">{picking === 'end' && !end ? 'เลือกวันสิ้นสุด' : dur ? `รวม ${dur}` : 'เลือกวันเริ่ม'}</span>
-              <div className="flex gap-1">
-                <button type="button" onClick={() => { onChange('', ''); setPicking('start'); }} className="h-8 px-2.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">ล้าง</button>
-                <button type="button" onClick={() => setOpen(false)} className="h-8 px-3 rounded-lg text-xs font-semibold bg-[#630330] text-white dark:bg-amber-400 dark:text-slate-900">เสร็จ</button>
-              </div>
-            </div>
-          </div>
         </div>
-      </Popover>
-    </>
+      )}
+    </div>
   );
 };
