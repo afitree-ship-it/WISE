@@ -18,8 +18,8 @@ const T = {
     title: 'ล็อกอินนักศึกษา', sub: 'เฉพาะนักศึกษาที่มีข้อมูลการฝึกในระบบ',
     id: 'รหัสนักศึกษา', idPh: 'เช่น 6520110001', next: 'ถัดไป', back: 'กลับ',
     pin: 'PIN 4–6 หลัก', pinPh: '••••', login: 'เข้าสู่ระบบ',
-    setupTitle: 'ตั้ง PIN ครั้งแรก', setupSub: 'ยืนยันตัวตนด้วยชื่อจริง แล้วตั้ง PIN ไว้ใช้ล็อกอินครั้งต่อไป',
-    first: 'ชื่อจริง', firstPh: 'ไม่ต้องใส่คำนำหน้า', firstHint: 'ตรงกับที่ลงทะเบียนไว้กับเจ้าหน้าที่',
+    setupTitle: 'ตั้ง PIN ครั้งแรก', setupSub: 'ตั้ง PIN ไว้ใช้ล็อกอินครั้งต่อไป',
+    notMe: 'ไม่ใช่ฉัน', isMe: 'ตรวจสอบชื่อให้ถูกต้องก่อนตั้ง PIN',
     newPin: 'ตั้ง PIN (ตัวเลข 4–6 หลัก)', confirm: 'ยืนยัน PIN อีกครั้ง', setup: 'ตั้ง PIN และเข้าสู่ระบบ',
     errNotFound: 'ไม่พบรหัสนี้ในระบบ ถ้าคิดว่าผิดพลาด กรุณาติดต่อเจ้าหน้าที่ WISE',
     errPinFormat: 'PIN ต้องเป็นตัวเลข 4–6 หลัก', errMismatch: 'PIN ทั้งสองช่องไม่ตรงกัน',
@@ -34,8 +34,8 @@ const T = {
     title: 'Student sign in', sub: 'For students with a placement on record',
     id: 'Student ID', idPh: 'e.g. 6520110001', next: 'Next', back: 'Back',
     pin: '4–6 digit PIN', pinPh: '••••', login: 'Sign in',
-    setupTitle: 'Set your PIN', setupSub: 'Confirm your first name, then choose a PIN for next time',
-    first: 'First name', firstPh: 'Without title', firstHint: 'As registered with WISE staff',
+    setupTitle: 'Set your PIN', setupSub: 'Choose a PIN for next time',
+    notMe: 'Not me', isMe: 'Check that this is you before setting a PIN',
     newPin: 'New PIN (4–6 digits)', confirm: 'Confirm PIN', setup: 'Set PIN and sign in',
     errNotFound: 'This ID is not in the system. Please contact WISE staff.',
     errPinFormat: 'The PIN must be 4–6 digits', errMismatch: 'The PINs do not match',
@@ -57,13 +57,13 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
   const [sid, setSid] = useState('');
   const [pin, setPin] = useState('');
   const [pin2, setPin2] = useState('');
-  const [first, setFirst] = useState('');
+  const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [showPin, setShowPin] = useState(false);
   const firstInput = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (open) { setStep('id'); setPin(''); setPin2(''); setFirst(''); setErr(''); setBusy(false); } }, [open]);
+  useEffect(() => { if (open) { setStep('id'); setPin(''); setPin2(''); setName(''); setErr(''); setBusy(false); } }, [open]);
   useEffect(() => { setTimeout(() => firstInput.current?.focus(), 60); }, [step, open]);
   useEffect(() => {
     if (!open) return;
@@ -78,7 +78,6 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
     const m = r?.message;
     if (m === 'not_found') setErr(L.errNotFound);
     else if (m === 'pin_format') setErr(L.errPinFormat);
-    else if (m === 'name') setErr(L.errName);
     else if (m === 'wrong_pin') setErr(L.errWrong(r.left ?? 0));
     else if (m === 'locked') setErr(L.errLocked(Math.max(1, Math.ceil(((r.until || Date.now()) - Date.now()) / 60000))));
     else if (m === 'has_pin') { setErr(L.errHasPin); setStep('pin'); }
@@ -101,6 +100,7 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
       const r = await studentCall('check', { studentId: id });
       if (r?.status !== 'success') return fail(r);
       if (!r.exists) return setErr(L.errNotFound);
+      setName(r.name || '');
       setStep(r.hasPin ? 'pin' : 'setup');
     });
   };
@@ -120,7 +120,7 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
     e.preventDefault();
     if (!/^\d{4,6}$/.test(pin)) return setErr(L.errPinFormat);
     if (pin !== pin2) return setErr(L.errMismatch);
-    run(async () => done(await studentCall('setup', { studentId: sid.trim(), firstName: first.trim(), pin })));
+    run(async () => done(await studentCall('setup', { studentId: sid.trim(), pin })));
   };
 
   const pinInput = (value: string, set: (v: string) => void, ph: string, ref?: React.Ref<HTMLInputElement>, labelText?: string) => (
@@ -134,6 +134,19 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
         </button>
       </span>
     </label>
+  );
+
+  // Who this ID belongs to, so the student can check it is them before typing a PIN
+  const back = () => { setStep('id'); setPin(''); setPin2(''); setErr(''); };
+  const who = (
+    <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.07] border border-white/10">
+      <span className="w-11 h-11 shrink-0 rounded-xl bg-[#D4AF37] text-[#2a0114] font-bold text-[17px] flex items-center justify-center">{name.replace(/^(นางสาว|นาย|นาง)/, '').trim().charAt(0) || '?'}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold text-white leading-snug break-words">{name || sid}</span>
+        <span className="block text-[12px] text-white/55 tabular-nums">{sid}</span>
+      </span>
+      <button type="button" onClick={back} className="shrink-0 h-8 px-3 rounded-full text-[12px] text-white/70 hover:text-white hover:bg-white/10">{L.notMe}</button>
+    </div>
   );
 
   return (
@@ -151,7 +164,7 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
             </div>
             <div className="flex-1 min-w-0">
               <h3 id="st-login-title" className="text-lg sm:text-xl font-bold text-white leading-tight">{step === 'setup' ? L.setupTitle : L.title}</h3>
-              <p className="text-[13px] text-white/55 mt-0.5">{step === 'setup' ? L.setupSub : step === 'pin' ? sid : L.sub}</p>
+              <p className="text-[13px] text-white/55 mt-0.5">{step === 'setup' ? L.setupSub : step === 'pin' ? '' : L.sub}</p>
             </div>
             <button onClick={onClose} disabled={busy} className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition" aria-label="close"><X size={18} /></button>
           </div>
@@ -170,6 +183,7 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
 
           {step === 'pin' && (
             <form onSubmit={submitPin} className="mt-6 space-y-4">
+              {who}
               {pinInput(pin, setPin, L.pinPh, firstInput, L.pin)}
               <button type="submit" disabled={busy || pin.length < 4} className="w-full h-12 rounded-2xl bg-[#630330] hover:bg-[#7a0b3d] text-white text-[15px] font-semibold flex items-center justify-center gap-2 transition disabled:bg-white/10 disabled:text-white/40">
                 {busy ? <RefreshCw size={17} className="animate-spin" /> : <ArrowRight size={18} />}{L.login}
@@ -183,14 +197,11 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
 
           {step === 'setup' && (
             <form onSubmit={submitSetup} className="mt-6 space-y-4">
-              <label className="block">
-                <span className="block text-[12px] text-white/70 mb-1.5">{L.first}</span>
-                <input ref={firstInput} value={first} onChange={e => { setFirst(e.target.value); setErr(''); }} placeholder={L.firstPh} className={textCls} />
-                <span className="block text-[11px] text-white/45 mt-1">{L.firstHint}</span>
-              </label>
-              {pinInput(pin, setPin, L.pinPh, undefined, L.newPin)}
+              {who}
+              <p className="text-[11.5px] text-white/50 -mt-1">{L.isMe}</p>
+              {pinInput(pin, setPin, L.pinPh, firstInput, L.newPin)}
               {pinInput(pin2, setPin2, L.pinPh, undefined, L.confirm)}
-              <button type="submit" disabled={busy || !first.trim() || pin.length < 4 || pin2.length < 4} className="w-full h-12 rounded-2xl bg-[#630330] hover:bg-[#7a0b3d] text-white text-[15px] font-semibold flex items-center justify-center gap-2 transition disabled:bg-white/10 disabled:text-white/40">
+              <button type="submit" disabled={busy || pin.length < 4 || pin2.length < 4} className="w-full h-12 rounded-2xl bg-[#630330] hover:bg-[#7a0b3d] text-white text-[15px] font-semibold flex items-center justify-center gap-2 transition disabled:bg-white/10 disabled:text-white/40">
                 {busy ? <RefreshCw size={17} className="animate-spin" /> : <ShieldCheck size={18} />}{L.setup}
               </button>
               <button type="button" onClick={() => { setStep('id'); setErr(''); }} className="inline-flex items-center gap-1 text-[12px] text-white/60 hover:text-white"><ArrowLeft size={13} />{L.back}</button>

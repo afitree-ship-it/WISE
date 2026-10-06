@@ -343,10 +343,6 @@ function studentRecords(studentId) {
   return statusRows().filter(function(r) { return sameId(r.studentId, studentId); });
 }
 
-function stripTitle(name) {
-  return String(name || "").replace(/^(นางสาว|นาย|นาง|น\.ส\.|ด\.ช\.|ด\.ญ\.|Mr\.?|Ms\.?|Mrs\.?|Miss)\s*/i, "").replace(/\s+/g, "").toLowerCase();
-}
-
 function startSession(studentId) {
   var token = newToken();
   CacheService.getScriptCache().put("st_" + token, String(studentId), SESSION_TTL);
@@ -474,9 +470,10 @@ function handleStudent(params) {
 
   if (op === "check") {
     if (!sid) return { status: "error", message: "missing" };
-    var exists = studentRecords(sid).length > 0;
+    var found = studentRecords(sid);
     var hasPin = privRows("auth").some(function(r) { return sameId(r.studentId, sid) && r.pinHash; });
-    return { status: "success", exists: exists, hasPin: hasPin };
+    // The name is shown so the student can confirm it is their ID (names are already public in StudentStatuses)
+    return { status: "success", exists: found.length > 0, hasPin: hasPin, name: found.length ? String(found[0].name || "") : "" };
   }
 
   if (op === "setup" || op === "login") {
@@ -490,10 +487,6 @@ function handleStudent(params) {
       var now = Date.now();
       if (op === "setup") {
         if (row && row.pinHash) return { status: "error", message: "has_pin" };
-        // First-time setup must also give the first name on record
-        var given = stripTitle(params.firstName);
-        var match = given.length >= 2 && recs.some(function(r) { return stripTitle(r.name).indexOf(given) === 0; });
-        if (!match) return { status: "error", message: "name" };
         var salt = newToken().slice(0, 16);
         privWrite("auth", row && row._row, { studentId: sid, pinHash: hashPin(pin, salt), salt: salt, failed: 0, lockedUntil: "", updatedAt: now });
         return { status: "success", token: startSession(sid), bundle: studentBundle(sid) };
