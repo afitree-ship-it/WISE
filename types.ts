@@ -60,6 +60,7 @@ export interface SiteSettings {
   siteTitle?: string; // browser tab title
   heroEmblem?: string; // data URL shown inside the arch on the landing page
   checklist?: import('./checklist').ChecklistStep[]; // student checklist; stored as JSON, unset = defaults
+  evalCriteria?: import('./studentApi').EvalCategory[]; // mentor evaluation: 4 categories and their sub-items
 }
 
 export interface LocalizedString {

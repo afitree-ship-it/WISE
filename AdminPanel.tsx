@@ -68,13 +68,16 @@ import {
   LayoutDashboard,
   Settings2,
   ImagePlus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  NotebookPen
 } from 'lucide-react';
 import SharedSummaryTable, { SupervisorSaveFn } from './SharedSummaryTable';
 import Dashboard, { DashboardFilters } from './components/Dashboard';
 import { DateRangePicker, RangePreset, addMonths, normalizeISO, toISO } from './components/admin/DatePicker';
 import { processImage } from './imageUtils';
 import ChecklistEditor from './components/admin/ChecklistEditor';
+import EvalCriteriaEditor from './components/admin/EvalCriteriaEditor';
+import StudentRecordsModal from './components/admin/StudentRecordsModal';
 import { LockMap, FieldLock, getEditorName, setEditorName } from './liveSync';
 import { formatDateBE } from './dateUtils';
 import { exportToExcel, exportToWord, exportToPDF } from './exportUtils';
@@ -302,6 +305,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadMethod, setUploadMethod] = useState<'url' | 'file'>('url');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [recordsFor, setRecordsFor] = useState<StudentStatusRecord | null>(null);
   const [showBatchUpload, setShowBatchUpload] = useState(false);
   const [batchFiles, setBatchFiles] = useState<File[]>([]);
   const [batchCategory, setBatchCategory] = useState<FormCategory>(FormCategory.APPLICATION);
@@ -1529,6 +1533,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               </section>
 
+              {/* Mentor evaluation criteria */}
+              <section className={`${card} p-5`}>
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="md:w-64 shrink-0">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">แบบประเมินจากพี่เลี้ยง</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">หัวข้อที่พี่เลี้ยงใช้ประเมินผ่าน QR Code ของนักศึกษา 4 ด้านหลัก และข้อย่อยในแต่ละด้าน</p>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <EvalCriteriaEditor value={draftSettings.evalCriteria} onChange={(next) => setDraftSettings(p => ({ ...p, evalCriteria: next }))} />
+                  </div>
+                </div>
+              </section>
+
               {/* Title */}
               <section className={`${card} p-5`}>
                 <div className="flex flex-col md:flex-row gap-6">
@@ -1842,6 +1859,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             </td>
                             <td className="px-3 py-2.5">
                               <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition">
+                                <button type="button" onClick={() => setRecordsFor(record)} className={iconBtn} title="บันทึกการฝึก ลงเวลา และผลประเมิน"><NotebookPen size={15} /></button>
                                 <button type="button" onClick={() => handleEditStudent(record)} className={iconBtn} title="แก้ไข"><Pencil size={15} /></button>
                                 <button type="button" onClick={() => askDelete({ id: record.id, type: 'student', label: record.name })} className={`${iconBtn} hover:!text-rose-600 hover:!bg-rose-50 dark:hover:!bg-rose-500/10`} title="ลบ"><Trash2 size={15} /></button>
                               </div>
@@ -1880,6 +1898,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             </select>
                             <SelectChevron />
                           </div>
+                          <button onClick={() => setRecordsFor(record)} className={iconBtn} title="บันทึกการฝึก ลงเวลา และผลประเมิน"><NotebookPen size={15} /></button>
                           <button onClick={() => handleEditStudent(record)} className={iconBtn} title="แก้ไข"><Pencil size={15} /></button>
                           <button onClick={() => askDelete({ id: record.id, type: 'student', label: record.name })} className={`${iconBtn} hover:!text-rose-600`} title="ลบ"><Trash2 size={15} /></button>
                         </div>
@@ -2588,6 +2607,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         </form>
       </Modal>
+
+      <StudentRecordsModal
+        student={recordsFor}
+        onClose={() => setRecordsFor(null)}
+        notify={notify}
+      />
 
       <PdfBatchUpload
         open={showBatchUpload}

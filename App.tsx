@@ -14,6 +14,8 @@ import {
 } from './types';
 import { SHEET_API_URL } from './config';
 import { parseChecklist } from './checklist';
+import { backendHasStudents, post as apiPost, getAdminKey, setAdminKey, parseCriteria } from './studentApi';
+import EvaluationPage from './components/student/EvaluationPage';
 import { fetchLive, saveSupervisor, LiveRow, FieldLock } from './liveSync';
 import { useLiveSupervisors } from './useLiveSupervisors';
 import DashboardPage from './DashboardPage';
@@ -56,9 +58,13 @@ const settingsFromRows = (rows: any[]): SiteSettings => {
     const v = String(r?.value || '');
     if (k === 'logo' || k === 'favicon' || k === 'siteTitle' || k === 'heroEmblem') (out as any)[k] = v;
     if (k === 'checklist') out.checklist = parseChecklist(v);
+    if (k === 'evalCriteria') out.evalCriteria = parseCriteria(v);
   });
   return out;
 };
+
+/** Mentor evaluation link: #eval=TOKEN */
+const hashEval = () => new URLSearchParams(window.location.hash.replace(/^#\??/, '')).get('eval') || '';
 
 const hashView = (): 'summary' | 'stats' | null => {
   const params = new URLSearchParams(window.location.hash.replace(/^#\??/, ''));
@@ -163,15 +169,8 @@ const App: React.FC = () => {
       return sanitizeData(INITIAL_FORMS, 'frm');
     }
   });
-  const [adminPasswords, setAdminPasswords] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('wise_admin_passwords');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.warn("Failed to parse saved admin passwords:", e);
-      return [];
-    }
-  });
+  // Kept in memory only: staff passwords are never cached on the device
+  const [adminPasswords, setAdminPasswords] = useState<string[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -294,18 +293,24 @@ const App: React.FC = () => {
       }
 
       // Create payload based on action type
-      const payload = action === 'all' 
-        ? { type, data: finalData } 
-        : { type, action, item: finalItem };
+      // Writes carry the staff key; the server rejects them without it
+      const payload = action === 'all'
+        ? { type, data: finalData, adminKey: getAdminKey() }
+        : { type, action, item: finalItem, adminKey: getAdminKey() };
 
       // Use text/plain to avoid CORS preflight (OPTIONS request) which GAS doesn't handle well
-      await fetchWithRetry(SHEET_API_URL, {
+      const res = await fetchWithRetry(SHEET_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify(payload),
       });
+      const result = await res.json().catch(() => null);
+      if (result?.status === 'unauthorized') {
+        window.dispatchEvent(new Event('wise-admin-unauthorized'));
+        return;
+      }
       const syncTime = Date.now();
       setLastSync(syncTime);
       localStorage.setItem(CACHE_KEY, syncTime.toString());
@@ -400,7 +405,19 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('wise_sites', JSON.stringify(sites)); }, [sites]);
   useEffect(() => { localStorage.setItem('wise_schedules', JSON.stringify(schedules)); }, [schedules]);
   useEffect(() => { localStorage.setItem('wise_forms', JSON.stringify(forms)); }, [forms]);
-  useEffect(() => { localStorage.setItem('wise_admin_passwords', JSON.stringify(adminPasswords)); }, [adminPasswords]);
+  // Older versions cached staff passwords here; remove them
+  useEffect(() => { try { localStorage.removeItem('wise_admin_passwords'); } catch { /* storage blocked */ } }, []);
+
+  // After a page reload in a staff session, fetch the staff list again with the session key
+  useEffect(() => {
+    if (role !== UserRole.ADMIN || adminPasswords.length || !getAdminKey()) return;
+    backendHasStudents().then(ok => {
+      if (!ok) return;
+      apiPost({ type: 'adminLogin', password: getAdminKey() })
+        .then(r => { if (r?.status === 'success' && Array.isArray(r.admins)) setAdminPasswords(r.admins.map((p: any) => String(p))); })
+        .catch(() => {});
+    });
+  }, [role]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Branding: persist and apply favicon + tab title
   useEffect(() => {
@@ -421,6 +438,27 @@ const App: React.FC = () => {
 
   const forceFetch = useCallback(() => fetchFromSheets(true), [fetchFromSheets]);
 
+  // The server refused a write: the staff session is missing or the password changed
+  useEffect(() => {
+    const onUnauthorized = () => {
+      alert('เซสชันผู้ดูแลหมดอายุ กรุณาเข้าสู่ระบบใหม่ (การแก้ไขล่าสุดยังไม่ถูกบันทึก)');
+      setAdminKey(null);
+      setRole(UserRole.STUDENT);
+      sessionStorage.removeItem('wise_role');
+      setViewState('landing');
+    };
+    window.addEventListener('wise-admin-unauthorized', onUnauthorized);
+    return () => window.removeEventListener('wise-admin-unauthorized', onUnauthorized);
+  }, []);
+
+  // Mentor evaluation links open a standalone form
+  const [evalToken, setEvalToken] = useState(hashEval);
+  useEffect(() => {
+    const onHash = () => setEvalToken(hashEval());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
   const saveSiteSettings = useCallback(async (next: SiteSettings) => {
     setSiteSettings(next);
     await syncToSheets('settings', [
@@ -429,6 +467,7 @@ const App: React.FC = () => {
       { key: 'siteTitle', value: next.siteTitle || '' },
       { key: 'heroEmblem', value: next.heroEmblem || '' },
       { key: 'checklist', value: next.checklist?.length ? JSON.stringify(next.checklist) : '' },
+      { key: 'evalCriteria', value: next.evalCriteria?.length ? JSON.stringify(next.evalCriteria) : '' },
     ], 'all');
   }, [syncToSheets]);
 
@@ -509,7 +548,30 @@ const App: React.FC = () => {
   const handleAdminLogin = async (password: string): Promise<boolean> => {
     if (!password) return false;
     const normalizedPassword = password.trim();
-    
+
+    // New backend: the password is checked on the server and never downloaded
+    if (await backendHasStudents()) {
+      try {
+        setIsSyncing(true);
+        const r = await apiPost({ type: 'adminLogin', password: normalizedPassword });
+        if (r?.status !== 'success') return false;
+        if (Array.isArray(r.admins)) setAdminPasswords(r.admins.map((p: any) => String(p)));
+        setAdminKey(normalizedPassword);
+        setRole(UserRole.ADMIN);
+        sessionStorage.setItem('wise_role', UserRole.ADMIN);
+        setTimeout(() => {
+          setViewState('dashboard');
+          window.history.pushState({ view: 'dashboard' }, '');
+        }, 400);
+        return true;
+      } catch (e) {
+        console.error('Admin login failed:', e);
+        return false;
+      } finally {
+        setIsSyncing(false);
+      }
+    }
+
     // ✅ If adminPasswords is empty, fetch fresh data first
     let passwords = adminPasswords;
     if (passwords.length === 0) {
@@ -534,6 +596,7 @@ const App: React.FC = () => {
     // Check password against the freshly fetched passwords
     const isAuthorized = passwords.includes(normalizedPassword);
     if (isAuthorized) {
+      setAdminKey(normalizedPassword);
       setRole(UserRole.ADMIN);
       sessionStorage.setItem('wise_role', UserRole.ADMIN);
       setTimeout(() => {
@@ -556,6 +619,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    setAdminKey(null);
     setRole(UserRole.STUDENT);
     sessionStorage.removeItem('wise_role');
     setViewState('landing');
@@ -592,6 +656,10 @@ const App: React.FC = () => {
     setViewState('landing');
     window.history.pushState({ view: 'landing' }, '', window.location.pathname);
   };
+
+  if (evalToken) {
+    return <EvaluationPage token={evalToken} logo={siteSettings.logo} />;
+  }
 
   if (viewState === 'summary') {
     return (

@@ -1,5 +1,6 @@
 import type React from 'react';
 import { SHEET_API_URL } from './config';
+import { getAdminKey } from './studentApi';
 
 /** Largest PDF the Apps Script backend accepts in one request (base64 adds ~33%). */
 export const MAX_PDF_MB = 20;
@@ -33,7 +34,7 @@ export const uploadPdf = async (file: File): Promise<string> => {
     redirect: 'follow',
     // text/plain avoids a CORS preflight, which Apps Script does not answer
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ type: 'upload', fileName: file.name, data }),
+    body: JSON.stringify({ type: 'upload', fileName: file.name, data, adminKey: getAdminKey() }),
   });
   const json = await res.json();
   if (!json || json.status !== 'success' || !json.url) throw new Error(json?.message || 'UPLOAD_FAILED');

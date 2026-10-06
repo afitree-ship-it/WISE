@@ -10,16 +10,22 @@ import { useFitLockup } from '../useFitLockup';
 import { ChecklistStep, DEFAULT_CHECKLIST } from '../checklist';
 import {
   CalendarDays, FileText, Download, Search, Building2, ArrowRight, ChevronDown, X, Info, Check, Moon, Sun, LogOut,
-  ListChecks, Users, Briefcase, GraduationCap, Sparkles, ExternalLink, RotateCcw,
+  ListChecks, Users, Briefcase, GraduationCap, Sparkles, ExternalLink, RotateCcw, UserCircle,
 } from 'lucide-react';
+import StudentLogin from './student/StudentLogin';
+import StudentArea, { StudentTab } from './student/StudentArea';
+import { stOf } from './student/shared';
+import { StudentBundle, StudentSession, loadSession, saveSession, studentCall, backendHasStudents } from '../studentApi';
 
-type Tab = 'all' | 'check' | 'schedule' | 'docs' | 'sites';
+type GuestTab = 'all' | 'check' | 'schedule' | 'docs' | 'sites';
+type Tab = GuestTab | StudentTab;
+const STUDENT_TABS: StudentTab[] = ['me', 'log', 'time', 'eval'];
 const CHECK_KEY = 'wise_student_checklist';
 
 const STRINGS = {
   [Language.TH]: {
     faculty: 'คณะวิทยาศาสตร์และเทคโนโลยี', logout: 'ออกจากระบบ',
-    tabs: { all: 'ทั้งหมด', check: 'เช็กลิสต์', schedule: 'กำหนดการ', docs: 'เอกสาร', sites: 'สถานที่ฝึก' } as Record<Tab, string>,
+    tabs: { all: 'ทั้งหมด', check: 'เช็กลิสต์', schedule: 'กำหนดการ', docs: 'เอกสาร', sites: 'สถานที่ฝึก' } as Record<GuestTab, string>,
     nextUp: 'กำหนดการถัดไป', noNext: 'ยังไม่มีกำหนดการใหม่', today: 'วันนี้', inDays: (n: number) => `อีก ${n} วัน`,
     ongoing: 'กำลังดำเนินการ', past: 'ผ่านไปแล้ว', to: 'ถึง',
     myProgress: 'ความคืบหน้าของฉัน', doneOf: (a: number, b: number) => `ทำไปแล้ว ${a} จาก ${b} ขั้น`,
@@ -39,7 +45,7 @@ const STRINGS = {
   },
   [Language.EN]: {
     faculty: 'Faculty of Science and Technology', logout: 'Log out',
-    tabs: { all: 'All', check: 'Checklist', schedule: 'Schedule', docs: 'Documents', sites: 'Sites' } as Record<Tab, string>,
+    tabs: { all: 'All', check: 'Checklist', schedule: 'Schedule', docs: 'Documents', sites: 'Sites' } as Record<GuestTab, string>,
     nextUp: 'Next up', noNext: 'No upcoming dates yet', today: 'Today', inDays: (n: number) => `in ${n} days`,
     ongoing: 'Ongoing', past: 'Past', to: 'to',
     myProgress: 'My progress', doneOf: (a: number, b: number) => `${a} of ${b} steps done`,
@@ -59,7 +65,7 @@ const STRINGS = {
   },
   [Language.AR]: {
     faculty: 'كلية العلوم والتكنولوجيا', logout: 'تسجيل الخروج',
-    tabs: { all: 'الكل', check: 'قائمة المهام', schedule: 'المواعيد', docs: 'النماذج', sites: 'جهات التدريب' } as Record<Tab, string>,
+    tabs: { all: 'الكل', check: 'قائمة المهام', schedule: 'المواعيد', docs: 'النماذج', sites: 'جهات التدريب' } as Record<GuestTab, string>,
     nextUp: 'الموعد القادم', noNext: 'لا توجد مواعيد قادمة', today: 'اليوم', inDays: (n: number) => `بعد ${n} يوم`,
     ongoing: 'جارٍ', past: 'انتهى', to: 'إلى',
     myProgress: 'تقدّمي', doneOf: (a: number, b: number) => `أنجزت ${a} من ${b} خطوات`,
@@ -79,7 +85,7 @@ const STRINGS = {
   },
   [Language.MS]: {
     faculty: 'Fakulti Sains dan Teknologi', logout: 'Log keluar',
-    tabs: { all: 'Semua', check: 'Senarai semak', schedule: 'Jadual', docs: 'Dokumen', sites: 'Tempat latihan' } as Record<Tab, string>,
+    tabs: { all: 'Semua', check: 'Senarai semak', schedule: 'Jadual', docs: 'Dokumen', sites: 'Tempat latihan' } as Record<GuestTab, string>,
     nextUp: 'Seterusnya', noNext: 'Tiada tarikh akan datang', today: 'Hari ini', inDays: (n: number) => `${n} hari lagi`,
     ongoing: 'Sedang berjalan', past: 'Telah lepas', to: 'hingga',
     myProgress: 'Kemajuan saya', doneOf: (a: number, b: number) => `${a} daripada ${b} langkah selesai`,
@@ -172,6 +178,32 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
     window.addEventListener('resize', check);
     return () => { window.removeEventListener('scroll', check); window.removeEventListener('resize', check); cancelAnimationFrame(raf); };
   }, []);
+  /* ---------- student sign-in (optional: guest tabs work without it) ---------- */
+  const SA = stOf(lang);
+  const [session, setSession] = useState<StudentSession | null>(loadSession);
+  const [bundle, setBundle] = useState<StudentBundle | null>(null);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [sessionNote, setSessionNote] = useState('');
+  const signOut = (note = '', tellServer = true) => {
+    // Only a backend that knows student sessions gets the logout (older ones would create a junk sheet)
+    if (session && tellServer) backendHasStudents().then(ok => { if (ok) studentCall('logout', { token: session.token }).catch(() => {}); });
+    saveSession(null); setSession(null); setBundle(null); setSessionNote(note);
+    setTab(t => (STUDENT_TABS.includes(t as StudentTab) ? 'all' : t));
+  };
+  const refreshBundle = async () => {
+    if (!session) return;
+    const r = await studentCall('me', { token: session.token });
+    if (r?.status === 'expired') { signOut(SA.expired); return; }
+    if (r?.status === 'success') setBundle(r.bundle);
+  };
+  // Resume a saved session on load
+  useEffect(() => {
+    if (!session || bundle) return;
+    backendHasStudents().then(ok => { if (ok) refreshBundle().catch(() => {}); else signOut('', false); });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const studentName = bundle?.records?.[0]?.name || '';
+  const isStudentTab = STUDENT_TABS.includes(tab as StudentTab);
+
   const [showPast, setShowPast] = useState(false);
   const [source, setSource] = useState<'open' | 'senior' | 'all'>('all');
   const show = (t: Tab) => tab === 'all' || tab === t;
@@ -303,6 +335,19 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
             <span className="hidden sm:block lg:hidden xl:block truncate text-[14px] text-[#630330] dark:text-[#e8cf7a]">{S.faculty}</span>
           </button>
           <div className="flex items-center gap-1">
+            {bundle ? (
+              <span className="flex items-center gap-1 h-10 pl-1 pr-1 rounded-full bg-white/80 dark:bg-white/5 border border-[#efe4d2] dark:border-white/10">
+                <button onClick={() => go('me')} className="flex items-center gap-2 h-8 pl-1 pr-2 rounded-full hover:bg-[#faf6ef] dark:hover:bg-white/5" title={studentName}>
+                  <span className="w-8 h-8 rounded-full bg-[#D4AF37] text-[#2a0114] text-[13px] font-bold flex items-center justify-center">{studentName.replace(/^(นางสาว|นาย|นาง)/, '').trim().charAt(0) || '?'}</span>
+                  <span className="hidden sm:block max-w-[120px] truncate text-[13px] text-[#2a0a17] dark:text-white">{studentName.replace(/^(นางสาว|นาย|นาง)/, '').trim().split(/\s+/)[0]}</span>
+                </button>
+                <button onClick={() => signOut()} className="w-8 h-8 rounded-full flex items-center justify-center text-[#8d7480] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10" title={SA.logout} aria-label={SA.logout}><LogOut size={15} className={isRtl ? 'rotate-180' : ''} /></button>
+              </span>
+            ) : (
+              <button onClick={() => { setSessionNote(''); setLoginOpen(true); }} className="h-10 px-3 sm:px-4 flex items-center gap-2 rounded-full bg-[#630330] text-white text-[13.5px] hover:bg-[#7a0b3d] transition" title={SA.loginBtn}>
+                <UserCircle size={17} /><span className="hidden sm:inline whitespace-nowrap">{SA.loginBtn}</span>
+              </button>
+            )}
             <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" tone="light" />
             <button onClick={onToggleTheme} className="w-10 h-10 flex items-center justify-center rounded-full text-[#6e5560] dark:text-slate-300 hover:bg-white/70 dark:hover:bg-white/5 transition" aria-label="theme">
               {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
@@ -360,7 +405,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
         {/* Tabs */}
         <div ref={tabBarRef} className={`sticky top-0 z-20 -mx-4 sm:-mx-8 lg:-mx-11 px-4 sm:px-8 lg:px-11 pt-[max(14px,env(safe-area-inset-top))] pb-4 transition-[background-color,backdrop-filter] duration-300 ${tabsStuck ? 'wp-tabs-stuck' : ''}`}>
           <div className="flex items-center gap-1 p-1 w-fit max-w-full overflow-x-auto hide-scrollbar rounded-full bg-white/90 dark:bg-[#1c0c14]/90 backdrop-blur border border-[#efe4d2] dark:border-white/10 shadow-[0_10px_24px_-18px_rgba(99,3,48,0.45)]">
-            {(Object.keys(S.tabs) as Tab[]).map(t => (
+            {[...(Object.keys(S.tabs) as Tab[]), ...(bundle ? STUDENT_TABS : [])].map(t => (
               <button key={t} ref={el => {
                 // Keep the active tab visible inside the strip (horizontal only, never scrolls the page)
                 const strip = el?.parentElement;
@@ -369,12 +414,26 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
                   if (l < strip.scrollLeft) strip.scrollLeft = l - 8;
                   else if (r > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = r - strip.clientWidth + 8;
                 }
-              }} onClick={() => go(t)} className={`shrink-0 h-9 px-4 rounded-full text-[13.5px] transition ${tab === t ? 'bg-[#630330] text-white' : 'text-[#6e5560] dark:text-slate-300 hover:bg-[#faf6ef] dark:hover:bg-white/5'}`}>
-                {S.tabs[t]}
+              }} onClick={() => go(t)} className={`shrink-0 h-9 px-4 rounded-full text-[13.5px] transition ${t === 'me' ? 'ms-2 relative before:absolute before:-start-1.5 before:top-2 before:bottom-2 before:w-px before:bg-[#efe4d2] dark:before:bg-white/10' : ''} ${tab === t ? (STUDENT_TABS.includes(t as StudentTab) ? 'bg-[#D4AF37] text-[#2a0114]' : 'bg-[#630330] text-white') : STUDENT_TABS.includes(t as StudentTab) ? 'text-[#8a6a14] dark:text-[#e8cf7a] hover:bg-[#D4AF37]/10' : 'text-[#6e5560] dark:text-slate-300 hover:bg-[#faf6ef] dark:hover:bg-white/5'}`}>
+                {STUDENT_TABS.includes(t as StudentTab) ? SA.tabs[t as StudentTab] : S.tabs[t as GuestTab]}
               </button>
             ))}
           </div>
         </div>
+
+        {sessionNote && !bundle && (
+          <div className="mt-3 flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-amber-200 dark:border-amber-500/25 bg-amber-50 dark:bg-amber-500/10 text-[13px] text-amber-800 dark:text-amber-200">
+            <span>{sessionNote}</span>
+            <button onClick={() => setLoginOpen(true)} className="shrink-0 underline">{SA.loginBtn}</button>
+          </div>
+        )}
+
+        {/* ---------- Signed-in student tools ---------- */}
+        {isStudentTab && bundle && session && (
+          <StudentArea lang={lang} tab={tab as StudentTab} token={session.token} bundle={bundle}
+            setBundle={fn => setBundle(b => (b ? fn(b) : b))} refresh={refreshBundle}
+            onExpired={() => signOut(SA.expired)} go={t => go(t)} />
+        )}
 
         {/* ---------- Checklist (style 9) ---------- */}
         {show('check') && (
@@ -621,6 +680,9 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
           </section>
         )}
       </div>
+
+      <StudentLogin open={loginOpen} lang={lang} onClose={() => setLoginOpen(false)}
+        onSuccess={(s, b) => { saveSession(s); setSession(s); setBundle(b); setSessionNote(''); setLoginOpen(false); go('me'); }} />
     </div>
   );
 };
