@@ -335,6 +335,10 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
             <span className="hidden sm:block lg:hidden xl:block truncate text-[14px] text-[#630330] dark:text-[#e8cf7a]">{S.faculty}</span>
           </button>
           <div className="flex items-center gap-1">
+            <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" tone="light" />
+            <button onClick={onToggleTheme} className="w-10 h-10 flex items-center justify-center rounded-full text-[#6e5560] dark:text-slate-300 hover:bg-white/70 dark:hover:bg-white/5 transition" aria-label="theme">
+              {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
+            </button>
             {bundle ? (
               <span className="flex items-center gap-1 h-10 pl-1 pr-1 rounded-full bg-white/80 dark:bg-white/5 border border-[#efe4d2] dark:border-white/10">
                 <button onClick={() => go('me')} className="flex items-center gap-2 h-8 pl-1 pr-2 rounded-full hover:bg-[#faf6ef] dark:hover:bg-white/5" title={studentName}>
@@ -348,13 +352,6 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
                 <UserCircle size={17} /><span className="hidden sm:inline whitespace-nowrap">{SA.loginBtn}</span>
               </button>
             )}
-            <LanguageSwitcher currentLang={lang} onLanguageChange={setLang} variant="dropdown" tone="light" />
-            <button onClick={onToggleTheme} className="w-10 h-10 flex items-center justify-center rounded-full text-[#6e5560] dark:text-slate-300 hover:bg-white/70 dark:hover:bg-white/5 transition" aria-label="theme">
-              {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
-            </button>
-            <button onClick={onLogout} className="h-10 w-10 sm:w-auto sm:px-4 flex items-center justify-center gap-2 rounded-full text-[14px] text-[#630330] dark:text-[#e8cf7a] bg-[#630330]/[0.07] dark:bg-white/5 hover:bg-[#630330] hover:text-white transition" title={S.logout}>
-              <LogOut size={16} className={`shrink-0 ${isRtl ? 'rotate-180' : ''}`} /><span className="hidden sm:inline whitespace-nowrap">{S.logout}</span>
-            </button>
           </div>
         </div>
 
