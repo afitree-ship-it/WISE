@@ -407,6 +407,8 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('wise_forms', JSON.stringify(forms)); }, [forms]);
   // Older versions cached staff passwords here; remove them
   useEffect(() => { try { localStorage.removeItem('wise_admin_passwords'); } catch { /* storage blocked */ } }, []);
+  // Wake the Apps Script backend early, so signing in does not wait for a cold start
+  useEffect(() => { backendHasStudents(); }, []);
 
   // After a page reload in a staff session, fetch the staff list again with the session key
   useEffect(() => {
@@ -559,10 +561,8 @@ const App: React.FC = () => {
         setAdminKey(normalizedPassword);
         setRole(UserRole.ADMIN);
         sessionStorage.setItem('wise_role', UserRole.ADMIN);
-        setTimeout(() => {
-          setViewState('dashboard');
-          window.history.pushState({ view: 'dashboard' }, '');
-        }, 400);
+        setViewState('dashboard');
+        window.history.pushState({ view: 'dashboard' }, '');
         return true;
       } catch (e) {
         console.error('Admin login failed:', e);

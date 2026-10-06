@@ -51,18 +51,41 @@ export interface StudentBundle {
 /* Transport                                                           */
 /* ------------------------------------------------------------------ */
 
-let probe: Promise<boolean> | null = null;
-/** Read-only check, so an older Apps Script deployment never receives an unknown POST type. */
-export const backendHasStudents = () => {
-  if (!probe) {
-    probe = fetch(`${SHEET_API_URL}${SHEET_API_URL.includes('?') ? '&' : '?'}type=student&_=${Date.now()}`, { redirect: 'follow' })
-      .then(r => r.json())
-      .then(j => !!(j && j.student === true))
-      .catch(() => false);
-    probe.then(ok => { if (!ok) setTimeout(() => { probe = null; }, 60000); });
-  }
-  return probe;
+/** Remembers a passed capability probe for a few days, so later visits skip the 2–3 s round trip. */
+export const cachedProbe = (name: string, check: () => Promise<boolean>) => {
+  const key = `wise_cap_${name}`;
+  let memo: Promise<boolean> | null = null;
+  return () => {
+    if (memo) return memo;
+    const live = check();
+    live.then(ok => {
+      try { if (ok) localStorage.setItem(key, String(Date.now())); else localStorage.removeItem(key); } catch { /* storage blocked */ }
+      if (!ok) setTimeout(() => { memo = null; }, 60000);
+    });
+    let seen = 0;
+    try { seen = Number(localStorage.getItem(key) || 0); } catch { /* storage blocked */ }
+    // A recent pass answers at once; the live check still runs and corrects the cache
+    memo = Date.now() - seen < 3 * 86400000 ? Promise.resolve(true) : live;
+    return memo;
+  };
 };
+
+const probeUrl = (type: string) => `${SHEET_API_URL}${SHEET_API_URL.includes('?') ? '&' : '?'}type=${type}&_=${Date.now()}`;
+
+/** Read-only check, so an older Apps Script deployment never receives an unknown POST type. */
+export const backendHasStudents = cachedProbe('student', () =>
+  fetch(probeUrl('student'), { redirect: 'follow' })
+    .then(r => r.json())
+    .then(j => !!(j && j.student === true))
+    .catch(() => false));
+
+export interface DriveStatus { drive: boolean; fallback?: boolean; reason?: string; message?: string; url?: string; folder?: string }
+/** Whether the script can write to the shared Drive folder (null when the backend has no such check yet). */
+export const driveStatus = (): Promise<DriveStatus | null> =>
+  fetch(probeUrl('drive'), { redirect: 'follow' })
+    .then(r => r.json())
+    .then(j => (j && typeof j.drive === 'boolean' ? j as DriveStatus : null))
+    .catch(() => null);
 
 export const post = async <T = any>(body: Record<string, unknown>): Promise<T> => {
   const res = await fetch(SHEET_API_URL, {

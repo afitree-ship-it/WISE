@@ -17,7 +17,7 @@ import {
 import { translateTexts, localizeDate, sameInAll, isUntranslated, Localized4 } from "./translate";
 import { localize } from './localize';
 import { ShareLinkModal } from './components/ShareLinkModal';
-import PdfBatchUpload, { BatchItem, screenFiles } from './components/admin/PdfBatchUpload';
+import PdfBatchUpload, { BatchItem, screenFiles, uploadErrorText, CATEGORY_LABEL } from './components/admin/PdfBatchUpload';
 import { uploadPdf, dragHasFiles, MAX_PDF_MB } from './uploads';
 import {
   Plus,
@@ -785,10 +785,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (uploadMethod === 'file' && selectedFile) {
       setIsTranslating(true);
       try {
-        url = await uploadPdf(selectedFile);
+        url = await uploadPdf(selectedFile, { title: thTitle, folder: CATEGORY_LABEL[category] });
       } catch (err: any) {
         setIsTranslating(false);
-        notify(err?.message === 'NO_BACKEND' ? 'ระบบหลังบ้านยังไม่รองรับการอัปโหลด ต้อง redeploy code.gs ก่อน' : 'อัปโหลดไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง', 'error');
+        notify(uploadErrorText(err?.message), 'error');
         return;
       }
       setIsTranslating(false);
@@ -843,7 +843,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const uploadBatchItem = async (item: BatchItem) => {
-    const url = await uploadPdf(item.file);
+    const url = await uploadPdf(item.file, { title: item.title, folder: CATEGORY_LABEL[item.category] });
     const results = await performBatchTranslation([{ key: 'title', value: item.title }]);
     const newForm: DocumentForm = {
       id: `frm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,

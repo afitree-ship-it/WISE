@@ -3,6 +3,7 @@ import { FileText, Upload, X, Check, AlertCircle, RefreshCw, Plus, Info, ArrowUp
 import { FormCategory } from '../../types';
 import { Modal, btn, inputCls, iconBtn } from './ui';
 import { MAX_PDF_MB, isPdf, titleFromFileName, dragHasFiles } from '../../uploads';
+import { DriveStatus, driveStatus } from '../../studentApi';
 
 export type BatchItem = {
   key: string;
@@ -26,6 +27,8 @@ export const uploadErrorText = (msg?: string) => {
   if (/^drive:/i.test(m) || /permission|DriveApp|สิทธิ์/i.test(m)) return `Google Drive ยังไม่อนุญาต: ให้เปิด Apps Script แล้วกด Run ฟังก์ชัน setupDrive หนึ่งครั้ง จากนั้น deploy ใหม่ (${m.replace(/^drive:\s*/i, '').slice(0, 120)})`;
   if (m === 'not a pdf') return 'ไฟล์นี้ไม่ใช่ PDF จริง';
   if (m === 'file too large') return 'ไฟล์ใหญ่เกินกำหนด';
+  if (/^HTTP_/.test(m)) return `Apps Script ตอบกลับผิดพลาด (${m.slice(5)}) ไฟล์อาจใหญ่เกินไปหรือหมดเวลา ลองไฟล์ที่เล็กลง`;
+  if (/failed to fetch|networkerror|load failed/i.test(m)) return 'เชื่อมต่อ Apps Script ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
   return m && m !== 'UPLOAD_FAILED' ? `อัปโหลดไม่สำเร็จ: ${m.slice(0, 160)}` : 'อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง';
 };
 
@@ -41,6 +44,38 @@ export const screenFiles = (files: FileList | File[]) => {
     else ok.push(f);
   });
   return { ok, bad };
+};
+
+const DriveBanner: React.FC<{ drive: DriveStatus | null | 'checking' }> = ({ drive }) => {
+  const box = 'flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs leading-relaxed';
+  if (drive === 'checking') return (
+    <div className={`${box} bg-slate-50 text-slate-500 dark:bg-slate-800/60 dark:text-slate-400`}><RefreshCw size={14} className="animate-spin shrink-0 mt-0.5" />กำลังตรวจสอบ Google Drive…</div>
+  );
+  if (drive === null) return null; // backend without the check: errors still show per file
+  if (!drive.drive) return (
+    <div className={`${box} bg-rose-50 text-rose-800 dark:bg-rose-500/10 dark:text-rose-200`}>
+      <AlertCircle size={15} className="shrink-0 mt-0.5" />
+      <span><b>Google Drive ยังไม่ได้อนุญาต</b> เปิด Apps Script → เลือกฟังก์ชัน <code>setupDrive</code> → Run → Allow แล้ว Deploy → Manage deployments → ดินสอ → New version → Deploy</span>
+    </div>
+  );
+  if (drive.fallback) return (
+    <div className={`${box} bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200`}>
+      <Info size={15} className="shrink-0 mt-0.5" />
+      <span>
+        <b>บัญชีเจ้าของ Apps Script เปิดโฟลเดอร์ WISE ไม่ได้</b> ไฟล์จะถูกเก็บในโฟลเดอร์ "WISE uploads" ของบัญชีนั้นแทน
+        {drive.url && <> (<a href={drive.url} target="_blank" rel="noreferrer" className="underline">เปิดดู</a>)</>}
+        {' '}แก้ได้โดยแชร์โฟลเดอร์ WISE ให้บัญชีเจ้าของสคริปต์เป็น Editor แล้ว Run <code>setupDrive</code> อีกครั้ง
+      </span>
+    </div>
+  );
+  return (
+    <div className={`${box} bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200`}>
+      <Check size={15} className="shrink-0 mt-0.5" />
+      <span>Google Drive พร้อม · ไฟล์จะเก็บที่ <b>{drive.folder || 'WISE'} / เอกสารดาวน์โหลด / ตามหมวดหมู่</b>
+        {drive.url && <> · <a href={drive.url} target="_blank" rel="noreferrer" className="underline">เปิดโฟลเดอร์</a></>}
+      </span>
+    </div>
+  );
 };
 
 interface Props {
@@ -65,6 +100,16 @@ const PdfBatchUpload: React.FC<Props> = ({ open, initialFiles, initialCategory, 
   useEffect(() => {
     if (open) { setItems(toItems(initialFiles, initialCategory)); setBusy(false); }
   }, [open, initialFiles, initialCategory]);
+
+  // Check the Drive folder before uploading, so a missing permission shows up front
+  const [drive, setDrive] = useState<DriveStatus | null | 'checking'>('checking');
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    setDrive('checking');
+    driveStatus().then(s => { if (alive) setDrive(s); });
+    return () => { alive = false; };
+  }, [open]);
 
   const addFiles = (files: FileList | File[]) => {
     const { ok, bad } = screenFiles(files);
@@ -131,6 +176,7 @@ const PdfBatchUpload: React.FC<Props> = ({ open, initialFiles, initialCategory, 
       }
     >
       <div className="space-y-4">
+        <DriveBanner drive={drive} />
         {/* Drop zone (adds more files) */}
         <div
           onDragOver={e => { if (dragHasFiles(e)) { e.preventDefault(); setOver(true); } }}

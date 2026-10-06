@@ -1,22 +1,16 @@
 import type React from 'react';
 import { SHEET_API_URL } from './config';
-import { getAdminKey } from './studentApi';
+import { getAdminKey, cachedProbe } from './studentApi';
 
 /** Largest PDF the Apps Script backend accepts in one request (base64 adds ~33%). */
 export const MAX_PDF_MB = 20;
 
-let uploadProbe: Promise<boolean> | null = null;
 /** Read-only check, so an older Apps Script deployment never receives an unknown POST type. */
-export const backendCanUpload = () => {
-  if (!uploadProbe) {
-    uploadProbe = fetch(`${SHEET_API_URL}${SHEET_API_URL.includes('?') ? '&' : '?'}type=upload&_=${Date.now()}`, { redirect: 'follow' })
-      .then(r => r.json())
-      .then(j => !!(j && j.upload === true))
-      .catch(() => false);
-    uploadProbe.then(ok => { if (!ok) setTimeout(() => { uploadProbe = null; }, 60000); });
-  }
-  return uploadProbe;
-};
+export const backendCanUpload = cachedProbe('upload', () =>
+  fetch(`${SHEET_API_URL}${SHEET_API_URL.includes('?') ? '&' : '?'}type=upload&_=${Date.now()}`, { redirect: 'follow' })
+    .then(r => r.json())
+    .then(j => !!(j && j.upload === true))
+    .catch(() => false));
 
 const readAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
   const reader = new FileReader();
@@ -26,17 +20,20 @@ const readAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
 });
 
 /** Saves a PDF to the project's Google Drive folder and returns its public view link. */
-export const uploadPdf = async (file: File): Promise<string> => {
+export const uploadPdf = async (file: File, opts: { title?: string; folder?: string } = {}): Promise<string> => {
   if (!(await backendCanUpload())) throw new Error('NO_BACKEND');
   const data = await readAsDataUrl(file);
+  // Saved under the document's title, in a sub-folder per category
+  const fileName = opts.title?.trim() ? `${opts.title.trim()}.pdf` : file.name;
   const res = await fetch(SHEET_API_URL, {
     method: 'POST',
     redirect: 'follow',
     // text/plain avoids a CORS preflight, which Apps Script does not answer
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ type: 'upload', fileName: file.name, data, adminKey: getAdminKey() }),
+    body: JSON.stringify({ type: 'upload', fileName, folder: opts.folder || '', data, adminKey: getAdminKey() }),
   });
-  const json = await res.json();
+  // Apps Script answers with an HTML page when the request itself fails (too large, timeout)
+  const json = await res.json().catch(() => { throw new Error(`HTTP_${res.status}`); });
   if (json?.status === 'unauthorized') throw new Error('UNAUTHORIZED');
   if (!json || json.status !== 'success' || !json.url) throw new Error(json?.message || 'UPLOAD_FAILED');
   return json.url as string;

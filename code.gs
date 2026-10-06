@@ -1,4 +1,5 @@
 var ss = SpreadsheetApp.getActiveSpreadsheet();
+var BACKEND_VERSION = "2026-10-06";
 
 /* ================================================================== */
 /* ขั้นตอนครั้งแรก: อนุญาตให้สคริปต์ใช้ Google Drive                   */
@@ -10,6 +11,12 @@ var ss = SpreadsheetApp.getActiveSpreadsheet();
 /* 4. Deploy → Manage deployments → ดินสอ → New version → Deploy          */
 /* ================================================================== */
 function setupDrive() {
+  var root = driveRoot();
+  var head = root.fallback
+    ? "⚠ เปิดโฟลเดอร์ที่กำหนดไม่ได้ (" + root.reason + ")\n" +
+      "  บัญชี " + Session.getEffectiveUser().getEmail() + " ต้องมีสิทธิ์ Editor ในโฟลเดอร์ https://drive.google.com/drive/folders/" + DRIVE_ROOT_ID + "\n" +
+      "  ระหว่างนี้ไฟล์จะถูกเก็บที่ " + root.folder.getUrl() + " แทน"
+    : "✓ โฟลเดอร์หลัก: " + root.folder.getName();
   var lines = Object.keys(DRIVE_FOLDERS).map(function(k) {
     var folder = driveFolder(k);
     // Create and remove a small test file so every Drive permission the site needs is granted now
@@ -18,6 +25,7 @@ function setupDrive() {
     test.setTrashed(true);
     return "พร้อมใช้งาน · " + DRIVE_FOLDERS[k] + " · " + folder.getUrl();
   });
+  lines.unshift(head);
   Logger.log(lines.join("\n"));
   return lines;
 }
@@ -217,11 +225,42 @@ var DRIVE_FOLDERS = {
   photos: "รูปภาพนักศึกษา"
 };
 
+// The shared WISE folder; if the script owner cannot open it, a "WISE uploads" folder in the
+// owner's own Drive is used instead so uploads still work (the admin page says which one is in use)
+function driveRoot() {
+  try {
+    return { folder: DriveApp.getFolderById(DRIVE_ROOT_ID), fallback: false };
+  } catch (err) {
+    if (/permission.*DriveApp|auth\/drive/i.test(String(err && err.message || err))) throw err; // Drive not authorised yet
+    var props = PropertiesService.getScriptProperties();
+    var id = props.getProperty("WISE_FALLBACK_ROOT");
+    if (id) { try { return { folder: DriveApp.getFolderById(id), fallback: true, reason: String(err.message || err) }; } catch (e2) {} }
+    var made = DriveApp.createFolder("WISE uploads");
+    props.setProperty("WISE_FALLBACK_ROOT", made.getId());
+    return { folder: made, fallback: true, reason: String(err.message || err) };
+  }
+}
+
 function driveFolder(kind) {
   var name = DRIVE_FOLDERS[kind];
-  var root = DriveApp.getFolderById(DRIVE_ROOT_ID);
+  var root = driveRoot().folder;
   var it = root.getFoldersByName(name);
   return it.hasNext() ? it.next() : root.createFolder(name);
+}
+
+// Read-only health check shown on the admin upload screen
+function driveStatus() {
+  try {
+    var r = DriveApp.getFolderById(DRIVE_ROOT_ID);
+    return { status: "success", drive: true, fallback: false, folder: r.getName(), url: r.getUrl() };
+  } catch (err) {
+    var msg = String(err && err.message || err);
+    if (/permission.*DriveApp|auth\/drive/i.test(msg)) return { status: "success", drive: false, reason: "not_authorized", message: msg };
+    var id = PropertiesService.getScriptProperties().getProperty("WISE_FALLBACK_ROOT");
+    var url = "";
+    if (id) { try { url = DriveApp.getFolderById(id).getUrl(); } catch (e2) {} }
+    return { status: "success", drive: true, fallback: true, reason: "no_access", message: msg, url: url };
+  }
 }
 
 function shareByLink(file) {
@@ -255,7 +294,11 @@ function uploadPdf(params) {
   // PDF files start with "%PDF"
   if (!(bytes[0] === 37 && bytes[1] === 80 && bytes[2] === 68 && bytes[3] === 70)) return { status: "error", message: "not a pdf" };
 
-  var file = driveFolder("documents").createFile(Utilities.newBlob(bytes, "application/pdf", name));
+  // One sub-folder per document category, e.g. เอกสารดาวน์โหลด/เอกสารสมัครงาน
+  var folder = driveFolder("documents");
+  var sub = String(params.folder || "").replace(/[\\\/:*?"<>|]/g, "_").trim().slice(0, 60);
+  if (sub) { var it = folder.getFoldersByName(sub); folder = it.hasNext() ? it.next() : folder.createFolder(sub); }
+  var file = folder.createFile(Utilities.newBlob(bytes, "application/pdf", name));
   shareByLink(file);
   return { status: "success", id: file.getId(), url: "https://drive.google.com/file/d/" + file.getId() + "/view" };
 }
@@ -283,11 +326,12 @@ function handleAdminLogin(params) {
   var cache = CacheService.getScriptCache();
   var fails = Number(cache.get("admin_fails") || 0);
   if (fails >= 20) return { status: "locked" }; // slows down guessing across all clients
-  if (!pass || adminPasswords().indexOf(pass) < 0) {
+  var list = adminPasswords();
+  if (!pass || list.indexOf(pass) < 0) {
     cache.put("admin_fails", String(fails + 1), 600);
     return { status: "error" };
   }
-  return { status: "success", admins: adminPasswords() };
+  return { status: "success", admins: list };
 }
 
 /* ------------------------------------------------------------------ */
@@ -763,8 +807,9 @@ function doGet(e) {
   if (type === "live") return jsonOut(handleLive());
   // Capability probe: lets the web app know this deployment can translate
   if (type === "translate") return jsonOut({ status: "success", translate: true });
-  if (type === "upload") return jsonOut({ status: "success", upload: true });
-  if (type === "student") return jsonOut({ status: "success", student: true, adminLogin: true });
+  if (type === "upload") return jsonOut({ status: "success", upload: true, version: BACKEND_VERSION });
+  if (type === "student") return jsonOut({ status: "success", student: true, adminLogin: true, version: BACKEND_VERSION });
+  if (type === "drive") return jsonOut(driveStatus());
 
   // Public sheets only: admin passwords and student records stay on the server
   var typeMap = {
