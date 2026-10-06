@@ -16,7 +16,7 @@ type Step = 'id' | 'pin' | 'setup';
 const T = {
   th: {
     title: 'ล็อกอินนักศึกษา', sub: 'เฉพาะนักศึกษาที่มีข้อมูลการฝึกในระบบ',
-    id: 'รหัสนักศึกษา', idPh: 'เช่น 6520110001', next: 'ถัดไป', back: 'กลับ',
+    id: 'รหัสนักศึกษา', idPh: '', next: 'ถัดไป', back: 'กลับ',
     pin: 'PIN 4–6 หลัก', pinPh: '••••', login: 'เข้าสู่ระบบ',
     setupTitle: 'ตั้ง PIN ครั้งแรก', setupSub: 'ตั้ง PIN ไว้ใช้ล็อกอินครั้งต่อไป',
     notMe: 'ไม่ใช่ฉัน', isMe: 'ตรวจสอบชื่อให้ถูกต้องก่อนตั้ง PIN',
@@ -32,7 +32,7 @@ const T = {
   },
   en: {
     title: 'Student sign in', sub: 'For students with a placement on record',
-    id: 'Student ID', idPh: 'e.g. 6520110001', next: 'Next', back: 'Back',
+    id: 'Student ID', idPh: '', next: 'Next', back: 'Back',
     pin: '4–6 digit PIN', pinPh: '••••', login: 'Sign in',
     setupTitle: 'Set your PIN', setupSub: 'Choose a PIN for next time',
     notMe: 'Not me', isMe: 'Check that this is you before setting a PIN',
