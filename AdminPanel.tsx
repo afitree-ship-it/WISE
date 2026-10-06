@@ -843,17 +843,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const uploadBatchItem = async (item: BatchItem) => {
-    const url = await uploadPdf(item.file, { title: item.title, folder: CATEGORY_LABEL[item.category] });
-    const results = await performBatchTranslation([{ key: 'title', value: item.title }]);
+    // Upload and translation are independent, so they run together
+    const [url, results] = await Promise.all([
+      uploadPdf(item.file, { title: item.title, folder: CATEGORY_LABEL[item.category] }),
+      performBatchTranslation([{ key: 'title', value: item.title }]),
+    ]);
     const newForm: DocumentForm = {
       id: `frm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       title: results['title'] || sameInAll(item.title),
       category: item.category,
       url,
     };
-    // Appended, so a batch keeps the order it was arranged in (the sheet appends rows too)
-    setForms(prev => [...prev, newForm]);
-    await syncToSheets('forms', [], 'add', newForm);
+    return newForm;
+  };
+
+  // Appended in the order the batch was arranged, then saved in one request
+  const formsRef = useRef(forms);
+  formsRef.current = forms;
+  const saveBatchForms = async (added: DocumentForm[]) => {
+    const next = [...formsRef.current, ...added];
+    setForms(next);
+    await syncToSheets('forms', next, 'all');
+    notify(`เพิ่มเอกสาร ${added.length} ไฟล์แล้ว`);
   };
 
   const handleSaveSite = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -2653,6 +2664,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         initialCategory={batchCategory}
         onClose={() => setShowBatchUpload(false)}
         onUpload={uploadBatchItem}
+        onCommit={saveBatchForms}
         onRejected={names => notify(`ข้ามไฟล์: ${names.join(', ')}`, 'error')}
       />
 

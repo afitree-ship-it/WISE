@@ -11,6 +11,8 @@ var BACKEND_VERSION = "2026-10-06";
 /* 4. Deploy → Manage deployments → ดินสอ → New version → Deploy          */
 /* ================================================================== */
 function setupDrive() {
+  // Forget cached folder ids, in case the shared folder became reachable
+  CacheService.getScriptCache().removeAll(Object.keys(DRIVE_FOLDERS).map(function(k) { return "fld_" + k; }));
   var root = driveRoot();
   var head = root.fallback
     ? "⚠ เปิดโฟลเดอร์ที่กำหนดไม่ได้ (" + root.reason + ")\n" +
@@ -241,11 +243,23 @@ function driveRoot() {
   }
 }
 
+// Folder ids are cached, so an upload opens its folder in one Drive call instead of a search
+function cachedFolder(key, find) {
+  var cache = CacheService.getScriptCache();
+  var id = cache.get("fld_" + key);
+  if (id) { try { return DriveApp.getFolderById(id); } catch (err) {} }
+  var folder = find();
+  cache.put("fld_" + key, folder.getId(), 21600);
+  return folder;
+}
+
+function subFolder(parent, name) {
+  var it = parent.getFoldersByName(name);
+  return it.hasNext() ? it.next() : parent.createFolder(name);
+}
+
 function driveFolder(kind) {
-  var name = DRIVE_FOLDERS[kind];
-  var root = driveRoot().folder;
-  var it = root.getFoldersByName(name);
-  return it.hasNext() ? it.next() : root.createFolder(name);
+  return cachedFolder(kind, function() { return subFolder(driveRoot().folder, DRIVE_FOLDERS[kind]); });
 }
 
 // Read-only health check shown on the admin upload screen
@@ -295,9 +309,9 @@ function uploadPdf(params) {
   if (!(bytes[0] === 37 && bytes[1] === 80 && bytes[2] === 68 && bytes[3] === 70)) return { status: "error", message: "not a pdf" };
 
   // One sub-folder per document category, e.g. เอกสารดาวน์โหลด/เอกสารสมัครงาน
-  var folder = driveFolder("documents");
   var sub = String(params.folder || "").replace(/[\\\/:*?"<>|]/g, "_").trim().slice(0, 60);
-  if (sub) { var it = folder.getFoldersByName(sub); folder = it.hasNext() ? it.next() : folder.createFolder(sub); }
+  var folder = driveFolder("documents");
+  if (sub) { var parent = folder; folder = cachedFolder(parent.getId() + "/" + sub, function() { return subFolder(parent, sub); }); }
   var file = folder.createFile(Utilities.newBlob(bytes, "application/pdf", name));
   shareByLink(file);
   return { status: "success", id: file.getId(), url: "https://drive.google.com/file/d/" + file.getId() + "/view" };

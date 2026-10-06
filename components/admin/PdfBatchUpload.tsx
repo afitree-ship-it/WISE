@@ -83,14 +83,19 @@ interface Props {
   initialFiles: File[];
   initialCategory: FormCategory;
   onClose: () => void;
-  /** Uploads one file and saves the document record; throws on failure. */
-  onUpload: (item: BatchItem) => Promise<void>;
+  /** Uploads one file and returns its document record (not saved yet); throws on failure. */
+  onUpload: (item: BatchItem) => Promise<unknown>;
+  /** Saves the records of every uploaded file, in list order. */
+  onCommit: (records: any[]) => Promise<void>;
   onRejected: (names: string[]) => void;
 }
 
-const PdfBatchUpload: React.FC<Props> = ({ open, initialFiles, initialCategory, onClose, onUpload, onRejected }) => {
+const UPLOAD_PARALLEL = 3;
+
+const PdfBatchUpload: React.FC<Props> = ({ open, initialFiles, initialCategory, onClose, onUpload, onCommit, onRejected }) => {
   const [items, setItems] = useState<BatchItem[]>([]);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [over, setOver] = useState(false);
   const pickRef = useRef<HTMLInputElement>(null);
 
@@ -136,16 +141,36 @@ const PdfBatchUpload: React.FC<Props> = ({ open, initialFiles, initialCategory, 
 
   const start = async () => {
     setBusy(true);
+    const queue = [...pending];
+    const results: (unknown | undefined)[] = new Array(queue.length);
     let failed = 0;
-    for (const it of pending) {
-      patch(it.key, { state: 'uploading', error: undefined });
-      try {
-        await onUpload({ ...it, title: it.title.trim() });
-        patch(it.key, { state: 'done' });
-      } catch (err: any) {
-        failed++;
-        patch(it.key, { state: 'error', error: uploadErrorText(err?.message) });
+    let next = 0;
+    // A few files at a time: each request spends most of its time waiting on Apps Script
+    const worker = async () => {
+      while (next < queue.length) {
+        const i = next++;
+        const it = queue[i];
+        patch(it.key, { state: 'uploading', error: undefined });
+        try {
+          results[i] = await onUpload({ ...it, title: it.title.trim() });
+          patch(it.key, { state: 'done' });
+        } catch (err: any) {
+          failed++;
+          patch(it.key, { state: 'error', error: uploadErrorText(err?.message) });
+        }
       }
+    };
+    await Promise.all(Array.from({ length: Math.min(UPLOAD_PARALLEL, queue.length) }, worker));
+    // Records are saved once, in the order arranged on screen
+    const saved = results.filter(r => r !== undefined);
+    if (saved.length) {
+      setSaving(true);
+      try { await onCommit(saved); }
+      catch (err: any) {
+        failed++;
+        queue.forEach((it, i) => { if (results[i] !== undefined) patch(it.key, { state: 'error', error: `อัปไฟล์แล้วแต่บันทึกรายการไม่สำเร็จ: ${String(err?.message || err).slice(0, 120)}` }); });
+      }
+      setSaving(false);
     }
     setBusy(false);
     if (!failed) onClose();
@@ -165,7 +190,7 @@ const PdfBatchUpload: React.FC<Props> = ({ open, initialFiles, initialCategory, 
       footer={
         <>
           <span className="mr-auto text-xs text-slate-500 tabular-nums">
-            {busy ? `กำลังอัปโหลด ${doneCount + 1}/${items.length}` : doneCount ? `สำเร็จ ${doneCount}/${items.length}` : `${items.length} ไฟล์`}
+            {saving ? 'กำลังบันทึกรายการ…' : busy ? `อัปโหลดแล้ว ${doneCount}/${items.length}` : doneCount ? `สำเร็จ ${doneCount}/${items.length}` : `${items.length} ไฟล์`}
           </span>
           <button type="button" onClick={onClose} disabled={busy} className={btn('secondary')}>{doneCount ? 'ปิด' : 'ยกเลิก'}</button>
           <button type="button" onClick={start} disabled={busy || !pending.length || missingTitle} className={btn('primary')}>
