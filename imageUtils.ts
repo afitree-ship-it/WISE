@@ -10,6 +10,23 @@ const loadImage = (file: File): Promise<HTMLImageElement> =>
     img.src = url;
   });
 
+/** Centre-crops a photo to a square and encodes it as JPEG (profile pictures stored in Drive). */
+export const squarePhoto = async (file: File, size = 600): Promise<string> => {
+  if (!file.type.startsWith('image/')) throw new Error('กรุณาเลือกไฟล์รูปภาพ');
+  const img = await loadImage(file);
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  const side = Math.min(iw, ih);
+  const out = Math.min(size, side);
+  const canvas = document.createElement('canvas');
+  canvas.width = out; canvas.height = out;
+  const ctx = canvas.getContext('2d')!;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, out, out);
+  ctx.drawImage(img, (iw - side) / 2, (ih - side) / 2, side, side, 0, 0, out, out);
+  return canvas.toDataURL('image/jpeg', 0.85);
+};
+
 /**
  * Downscales an image and encodes it as a data URL small enough for one sheet cell.
  * `square` pads the image into a transparent square (for favicons).

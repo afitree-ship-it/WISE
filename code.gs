@@ -188,19 +188,49 @@ function handleTranslate(params) {
 
 var UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 
-function getUploadFolder() {
-  var props = PropertiesService.getScriptProperties();
-  var id = props.getProperty("UPLOAD_FOLDER_ID");
-  if (id) {
-    try { return DriveApp.getFolderById(id); } catch (err) {}
+// All uploads live in this Drive folder, one sub-folder per kind of file
+var DRIVE_ROOT_ID = "1Tmz9c0uTuXyR2Qq6Z0UZF2Km23nQ5kpr";
+var DRIVE_FOLDERS = {
+  documents: "เอกสารดาวน์โหลด",
+  photos: "รูปภาพนักศึกษา"
+};
+
+function driveFolder(kind) {
+  var name = DRIVE_FOLDERS[kind];
+  var root = DriveApp.getFolderById(DRIVE_ROOT_ID);
+  var it = root.getFoldersByName(name);
+  return it.hasNext() ? it.next() : root.createFolder(name);
+}
+
+function shareByLink(file) {
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (err) {
+    // Some Workspace domains block public links; fall back to people in the domain
+    try { file.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.VIEW); } catch (err2) {}
   }
-  var folder = DriveApp.createFolder("WISE - เอกสารดาวน์โหลด");
-  props.setProperty("UPLOAD_FOLDER_ID", folder.getId());
-  return folder;
+}
+
+/**
+ * Run this once from the Apps Script editor (select setupDrive, press Run) to grant Drive access
+ * and create the sub-folders. Then deploy a new version.
+ */
+function setupDrive() {
+  var out = Object.keys(DRIVE_FOLDERS).map(function(k) { return DRIVE_FOLDERS[k] + ": " + driveFolder(k).getUrl(); });
+  Logger.log(out.join("\n"));
+  return out;
 }
 
 // params.fileName, params.data (data URL or bare base64) -> { status, id, url }
 function handleUpload(params) {
+  try {
+    return uploadPdf(params);
+  } catch (err) {
+    return { status: "error", message: "drive: " + String(err && err.message || err) };
+  }
+}
+
+function uploadPdf(params) {
   var name = String(params.fileName || "document.pdf").replace(/[\\\/:*?"<>|]/g, "_");
   if (!/\.pdf$/i.test(name)) name += ".pdf";
   var b64 = String(params.data || "");
@@ -212,13 +242,8 @@ function handleUpload(params) {
   // PDF files start with "%PDF"
   if (!(bytes[0] === 37 && bytes[1] === 80 && bytes[2] === 68 && bytes[3] === 70)) return { status: "error", message: "not a pdf" };
 
-  var file = getUploadFolder().createFile(Utilities.newBlob(bytes, "application/pdf", name));
-  try {
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  } catch (err) {
-    // Some Workspace domains block public links; fall back to people in the domain
-    try { file.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.VIEW); } catch (err2) {}
-  }
+  var file = driveFolder("documents").createFile(Utilities.newBlob(bytes, "application/pdf", name));
+  shareByLink(file);
   return { status: "success", id: file.getId(), url: "https://drive.google.com/file/d/" + file.getId() + "/view" };
 }
 
@@ -267,12 +292,47 @@ var SHEETS = {
   workplace: ["studentId", "recordId", "lat", "lng", "radius", "address", "workStart", "workEnd", "lockedAt", "updatedAt"],
   attendance: ["studentId", "recordId", "date", "inTime", "inLat", "inLng", "inAcc", "inDist", "outTime", "outLat", "outLng", "outAcc", "outDist"],
   evalLinks: ["token", "studentId", "recordId", "createdAt"],
-  evaluations: ["token", "studentId", "recordId", "evaluatorName", "evaluatorPosition", "scores", "comment", "avg", "percent", "level", "submittedAt"]
+  evaluations: ["token", "studentId", "recordId", "evaluatorName", "evaluatorPosition", "scores", "comment", "avg", "percent", "level", "submittedAt"],
+  photo: ["studentId", "fileId", "updatedAt"]
 };
 var SHEET_NAMES = {
   auth: "StudentAuth", logbook: "Logbooks", diary: "Diary", workplace: "Workplaces",
-  attendance: "Attendance", evalLinks: "EvalLinks", evaluations: "Evaluations"
+  attendance: "Attendance", evalLinks: "EvalLinks", evaluations: "Evaluations", photo: "StudentPhotos"
 };
+
+var PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+function photoUrl(fileId) { return fileId ? "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w400" : ""; }
+
+// Saves the student's profile photo in Drive: รูปภาพนักศึกษา/<studentId> <name>.jpg, replacing the old one
+function savePhoto(studentId, dataUrl) {
+  var m = /^data:(image\/(jpeg|png|webp));base64,(.+)$/.exec(String(dataUrl || ""));
+  if (!m) return { status: "error", message: "photo_format" };
+  var bytes = Utilities.base64Decode(m[3]);
+  if (!bytes.length || bytes.length > PHOTO_MAX_BYTES) return { status: "error", message: "photo_size" };
+  var rec = studentRecords(studentId)[0];
+  var ext = m[2] === "jpeg" ? "jpg" : m[2];
+  var name = (String(studentId) + " " + String(rec ? rec.name : "")).trim().replace(/[\\\/:*?"<>|]/g, "_") + "." + ext;
+  var file;
+  try {
+    file = driveFolder("photos").createFile(Utilities.newBlob(bytes, m[1], name));
+    shareByLink(file);
+  } catch (err) {
+    return { status: "error", message: "drive: " + String(err && err.message || err) };
+  }
+  return withScriptLock(function() {
+    var row = null;
+    privRows("photo").forEach(function(r) { if (sameId(r.studentId, studentId)) row = r; });
+    if (row && row.fileId) { try { DriveApp.getFileById(String(row.fileId)).setTrashed(true); } catch (err) {} }
+    privWrite("photo", row && row._row, { studentId: studentId, fileId: file.getId(), updatedAt: Date.now() });
+    return { status: "success", photo: photoUrl(file.getId()) };
+  });
+}
+
+function studentPhoto(studentId) {
+  var url = "";
+  privRows("photo").forEach(function(r) { if (sameId(r.studentId, studentId) && r.fileId) url = photoUrl(String(r.fileId)); });
+  return url;
+}
 
 function privSheet(key) {
   var name = SHEET_NAMES[key];
@@ -437,7 +497,7 @@ function parseJson(s, fallback) { try { return s ? JSON.parse(s) : fallback; } c
 function studentBundle(studentId) {
   var records = studentRecords(studentId).map(cleanRecord);
   var mine = function(key) { return privRows(key).filter(function(r) { return sameId(r.studentId, studentId); }); };
-  var out = { studentId: String(studentId), records: records, logbooks: {}, diary: {}, workplaces: {}, attendance: {}, evalLinks: {}, evaluations: {}, criteria: evalCriteria(), today: todayStr(), serverTime: Date.now() };
+  var out = { studentId: String(studentId), photo: studentPhoto(studentId), records: records, logbooks: {}, diary: {}, workplaces: {}, attendance: {}, evalLinks: {}, evaluations: {}, criteria: evalCriteria(), today: todayStr(), serverTime: Date.now() };
   mine("logbook").forEach(function(r) { out.logbooks[r.recordId] = { data: parseJson(r.data, {}), updatedAt: r.updatedAt }; });
   mine("diary").forEach(function(r) { (out.diary[r.recordId] = out.diary[r.recordId] || {})[String(r.date)] = String(r.text || ""); });
   mine("workplace").forEach(function(r) {
@@ -512,6 +572,7 @@ function handleStudent(params) {
 
   if (op === "logout") { CacheService.getScriptCache().remove("st_" + params.token); return { status: "success" }; }
   if (op === "me") return { status: "success", bundle: studentBundle(me) };
+  if (op === "setPhoto") return savePhoto(me, params.data);
 
   var recordId = String(params.recordId || "");
   if (!ownsRecord(me, recordId)) return { status: "error", message: "record" };
@@ -721,7 +782,16 @@ function doGet(e) {
   return jsonOut(sheetToObjects(sheet));
 }
 
+// Always answer with JSON, so the web page can show what went wrong
 function doPost(e) {
+  try {
+    return handlePost(e);
+  } catch (err) {
+    return jsonOut({ status: "error", message: String(err && err.message || err) });
+  }
+}
+
+function handlePost(e) {
   var params = JSON.parse(e.postData.contents);
   var type = params.type;
   var action = params.action || "all";
@@ -742,25 +812,34 @@ function doPost(e) {
     return jsonOut({ status: "error", message: "Unknown type: " + type });
   }
 
-  var sheetName = (type === "admins") ? "Admins" : (type === "studentStatuses" ? "StudentStatuses" : type);
+  var SHEET_OF = { sites: "Sites", schedules: "Schedules", forms: "Forms", studentStatuses: "StudentStatuses", admins: "Admins" };
+  var DEFAULT_HEADERS = {
+    studentStatuses: ["id", "studentId", "name", "status", "major", "internshipType", "location", "position", "term", "academicYear", "startDate", "endDate", "lastUpdated", "remarks", "supervisor"],
+    forms: ["id", "title", "category", "url"],
+    sites: ["id", "name", "location", "description", "position", "status", "major", "contactLink", "email", "phone", "createdAt"],
+    schedules: ["id", "event", "startDate", "endDate", "rawStartDate", "rawEndDate", "status", "createdAt"],
+    admins: ["password"]
+  };
+  var sheetName = SHEET_OF[type];
   var sheet = ss.getSheetByName(sheetName) || ss.getSheetByName(type);
-
-  var defaultHeaders = (type === "studentStatuses")
-    ? ["id", "studentId", "name", "status", "major", "internshipType", "location", "position", "term", "academicYear", "startDate", "endDate", "lastUpdated", "remarks", "supervisor"]
-    : ["password"];
 
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
-    sheet.appendRow(defaultHeaders);
-  } else if (type === "studentStatuses") {
-    var lastCol = Math.max(sheet.getLastColumn(), 1);
-    var currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-    if (currentHeaders.indexOf("supervisor") === -1) {
-      sheet.getRange(1, currentHeaders.length + 1).setValue("supervisor");
-    }
+    sheet.appendRow(DEFAULT_HEADERS[type]);
   }
 
-  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  // Add a column for any field the sheet does not have yet, so nothing is silently dropped
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].filter(function(h) { return String(h) !== ""; });
+  var incoming = action === "all" ? (params.data || []) : (params.item ? [params.item] : []);
+  var wanted = DEFAULT_HEADERS[type].slice();
+  incoming.forEach(function(it) { Object.keys(it || {}).forEach(function(k) { if (k.charAt(0) !== "_" && wanted.indexOf(k) < 0) wanted.push(k); }); });
+  wanted.forEach(function(h) {
+    if (headers.indexOf(h) < 0) {
+      sheet.getRange(1, headers.length + 1).setValue(h);
+      headers.push(h);
+    }
+  });
 
   if (action === "all") {
     sheet.clearContents();

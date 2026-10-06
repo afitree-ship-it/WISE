@@ -54,7 +54,7 @@ const StudentArea: React.FC<Props> = ({ lang, tab, token, bundle, setBundle, ref
 
   return (
     <div className="pt-4">
-      {tab === 'me' && <ProfileTab lang={lang} bundle={bundle} record={record} go={go} />}
+      {tab === 'me' && <ProfileTab lang={lang} bundle={bundle} record={record} go={go} token={token} onPatch={setBundle} onExpired={onExpired} />}
       {tab !== 'me' && record && (
         <>
           {switcher}

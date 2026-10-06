@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { UserRound, ChevronDown, Building2, Briefcase, GraduationCap, CalendarRange, UserCheck, BookOpen, NotebookPen, Clock, ClipboardCheck, ArrowRight } from 'lucide-react';
+import { UserRound, ChevronDown, Camera, RefreshCw, Building2, Briefcase, GraduationCap, CalendarRange, UserCheck, BookOpen, NotebookPen, Clock, ClipboardCheck, ArrowRight } from 'lucide-react';
 import { Language } from '../../types';
-import { StudentBundle, StudentRecordLite } from '../../studentApi';
+import { StudentBundle, StudentRecordLite, studentCall } from '../../studentApi';
+import { squarePhoto } from '../../imageUtils';
 import { card, SectionHead, isTH, fmtDate, majorName, statusName, statusCls, typeName, sortRecords } from './shared';
 
 type Go = (t: 'log' | 'time' | 'eval') => void;
@@ -14,6 +15,8 @@ const T = {
     termOf: (t: string, y: string) => `ภาคเรียนที่ ${t || '-'} / ${y || '-'}`, notSet: 'ยังไม่ระบุ', status: 'สถานะ',
     progress: 'ความคืบหน้าของรอบนี้', logbook: 'ข้อมูลหน่วยงาน', diary: (n: number) => `บันทึกรายวัน ${n} วัน`, days: (n: number) => `ลงเวลา ${n} วัน`, eval: 'ผลประเมิน',
     filled: 'กรอกแล้ว', notFilled: 'ยังไม่กรอก', evalDone: 'ได้รับแล้ว', evalWait: 'ยังไม่ได้รับ',
+    photo: 'รูปประจำตัว', add: 'เพิ่มรูป', change: 'เปลี่ยนรูป', photoHint: 'แตะที่กรอบรูปเพื่อเพิ่มรูปของคุณ',
+    photoFail: 'อัปโหลดรูปไม่สำเร็จ ลองใหม่อีกครั้ง', photoDrive: 'ระบบยังเก็บรูปใน Google Drive ไม่ได้ กรุณาแจ้งเจ้าหน้าที่',
   },
   en: {
     title: 'My info', sub: 'Your placement details on record. Tell WISE staff if anything is wrong.',
@@ -22,6 +25,8 @@ const T = {
     termOf: (t: string, y: string) => `Term ${t || '-'} / ${y || '-'}`, notSet: 'Not set', status: 'Status',
     progress: 'This placement', logbook: 'Workplace details', diary: (n: number) => `${n} log entries`, days: (n: number) => `${n} days clocked`, eval: 'Evaluation',
     filled: 'Filled', notFilled: 'Not yet', evalDone: 'Received', evalWait: 'Waiting',
+    photo: 'Profile photo', add: 'Add photo', change: 'Change', photoHint: 'Tap the frame to add your photo',
+    photoFail: 'Could not upload the photo. Please try again.', photoDrive: 'Photo storage is not ready yet. Please tell WISE staff.',
   },
 };
 
@@ -51,8 +56,27 @@ const RecordDetails: React.FC<{ r: StudentRecordLite; lang: Language }> = ({ r, 
   );
 };
 
-const ProfileTab: React.FC<{ lang: Language; bundle: StudentBundle; record: StudentRecordLite | null; go: Go }> = ({ lang, bundle, record, go }) => {
+interface ProfileProps {
+  lang: Language; bundle: StudentBundle; record: StudentRecordLite | null; go: Go;
+  token: string; onPatch: (fn: (b: StudentBundle) => StudentBundle) => void; onExpired: () => void;
+}
+
+const ProfileTab: React.FC<ProfileProps> = ({ lang, bundle, record, go, token, onPatch, onExpired }) => {
   const L = isTH(lang) ? T.th : T.en;
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoErr, setPhotoErr] = useState('');
+  const uploadPhoto = async (f: File) => {
+    setPhotoBusy(true); setPhotoErr('');
+    try {
+      const data = await squarePhoto(f);
+      const r = await studentCall('setPhoto', { token, data });
+      if (r?.status === 'expired') return onExpired();
+      if (r?.status !== 'success') throw new Error(r?.message || '');
+      onPatch(b => ({ ...b, photo: r.photo }));
+    } catch (e: any) {
+      setPhotoErr(String(e?.message || '').startsWith('drive') ? L.photoDrive : L.photoFail);
+    } finally { setPhotoBusy(false); }
+  };
   const sorted = sortRecords(bundle.records);
   const latest = sorted[0];
   const older = sorted.slice(1);
@@ -73,13 +97,20 @@ const ProfileTab: React.FC<{ lang: Language; bundle: StudentBundle; record: Stud
       <div className="relative overflow-hidden rounded-[26px] bg-[#630330] text-white p-5 sm:p-6">
         <div className="wl-pattern opacity-[0.14]" />
         <div className="relative flex items-center gap-4">
-          <span className="w-14 h-14 shrink-0 rounded-2xl bg-[#D4AF37] text-[#2a0114] flex items-center justify-center text-[20px] font-bold">{(latest.name || '?').replace(/^(นางสาว|นาย|นาง)/, '').trim().charAt(0)}</span>
+          <label className="group relative w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-[#D4AF37] text-[#2a0114] flex items-center justify-center text-[28px] font-bold overflow-hidden cursor-pointer ring-2 ring-[#e8cf7a]/50" title={L.photo}>
+            {bundle.photo ? <img src={bundle.photo} alt={latest.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : (latest.name || '?').replace(/^(นางสาว|นาย|นาง)/, '').trim().charAt(0)}
+            <span className={`absolute inset-x-0 bottom-0 h-7 bg-black/55 text-white text-[11px] font-normal flex items-center justify-center gap-1 transition ${photoBusy ? 'opacity-100' : 'opacity-90 sm:opacity-0 sm:group-hover:opacity-100'}`}>
+              {photoBusy ? <RefreshCw size={12} className="animate-spin" /> : <Camera size={12} />}{bundle.photo ? L.change : L.add}
+            </span>
+            <input type="file" accept="image/*" className="sr-only" disabled={photoBusy} onChange={e => { const f = e.target.files?.[0]; e.currentTarget.value = ''; if (f) uploadPhoto(f); }} />
+          </label>
           <div className="min-w-0">
             <p className="text-[19px] sm:text-[21px] font-medium leading-tight break-words">{latest.name}</p>
             <p className="mt-1 text-[13px] text-white/75 flex flex-wrap gap-x-3">
               <span className="wl-latin tabular-nums">{bundle.studentId}</span>
               <span className="flex items-center gap-1"><GraduationCap size={13} />{majorName(latest.major, lang)}</span>
             </p>
+            {photoErr ? <p className="mt-2 text-[12px] text-rose-200">{photoErr}</p> : !bundle.photo && <p className="mt-2 text-[12px] text-white/60">{L.photoHint}</p>}
           </div>
         </div>
       </div>

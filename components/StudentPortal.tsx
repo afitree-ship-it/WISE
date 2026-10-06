@@ -342,7 +342,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
             {bundle ? (
               <span className="flex items-center gap-1 h-10 pl-1 pr-1 rounded-full bg-white/80 dark:bg-white/5 border border-[#efe4d2] dark:border-white/10">
                 <button onClick={() => go('me')} className="flex items-center gap-2 h-8 pl-1 pr-2 rounded-full hover:bg-[#faf6ef] dark:hover:bg-white/5" title={studentName}>
-                  <span className="w-8 h-8 rounded-full bg-[#D4AF37] text-[#2a0114] text-[13px] font-bold flex items-center justify-center">{studentName.replace(/^(นางสาว|นาย|นาง)/, '').trim().charAt(0) || '?'}</span>
+                  <span className="w-8 h-8 rounded-full bg-[#D4AF37] text-[#2a0114] text-[13px] font-bold flex items-center justify-center overflow-hidden">{bundle.photo ? <img src={bundle.photo} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : studentName.replace(/^(นางสาว|นาย|นาง)/, '').trim().charAt(0) || '?'}</span>
                   <span className="hidden sm:block max-w-[120px] truncate text-[13px] text-[#2a0a17] dark:text-white">{studentName.replace(/^(นางสาว|นาย|นาง)/, '').trim().split(/\s+/)[0]}</span>
                 </button>
                 <button onClick={() => signOut()} className="w-8 h-8 rounded-full flex items-center justify-center text-[#8d7480] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10" title={SA.logout} aria-label={SA.logout}><LogOut size={15} className={isRtl ? 'rotate-180' : ''} /></button>

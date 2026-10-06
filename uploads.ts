@@ -37,6 +37,7 @@ export const uploadPdf = async (file: File): Promise<string> => {
     body: JSON.stringify({ type: 'upload', fileName: file.name, data, adminKey: getAdminKey() }),
   });
   const json = await res.json();
+  if (json?.status === 'unauthorized') throw new Error('UNAUTHORIZED');
   if (!json || json.status !== 'success' || !json.url) throw new Error(json?.message || 'UPLOAD_FAILED');
   return json.url as string;
 };

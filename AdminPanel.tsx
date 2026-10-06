@@ -69,7 +69,10 @@ import {
   Settings2,
   ImagePlus,
   Image as ImageIcon,
-  NotebookPen
+  NotebookPen,
+  ArrowUp,
+  ArrowDown,
+  GripVertical
 } from 'lucide-react';
 import SharedSummaryTable, { SupervisorSaveFn } from './SharedSummaryTable';
 import Dashboard, { DashboardFilters } from './components/Dashboard';
@@ -810,6 +813,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setUploadMethod('url');
   };
 
+  // Document order: the sheet row order is the order students see; saved shortly after the last move
+  const [dragFormId, setDragFormId] = useState<string | null>(null);
+  const orderSaveTimer = useRef<number | undefined>(undefined);
+  const moveForm = (id: string, cat: FormCategory, to: number) => {
+    setForms(prev => {
+      const slots = prev.map((f, i) => (f.category === cat ? i : -1)).filter(i => i >= 0);
+      const inCat = slots.map(i => prev[i]);
+      const from = inCat.findIndex(f => f.id === id);
+      if (from < 0 || to < 0 || to >= inCat.length || from === to) return prev;
+      const [m] = inCat.splice(from, 1);
+      inCat.splice(to, 0, m);
+      const next = [...prev];
+      slots.forEach((slot, k) => { next[slot] = inCat[k]; });
+      window.clearTimeout(orderSaveTimer.current);
+      orderSaveTimer.current = window.setTimeout(() => { syncToSheets('forms', next, 'all'); notify('บันทึกลำดับเอกสารแล้ว'); }, 900);
+      return next;
+    });
+  };
+
   // Batch PDF upload: one file at a time, each becomes its own document record
   const openBatchUpload = (files: File[], category: FormCategory = FormCategory.APPLICATION) => {
     const { ok, bad } = screenFiles(files);
@@ -829,7 +851,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       category: item.category,
       url,
     };
-    setForms(prev => [newForm, ...prev]);
+    // Appended, so a batch keeps the order it was arranged in (the sheet appends rows too)
+    setForms(prev => [...prev, newForm]);
     await syncToSheets('forms', [], 'add', newForm);
   };
 
@@ -2069,14 +2092,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       <EmptyState icon={<FileText size={20} />} title="ยังไม่มีเอกสารในหมวดนี้" desc="ลากไฟล์ PDF มาวางในกรอบนี้ได้เลย" />
                     ) : (
                       <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {list.map(form => {
+                        {list.map((form, idx) => {
                           const isData = form.url?.startsWith('data:');
                           const isPending = form.url?.startsWith('PENDING');
                           const usable = form.url && form.url !== '#' && !isPending;
                           let host = '';
                           try { if (usable && !isData) host = new URL(form.url).hostname.replace('www.', ''); } catch { host = form.url; }
                           return (
-                            <li key={form.id} className="group flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                            <li key={form.id}
+                              draggable
+                              onDragStart={e => { setDragFormId(form.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', form.id); }}
+                              onDragOver={e => { if (dragFormId && dragFormId !== form.id && list.some(f => f.id === dragFormId)) { e.preventDefault(); moveForm(dragFormId, group.cat, idx); } }}
+                              onDragEnd={() => setDragFormId(null)}
+                              className={`group flex items-center gap-2 pl-2 pr-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition ${dragFormId === form.id ? 'opacity-50 bg-slate-50 dark:bg-slate-800/50' : ''}`}>
+                              <div className="flex flex-col items-center shrink-0">
+                                <button onClick={() => moveForm(form.id, group.cat, idx - 1)} disabled={idx === 0} className={`${iconBtn} !w-7 !h-5 disabled:opacity-20`} aria-label="เลื่อนขึ้น" title="เลื่อนขึ้น"><ArrowUp size={13} /></button>
+                                <span className="flex items-center text-[10px] font-semibold tabular-nums text-slate-400 cursor-grab active:cursor-grabbing" title="ลากเพื่อจัดลำดับ"><GripVertical size={11} />{idx + 1}</span>
+                                <button onClick={() => moveForm(form.id, group.cat, idx + 1)} disabled={idx === list.length - 1} className={`${iconBtn} !w-7 !h-5 disabled:opacity-20`} aria-label="เลื่อนลง" title="เลื่อนลง"><ArrowDown size={13} /></button>
+                              </div>
                               <div className="w-9 h-9 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center"><FileText size={17} /></div>
                               <div className="min-w-0 flex-1">
                                 <h4 className="text-sm font-medium text-slate-900 dark:text-white truncate">{getLocalized(form.title)}</h4>

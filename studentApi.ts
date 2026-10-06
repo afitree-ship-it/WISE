@@ -33,6 +33,8 @@ export interface EvaluationResult {
 
 export interface StudentBundle {
   studentId: string;
+  photo?: string; // Drive thumbnail URL of the student's profile photo
+
   records: StudentRecordLite[];
   logbooks: Record<string, { data: LogbookData; updatedAt: number }>;
   diary: Record<string, Record<string, string>>;

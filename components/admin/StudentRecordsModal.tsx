@@ -119,6 +119,12 @@ const StudentRecordsModal: React.FC<Props> = ({ student, onClose, notify }) => {
         <div className="py-16 flex justify-center text-slate-400"><RefreshCw size={20} className="animate-spin" /></div>
       ) : (
         <div className="space-y-4">
+          {bundle.photo && (
+            <div className="flex items-center gap-3">
+              <img src={bundle.photo} alt={student?.name} referrerPolicy="no-referrer" className="w-16 h-16 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700" />
+              <p className="text-xs text-slate-500">รูปประจำตัวที่นักศึกษาอัปโหลด</p>
+            </div>
+          )}
           {records.length > 1 && (
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-slate-500 mr-1">รอบการฝึก</span>

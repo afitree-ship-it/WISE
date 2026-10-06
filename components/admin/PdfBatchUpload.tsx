@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FileText, Upload, X, Check, AlertCircle, RefreshCw, Plus, Info } from 'lucide-react';
+import { FileText, Upload, X, Check, AlertCircle, RefreshCw, Plus, Info, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { FormCategory } from '../../types';
 import { Modal, btn, inputCls, iconBtn } from './ui';
 import { MAX_PDF_MB, isPdf, titleFromFileName, dragHasFiles } from '../../uploads';
@@ -18,7 +18,18 @@ export const CATEGORY_LABEL: Record<FormCategory, string> = {
   [FormCategory.MONITORING]: 'เอกสารระหว่างฝึกงาน',
 };
 
-const fmtSize = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+/** Turns a server reply into something the admin can act on. */
+export const uploadErrorText = (msg?: string) => {
+  const m = String(msg || '');
+  if (m === 'NO_BACKEND') return 'ระบบหลังบ้านยังไม่รองรับการอัปโหลด (ต้อง redeploy code.gs)';
+  if (m === 'UNAUTHORIZED') return 'สิทธิ์ผู้ดูแลหมดอายุ กรุณาออกจากระบบแล้วเข้าใหม่';
+  if (/^drive:/i.test(m) || /permission|DriveApp|สิทธิ์/i.test(m)) return `Google Drive ยังไม่อนุญาต: ให้เปิด Apps Script แล้วกด Run ฟังก์ชัน setupDrive หนึ่งครั้ง จากนั้น deploy ใหม่ (${m.replace(/^drive:\s*/i, '').slice(0, 120)})`;
+  if (m === 'not a pdf') return 'ไฟล์นี้ไม่ใช่ PDF จริง';
+  if (m === 'file too large') return 'ไฟล์ใหญ่เกินกำหนด';
+  return m && m !== 'UPLOAD_FAILED' ? `อัปโหลดไม่สำเร็จ: ${m.slice(0, 160)}` : 'อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง';
+};
+
+const fmtSize =(b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 /** Splits dropped/picked files into accepted PDFs and rejected names (with the reason). */
 export const screenFiles = (files: FileList | File[]) => {
@@ -61,6 +72,17 @@ const PdfBatchUpload: React.FC<Props> = ({ open, initialFiles, initialCategory, 
     if (ok.length) setItems(prev => [...prev, ...toItems(ok, prev[prev.length - 1]?.category || initialCategory)]);
   };
 
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  // Files upload top to bottom, and appear in the documents list in this order
+  const moveTo = (key: string, to: number) => setItems(prev => {
+    const from = prev.findIndex(x => x.key === key);
+    if (from < 0 || to < 0 || to >= prev.length || from === to) return prev;
+    const next = [...prev];
+    const [m] = next.splice(from, 1);
+    next.splice(to, 0, m);
+    return next;
+  });
+
   const patch = (key: string, p: Partial<BatchItem>) => setItems(prev => prev.map(it => (it.key === key ? { ...it, ...p } : it)));
 
   const pending = items.filter(it => it.state !== 'done');
@@ -77,10 +99,7 @@ const PdfBatchUpload: React.FC<Props> = ({ open, initialFiles, initialCategory, 
         patch(it.key, { state: 'done' });
       } catch (err: any) {
         failed++;
-        patch(it.key, {
-          state: 'error',
-          error: err?.message === 'NO_BACKEND' ? 'ระบบหลังบ้านยังไม่รองรับการอัปโหลด (ต้อง redeploy code.gs)' : 'อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง',
-        });
+        patch(it.key, { state: 'error', error: uploadErrorText(err?.message) });
       }
     }
     setBusy(false);
@@ -95,7 +114,7 @@ const PdfBatchUpload: React.FC<Props> = ({ open, initialFiles, initialCategory, 
       open={open}
       onClose={() => { if (!busy) onClose(); }}
       title="อัปโหลดเอกสาร PDF"
-      subtitle="ลากไฟล์มาวางได้หลายไฟล์พร้อมกัน ตั้งชื่อที่จะแสดงให้นักศึกษาเห็น แล้วกดอัปโหลด"
+      subtitle="ลากไฟล์มาวางได้หลายไฟล์พร้อมกัน ตั้งชื่อ จัดลำดับ (ลากหรือกดลูกศร) แล้วกดอัปโหลด"
       icon={<Upload size={18} />}
       size="lg"
       footer={
@@ -145,8 +164,18 @@ const PdfBatchUpload: React.FC<Props> = ({ open, initialFiles, initialCategory, 
 
             <ul className="space-y-2">
               {items.map((it, idx) => (
-                <li key={it.key} className={`rounded-xl border p-3 transition ${it.state === 'done' ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-500/30 dark:bg-emerald-500/10' : it.state === 'error' ? 'border-rose-200 bg-rose-50/60 dark:border-rose-500/30 dark:bg-rose-500/10' : 'border-slate-200 dark:border-slate-700'}`}>
+                <li key={it.key}
+                  draggable={!busy && it.state !== 'done'}
+                  onDragStart={e => { setDragKey(it.key); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', it.key); }}
+                  onDragOver={e => { if (dragKey && dragKey !== it.key) { e.preventDefault(); moveTo(dragKey, idx); } }}
+                  onDragEnd={() => setDragKey(null)}
+                  className={`rounded-xl border p-3 transition ${dragKey === it.key ? 'opacity-50 ring-2 ring-[#630330]/30' : ''} ${it.state === 'done' ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-500/30 dark:bg-emerald-500/10' : it.state === 'error' ? 'border-rose-200 bg-rose-50/60 dark:border-rose-500/30 dark:bg-rose-500/10' : 'border-slate-200 dark:border-slate-700'}`}>
                   <div className="flex items-start gap-3">
+                    <div className="flex flex-col items-center gap-0.5 shrink-0 -my-1">
+                      <button type="button" disabled={busy || idx === 0} onClick={() => moveTo(it.key, idx - 1)} className={`${iconBtn} !w-7 !h-6 disabled:opacity-25`} aria-label="เลื่อนขึ้น" title="เลื่อนขึ้น"><ArrowUp size={14} /></button>
+                      <span className="flex items-center gap-0.5 text-[11px] font-semibold tabular-nums text-slate-400 cursor-grab active:cursor-grabbing" title="ลากเพื่อจัดลำดับ"><GripVertical size={12} />{idx + 1}</span>
+                      <button type="button" disabled={busy || idx === items.length - 1} onClick={() => moveTo(it.key, idx + 1)} className={`${iconBtn} !w-7 !h-6 disabled:opacity-25`} aria-label="เลื่อนลง" title="เลื่อนลง"><ArrowDown size={14} /></button>
+                    </div>
                     <span className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center ${it.state === 'done' ? 'bg-emerald-500 text-white' : it.state === 'error' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300'}`}>
                       {it.state === 'done' ? <Check size={17} /> : it.state === 'uploading' ? <RefreshCw size={16} className="animate-spin" /> : it.state === 'error' ? <AlertCircle size={17} /> : <FileText size={17} />}
                     </span>
