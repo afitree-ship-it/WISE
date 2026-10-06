@@ -4,8 +4,6 @@ WISE is the web portal of the Work-Integrated Science Education Unit, Faculty of
 
 It runs entirely on free services: a static React site (for example on Vercel) and a Google Apps Script backend that stores data in a Google Sheet and files in Google Drive. There is no paid server, database or API key. Any faculty with a Google account can run its own copy.
 
-Live site: https://wisefst.vercel.app
-
 ## Features
 
 **Open to everyone, no login**
