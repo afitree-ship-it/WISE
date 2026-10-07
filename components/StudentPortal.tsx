@@ -678,7 +678,7 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
         )}
       </div>
 
-      <StudentLogin open={loginOpen} lang={lang} onClose={() => setLoginOpen(false)}
+      <StudentLogin open={loginOpen} lang={lang} studentStatuses={studentStatuses} onClose={() => setLoginOpen(false)}
         onSuccess={(s, b) => { saveSession(s); setSession(s); setBundle(b); setSessionNote(''); setLoginOpen(false); go('me'); }} />
     </div>
   );

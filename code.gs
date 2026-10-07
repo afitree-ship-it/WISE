@@ -404,6 +404,7 @@ function savePhoto(studentId, dataUrl) {
     privRows("photo").forEach(function(r) { if (sameId(r.studentId, studentId)) row = r; });
     if (row && row.fileId) { try { DriveApp.getFileById(String(row.fileId)).setTrashed(true); } catch (err) {} }
     privWrite("photo", row && row._row, { studentId: studentId, fileId: file.getId(), updatedAt: Date.now() });
+    invalidateStudentBundle(studentId);
     return { status: "success", photo: photoUrl(file.getId()) };
   });
 }
@@ -412,6 +413,23 @@ function studentPhoto(studentId) {
   var url = "";
   privRows("photo").forEach(function(r) { if (sameId(r.studentId, studentId) && r.fileId) url = photoUrl(String(r.fileId)); });
   return url;
+}
+
+var _memPrivRows = {};
+var _memStatusRows = null;
+
+function invalidateStudentBundle(studentId) {
+  try {
+    var sidNorm = normId(studentId);
+    CacheService.getScriptCache().remove("st_bnd_" + sidNorm);
+  } catch (e) {}
+}
+
+function invalidateStudentCheck(studentId) {
+  try {
+    var sidNorm = normId(studentId);
+    CacheService.getScriptCache().remove("st_chk_" + sidNorm);
+  } catch (e) {}
 }
 
 function privSheet(key) {
@@ -427,6 +445,7 @@ function privSheet(key) {
 
 // Rows as objects, each with _row (1-based sheet row)
 function privRows(key) {
+  if (_memPrivRows[key]) return _memPrivRows[key];
   var sheet = privSheet(key);
   var data = sheet.getDataRange().getValues();
   var headers = data[0];
@@ -436,6 +455,7 @@ function privRows(key) {
     headers.forEach(function(h, j) { o[h] = data[i][j]; });
     out.push(o);
   }
+  _memPrivRows[key] = out;
   return out;
 }
 
@@ -443,6 +463,7 @@ function privRows(key) {
 var TEXT_COLS = { studentId: 1, recordId: 1, date: 1, workStart: 1, workEnd: 1, token: 1 };
 
 function privWrite(key, row, obj) {
+  delete _memPrivRows[key];
   var sheet = privSheet(key);
   var headers = SHEETS[key];
   var values = [headers.map(function(h) {
@@ -463,7 +484,14 @@ function sameId(a, b) { return normId(a) === normId(b); }
 
 function sha256Hex(text) {
   var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text, Utilities.Charset.UTF_8);
-  return bytes.map(function(b) { var v = (b < 0 ? b + 256 : b).toString(16); return v.length === 1 ? "0" + v : v; }).join("");
+  var hex = "";
+  for (var i = 0; i < bytes.length; i++) {
+    var b = bytes[i];
+    if (b < 0) b += 256;
+    var s = b.toString(16);
+    hex += (s.length === 1 ? "0" + s : s);
+  }
+  return hex;
 }
 
 function hashPin(pin, salt) {
@@ -475,8 +503,10 @@ function hashPin(pin, salt) {
 function newToken() { return (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, ""); }
 
 function statusRows() {
+  if (_memStatusRows) return _memStatusRows;
   var sheet = ss.getSheetByName("StudentStatuses") || ss.getSheetByName("studentStatuses");
-  return sheet ? sheetToObjects(sheet) : [];
+  _memStatusRows = sheet ? sheetToObjects(sheet) : [];
+  return _memStatusRows;
 }
 
 function studentRecords(studentId) {
@@ -575,6 +605,18 @@ function parseJson(s, fallback) { try { return s ? JSON.parse(s) : fallback; } c
 
 // Everything one student owns, grouped by status record id
 function studentBundle(studentId) {
+  var sidNorm = normId(studentId);
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get("st_bnd_" + sidNorm);
+  if (cached) {
+    try {
+      var parsed = JSON.parse(cached);
+      parsed.serverTime = Date.now();
+      parsed.today = todayStr();
+      return parsed;
+    } catch (e) {}
+  }
+
   var records = studentRecords(studentId).map(cleanRecord);
   var mine = function(key) { return privRows(key).filter(function(r) { return sameId(r.studentId, studentId); }); };
   var out = { studentId: String(studentId), photo: studentPhoto(studentId), records: records, logbooks: {}, diary: {}, workplaces: {}, attendance: {}, evalLinks: {}, evaluations: {}, criteria: evalCriteria(), today: todayStr(), serverTime: Date.now() };
@@ -597,6 +639,14 @@ function studentBundle(studentId) {
       comment: r.comment, avg: Number(r.avg), percent: Number(r.percent), level: r.level, submittedAt: Number(r.submittedAt)
     });
   });
+
+  try {
+    var str = JSON.stringify(out);
+    if (str.length < 95000) {
+      cache.put("st_bnd_" + sidNorm, str, 1800);
+    }
+  } catch (e) {}
+
   return out;
 }
 
@@ -610,10 +660,19 @@ function handleStudent(params) {
 
   if (op === "check") {
     if (!sid) return { status: "error", message: "missing" };
+    var sidNorm = normId(sid);
+    var cache = CacheService.getScriptCache();
+    var cached = cache.get("st_chk_" + sidNorm);
+    if (cached) {
+      try { return JSON.parse(cached); } catch (e) {}
+    }
     var found = studentRecords(sid);
     var hasPin = privRows("auth").some(function(r) { return sameId(r.studentId, sid) && r.pinHash; });
-    // The name is shown so the student can confirm it is their ID (names are already public in StudentStatuses)
-    return { status: "success", exists: found.length > 0, hasPin: hasPin, name: found.length ? String(found[0].name || "") : "" };
+    var res = { status: "success", exists: found.length > 0, hasPin: hasPin, name: found.length ? String(found[0].name || "") : "" };
+    if (found.length > 0) {
+      try { cache.put("st_chk_" + sidNorm, JSON.stringify(res), 3600); } catch (e) {}
+    }
+    return res;
   }
 
   if (op === "setup" || op === "login") {
@@ -621,7 +680,8 @@ function handleStudent(params) {
     if (!sid || !/^\d{4,6}$/.test(pin)) return { status: "error", message: "pin_format" };
     var recs = studentRecords(sid);
     if (!recs.length) return { status: "error", message: "not_found" };
-    return withScriptLock(function() {
+
+    var authResult = withScriptLock(function() {
       var row = null;
       privRows("auth").forEach(function(r) { if (sameId(r.studentId, sid)) row = r; });
       var now = Date.now();
@@ -629,7 +689,9 @@ function handleStudent(params) {
         if (row && row.pinHash) return { status: "error", message: "has_pin" };
         var salt = newToken().slice(0, 16);
         privWrite("auth", row && row._row, { studentId: sid, pinHash: hashPin(pin, salt), salt: salt, failed: 0, lockedUntil: "", updatedAt: now });
-        return { status: "success", token: startSession(sid), bundle: studentBundle(sid) };
+        invalidateStudentCheck(sid);
+        invalidateStudentBundle(sid);
+        return { status: "success", token: startSession(sid) };
       }
       if (!row || !row.pinHash) return { status: "error", message: "no_pin" };
       if (Number(row.lockedUntil) > now) return { status: "error", message: "locked", until: Number(row.lockedUntil) };
@@ -642,8 +704,11 @@ function handleStudent(params) {
       }
       row.failed = 0; row.lockedUntil = ""; row.updatedAt = now;
       privWrite("auth", row._row, row);
-      return { status: "success", token: startSession(sid), bundle: studentBundle(sid) };
+      return { status: "success", token: startSession(sid) };
     });
+
+    if (authResult.status !== "success") return authResult;
+    return { status: "success", token: authResult.token, bundle: studentBundle(sid) };
   }
 
   // Everything else needs a valid session
@@ -665,6 +730,7 @@ function handleStudent(params) {
       var lb = null;
       privRows("logbook").forEach(function(r) { if (sameId(r.studentId, me) && sameId(r.recordId, recordId)) lb = r; });
       privWrite("logbook", lb && lb._row, { studentId: me, recordId: recordId, data: data, updatedAt: now2 });
+      invalidateStudentBundle(me);
       return { status: "success", updatedAt: now2 };
     }
 
@@ -677,6 +743,7 @@ function handleStudent(params) {
       privRows("diary").forEach(function(r) { if (sameId(r.studentId, me) && sameId(r.recordId, recordId) && String(r.date) === date) dr = r; });
       // Keep dates as text so Sheets does not turn them into Date objects
       privWrite("diary", dr && dr._row, { studentId: me, recordId: recordId, date: date, text: text, updatedAt: now2 });
+      invalidateStudentBundle(me);
       return { status: "success", updatedAt: now2 };
     }
 
@@ -691,6 +758,7 @@ function handleStudent(params) {
         studentId: me, recordId: recordId, lat: lat, lng: lng, radius: radius, address: String(params.address || "").slice(0, 500),
         workStart: wp ? wp.workStart : "", workEnd: wp ? wp.workEnd : "", lockedAt: now2, updatedAt: now2
       });
+      invalidateStudentBundle(me);
       return { status: "success" };
     }
 
@@ -703,6 +771,7 @@ function handleStudent(params) {
       if (!wp2) return { status: "error", message: "no_workplace" };
       wp2.workStart = ws; wp2.workEnd = we; wp2.updatedAt = now2;
       privWrite("workplace", wp2._row, wp2);
+      invalidateStudentBundle(me);
       return { status: "success" };
     }
 
@@ -728,6 +797,7 @@ function handleStudent(params) {
         att.date = day; att.outTime = now2; att.outLat = plat; att.outLng = plng; att.outAcc = Math.round(acc); att.outDist = dist;
         privWrite("attendance", att._row, att);
       }
+      invalidateStudentBundle(me);
       return { status: "success", time: now2, distance: dist };
     }
 
@@ -737,6 +807,7 @@ function handleStudent(params) {
       if (link) return { status: "success", token: String(link.token) };
       var t = newToken().slice(0, 24);
       privWrite("evalLinks", null, { token: t, studentId: me, recordId: recordId, createdAt: now2 });
+      invalidateStudentBundle(me);
       return { status: "success", token: t };
     }
 
@@ -769,6 +840,7 @@ function handleEval(params) {
         evaluatorPosition: String(params.evaluatorPosition || "").slice(0, 200), scores: JSON.stringify(params.scores),
         comment: String(params.comment || "").slice(0, 5000), avg: result.avg, percent: result.percent, level: result.level, submittedAt: Date.now()
       });
+      invalidateStudentBundle(link.studentId);
       return { status: "success", result: result };
     });
   }
@@ -806,6 +878,9 @@ function handleStudentAdmin(params) {
   if (op === "resetPin") {
     return withScriptLock(function() {
       privRows("auth").forEach(function(r) { if (sameId(r.studentId, sid)) privSheet("auth").getRange(r._row, 1, 1, SHEETS.auth.length).clearContent(); });
+      delete _memPrivRows["auth"];
+      invalidateStudentCheck(sid);
+      invalidateStudentBundle(sid);
       return { status: "success" };
     });
   }
@@ -814,6 +889,7 @@ function handleStudentAdmin(params) {
       privRows("workplace").forEach(function(r) {
         if (sameId(r.studentId, sid) && sameId(r.recordId, params.recordId)) { r.lockedAt = ""; privWrite("workplace", r._row, r); }
       });
+      invalidateStudentBundle(sid);
       return { status: "success" };
     });
   }
@@ -982,6 +1058,14 @@ function handlePost(e) {
           sheet.deleteRow(i + 1);
         }
       }
+    }
+  }
+
+  if (type === "studentStatuses") {
+    _memStatusRows = null;
+    if (params.item && params.item.studentId) {
+      invalidateStudentCheck(params.item.studentId);
+      invalidateStudentBundle(params.item.studentId);
     }
   }
 

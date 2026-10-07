@@ -1,12 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, UserCircle, KeyRound, ArrowRight, ArrowLeft, RefreshCw, AlertCircle, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { Language } from '../../types';
-import { backendHasStudents, studentCall, StudentBundle, StudentSession } from '../../studentApi';
+import { studentCall, StudentBundle, StudentSession } from '../../studentApi';
 import { isTH } from './shared';
 
 interface Props {
   open: boolean;
   lang: Language;
+  studentStatuses?: any[];
   onClose: () => void;
   onSuccess: (session: StudentSession, bundle: StudentBundle) => void;
 }
@@ -29,6 +30,10 @@ const T = {
     errBackend: 'ระบบล็อกอินนักศึกษายังไม่เปิดใช้งาน กรุณาติดต่อเจ้าหน้าที่',
     forgot: 'ลืม PIN? ติดต่อเจ้าหน้าที่ WISE เพื่อรีเซ็ต',
     note: 'ไม่ต้องล็อกอินก็ดูกำหนดการ เอกสาร และสถานที่ฝึกได้ตามปกติ',
+    checking: 'กำลังตรวจสอบ...',
+    loggingIn: 'กำลังเข้าสู่ระบบ...',
+    settingUp: 'กำลังบันทึก PIN...',
+    found: 'พบข้อมูลในระบบ',
   },
   en: {
     title: 'Student sign in', sub: 'For students with a placement on record',
@@ -45,13 +50,22 @@ const T = {
     errBackend: 'Student sign-in is not open yet. Please contact staff.',
     forgot: 'Forgot your PIN? Ask WISE staff to reset it.',
     note: 'You can still view the schedule, documents and sites without signing in.',
+    checking: 'Checking...',
+    loggingIn: 'Signing in...',
+    settingUp: 'Saving PIN...',
+    found: 'Record found',
   },
+};
+
+const normId = (v: any) => {
+  const s = String(v ?? '').trim();
+  return /^\d+$/.test(s) ? s.replace(/^0+(?=\d)/, '') : s;
 };
 
 const pinCls = 'w-full h-12 px-4 rounded-xl bg-white text-[#2a0114] text-lg tracking-[0.35em] font-semibold placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-400 outline-none ring-2 ring-transparent focus:ring-[#D4AF37] transition';
 const textCls = 'w-full h-12 px-4 rounded-xl bg-white text-[#2a0114] text-[15px] font-medium placeholder:text-slate-400 placeholder:font-normal outline-none ring-2 ring-transparent focus:ring-[#D4AF37] transition';
 
-const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
+const StudentLogin: React.FC<Props> = ({ open, lang, studentStatuses, onClose, onSuccess }) => {
   const L = isTH(lang) ? T.th : T.en;
   const [step, setStep] = useState<Step>('id');
   const [sid, setSid] = useState('');
@@ -72,6 +86,22 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, busy, onClose]);
 
+  const findLocalStudent = (id: string) => {
+    const target = normId(id);
+    if (!target) return null;
+    let list = studentStatuses;
+    if (!list || !list.length) {
+      try { list = JSON.parse(localStorage.getItem('wise_student_statuses') || '[]'); } catch { list = []; }
+    }
+    return list?.find((s: any) => normId(s.studentId) === target || normId(s.id) === target) || null;
+  };
+
+  const localMatched = useMemo(() => {
+    const trimmed = sid.trim();
+    if (trimmed.length < 3) return null;
+    return findLocalStudent(trimmed);
+  }, [sid, studentStatuses]);
+
   if (!open) return null;
 
   const fail = (r: any) => {
@@ -80,28 +110,59 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
     else if (m === 'pin_format') setErr(L.errPinFormat);
     else if (m === 'wrong_pin') setErr(L.errWrong(r.left ?? 0));
     else if (m === 'locked') setErr(L.errLocked(Math.max(1, Math.ceil(((r.until || Date.now()) - Date.now()) / 60000))));
-    else if (m === 'has_pin') { setErr(L.errHasPin); setStep('pin'); }
+    else if (m === 'has_pin') {
+      try { localStorage.setItem(`wise_pin_${normId(sid.trim())}`, 'has_pin'); } catch {}
+      setErr(L.errHasPin);
+      setStep('pin');
+    }
+    else if (m === 'no_pin') {
+      try { localStorage.setItem(`wise_pin_${normId(sid.trim())}`, 'no_pin'); } catch {}
+      setErr(L.setupSub);
+      setStep('setup');
+    }
+    else if (m === 'Unknown type: student' || (r?.status === 'error' && m && String(m).includes('Unknown type'))) setErr(L.errBackend);
     else setErr(L.errNet);
   };
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true); setErr('');
     try {
-      if (!(await backendHasStudents())) { setErr(L.errBackend); return; }
       await fn();
-    } catch { setErr(L.errNet); } finally { setBusy(false); }
+    } catch {
+      setErr(L.errNet);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const submitId = (e: React.FormEvent) => {
     e.preventDefault();
     const id = sid.trim();
     if (!id) return;
+
+    const local = localMatched || findLocalStudent(id);
+    if (local) {
+      setName(local.name || '');
+      let cachedPin: string | null = null;
+      try { cachedPin = localStorage.getItem(`wise_pin_${normId(id)}`); } catch {}
+      if (cachedPin === 'has_pin') {
+        setStep('pin');
+        return;
+      } else if (cachedPin === 'no_pin') {
+        setStep('setup');
+        return;
+      }
+    }
+
     run(async () => {
       const r = await studentCall('check', { studentId: id });
       if (r?.status !== 'success') return fail(r);
-      if (!r.exists) return setErr(L.errNotFound);
-      setName(r.name || '');
-      setStep(r.hasPin ? 'pin' : 'setup');
+      if (!r.exists && !local) return setErr(L.errNotFound);
+      const studentName = r.name || local?.name || '';
+      setName(studentName);
+      const hasPin = Boolean(r.hasPin);
+      try { localStorage.setItem(`wise_pin_${normId(id)}`, hasPin ? 'has_pin' : 'no_pin'); } catch {}
+      setStep(hasPin ? 'pin' : 'setup');
     });
   };
 
@@ -113,14 +174,34 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
   const submitPin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!/^\d{4,6}$/.test(pin)) return setErr(L.errPinFormat);
-    run(async () => done(await studentCall('login', { studentId: sid.trim(), pin })));
+    run(async () => {
+      const r = await studentCall('login', { studentId: sid.trim(), pin });
+      if (r?.status === 'success' && r.token) {
+        try { localStorage.setItem(`wise_pin_${normId(sid.trim())}`, 'has_pin'); } catch {}
+        done(r);
+      } else {
+        if (r?.message === 'no_pin') {
+          try { localStorage.setItem(`wise_pin_${normId(sid.trim())}`, 'no_pin'); } catch {}
+          setStep('setup');
+        }
+        fail(r);
+      }
+    });
   };
 
   const submitSetup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!/^\d{4,6}$/.test(pin)) return setErr(L.errPinFormat);
     if (pin !== pin2) return setErr(L.errMismatch);
-    run(async () => done(await studentCall('setup', { studentId: sid.trim(), pin })));
+    run(async () => {
+      const r = await studentCall('setup', { studentId: sid.trim(), pin });
+      if (r?.status === 'success' && r.token) {
+        try { localStorage.setItem(`wise_pin_${normId(sid.trim())}`, 'has_pin'); } catch {}
+        done(r);
+      } else {
+        fail(r);
+      }
+    });
   };
 
   const pinInput = (value: string, set: (v: string) => void, ph: string, ref?: React.Ref<HTMLInputElement>, labelText?: string) => (
@@ -175,8 +256,22 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
                 <span className="block text-[12px] text-white/70 mb-1.5">{L.id}</span>
                 <input ref={firstInput} value={sid} inputMode="numeric" autoComplete="username" onChange={e => { setSid(e.target.value.trim()); setErr(''); }} placeholder={L.idPh} className={textCls} />
               </label>
+
+              {localMatched && (
+                <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#D4AF37]/15 border border-[#D4AF37]/30 text-[#F3E3B6] animate-fadeIn">
+                  <span className="w-6 h-6 rounded-full bg-[#D4AF37] text-[#2a0114] text-xs font-bold flex items-center justify-center shrink-0">✓</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10.5px] font-semibold text-[#D4AF37] uppercase tracking-wider block">{L.found}</span>
+                    <span className="font-semibold block truncate text-white text-[13.5px]">{localMatched.name}</span>
+                    {(localMatched.major || localMatched.internshipType) && (
+                      <span className="text-[11.5px] text-white/60 block truncate">{[localMatched.major, localMatched.internshipType].filter(Boolean).join(' • ')}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <button type="submit" disabled={busy || !sid.trim()} className="w-full h-12 rounded-2xl bg-[#630330] hover:bg-[#7a0b3d] text-white text-[15px] font-semibold flex items-center justify-center gap-2 transition disabled:bg-white/10 disabled:text-white/40">
-                {busy ? <RefreshCw size={17} className="animate-spin" /> : <ArrowRight size={18} />}{L.next}
+                {busy ? <RefreshCw size={17} className="animate-spin" /> : <ArrowRight size={18} />}{busy ? L.checking : L.next}
               </button>
             </form>
           )}
@@ -186,7 +281,7 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
               {who}
               {pinInput(pin, setPin, L.pinPh, firstInput, L.pin)}
               <button type="submit" disabled={busy || pin.length < 4} className="w-full h-12 rounded-2xl bg-[#630330] hover:bg-[#7a0b3d] text-white text-[15px] font-semibold flex items-center justify-center gap-2 transition disabled:bg-white/10 disabled:text-white/40">
-                {busy ? <RefreshCw size={17} className="animate-spin" /> : <ArrowRight size={18} />}{L.login}
+                {busy ? <RefreshCw size={17} className="animate-spin" /> : <ArrowRight size={18} />}{busy ? L.loggingIn : L.login}
               </button>
               <div className="flex items-center justify-between text-[12px]">
                 <button type="button" onClick={() => { setStep('id'); setPin(''); setErr(''); }} className="inline-flex items-center gap-1 text-white/60 hover:text-white"><ArrowLeft size={13} />{L.back}</button>
@@ -202,7 +297,7 @@ const StudentLogin: React.FC<Props> = ({ open, lang, onClose, onSuccess }) => {
               {pinInput(pin, setPin, L.pinPh, firstInput, L.newPin)}
               {pinInput(pin2, setPin2, L.pinPh, undefined, L.confirm)}
               <button type="submit" disabled={busy || pin.length < 4 || pin2.length < 4} className="w-full h-12 rounded-2xl bg-[#630330] hover:bg-[#7a0b3d] text-white text-[15px] font-semibold flex items-center justify-center gap-2 transition disabled:bg-white/10 disabled:text-white/40">
-                {busy ? <RefreshCw size={17} className="animate-spin" /> : <ShieldCheck size={18} />}{L.setup}
+                {busy ? <RefreshCw size={17} className="animate-spin" /> : <ShieldCheck size={18} />}{busy ? L.settingUp : L.setup}
               </button>
               <button type="button" onClick={() => { setStep('id'); setErr(''); }} className="inline-flex items-center gap-1 text-[12px] text-white/60 hover:text-white"><ArrowLeft size={13} />{L.back}</button>
             </form>
