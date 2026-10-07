@@ -139,9 +139,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
     return `${label} · ${lang === Language.TH ? `อีก ${days} วัน` : `in ${days} days`}`;
   })();
 
-  // Background pattern: brighter around the cursor, water ripple when the empty background is tapped
+  // Background pattern: brighter around the cursor
   const rootRef = useRef<HTMLDivElement>(null);
-  const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -160,12 +159,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
     document.documentElement.addEventListener('mouseleave', onLeave);
     return () => { window.removeEventListener('pointermove', onMove); document.documentElement.removeEventListener('mouseleave', onLeave); cancelAnimationFrame(raf); };
   }, []);
-  const onBackgroundPointerDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest('button, a, input, header, [role="dialog"], .wl-float, .wl-lockup, h1')) return;
-    const id = Date.now() + Math.random();
-    setRipples([{ id, x: e.clientX, y: e.clientY }]);
-    setTimeout(() => setRipples(r => r.filter(p => p.id !== id)), 850);
-  };
 
   // Subtle parallax of the arch following the cursor (desktop only)
   const archRef = useRef<HTMLDivElement>(null);
@@ -431,18 +424,9 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div ref={rootRef} onPointerDown={onBackgroundPointerDown} className={`wl fixed inset-0 w-full h-full overflow-y-auto overflow-x-hidden touch-auto ${isRtl ? 'rtl' : ''}`} dir={isRtl ? 'rtl' : 'ltr'}>
+    <div ref={rootRef} className={`wl fixed inset-0 w-full h-full overflow-y-auto overflow-x-hidden touch-auto ${isRtl ? 'rtl' : ''}`} dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="wl-pattern wl-bg wl-bg-base" aria-hidden="true" />
       <div className="wl-pattern wl-bg wl-bg-spot" aria-hidden="true" />
-      {ripples.map(r => {
-        const pos = { '--x': `${r.x}px`, '--y': `${r.y}px` } as React.CSSProperties;
-        return (
-          <React.Fragment key={r.id}>
-            <div className="wl-pattern wl-bg wl-ripple" style={pos} aria-hidden="true" />
-            <span className="wl-ring" style={pos} aria-hidden="true" />
-          </React.Fragment>
-        );
-      })}
       {/* Floating pill nav: faculty logo + staff access */}
       <header className="wise-rise sticky top-[max(12px,env(safe-area-inset-top))] z-30 mx-auto mt-3 sm:mt-5 w-[calc(100%-24px)] sm:w-[min(1180px,calc(100%-48px))] flex items-center justify-between gap-3 p-1.5 sm:p-2 ps-2 sm:ps-2.5 rounded-full bg-white/75 backdrop-blur-xl border border-[#efe4d2] shadow-[0_14px_34px_-22px_rgba(99,3,48,0.35)]">
         <div className="flex items-center gap-2.5 min-w-0">
