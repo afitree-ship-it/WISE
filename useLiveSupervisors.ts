@@ -14,7 +14,7 @@ interface Options {
  * `supported` is null until the first response, false when the backend is an older
  * version without the endpoint (callers then fall back to full refreshes).
  */
-export const useLiveSupervisors = ({ enabled, intervalMs = 3500, currentVersion, onSnapshot, onRows }: Options) => {
+export const useLiveSupervisors = ({ enabled, intervalMs = 2000, currentVersion, onSnapshot, onRows }: Options) => {
   const [supported, setSupported] = useState<boolean | null>(null);
   const [locks, setLocks] = useState<LockMap>({});
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);

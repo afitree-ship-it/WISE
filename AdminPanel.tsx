@@ -411,11 +411,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const nextForms = apply('forms', forms);
     const nextSites = apply('sites', sites);
     setSchedules(nextSchedules); setForms(nextForms); setSites(nextSites);
-    await Promise.all([
-      syncToSheets('schedules', nextSchedules, 'all'),
-      syncToSheets('forms', nextForms, 'all'),
-      syncToSheets('sites', nextSites, 'all'),
-    ]);
+    await syncToSheets('schedules', nextSchedules, 'all');
+    await syncToSheets('forms', nextForms, 'all');
+    await syncToSheets('sites', nextSites, 'all');
     setBulkTr(null);
     notify(`แปลแล้ว ${jobs.length} รายการ`);
   };

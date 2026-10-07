@@ -555,9 +555,31 @@ const App: React.FC = () => {
     }
   }, [sanitizeData, fetchFromSheets]);
 
+  // BroadcastChannel for instant (0ms) sync across multiple tabs/windows on same device
+  const bcRef = useRef<BroadcastChannel | null>(null);
+  useEffect(() => {
+    if (typeof BroadcastChannel !== 'undefined') {
+      const bc = new BroadcastChannel('wise_sync_channel');
+      bcRef.current = bc;
+      bc.onmessage = (event) => {
+        const { type: msgType, payload } = event.data || {};
+        if (msgType === 'studentStatuses' && Array.isArray(payload)) {
+          setStudentStatuses(sanitizeData(payload, 'st'));
+        } else if (msgType === 'supervisor' && payload) {
+          setStudentStatuses(prev => prev.map(s => s.id === payload.id ? { ...s, supervisor: payload.supervisor, lastUpdated: payload.lastUpdated } : s));
+        } else if (msgType === 'reload') {
+          fetchFromSheets(true);
+        }
+      };
+      return () => {
+        bc.close();
+      };
+    }
+  }, [sanitizeData, fetchFromSheets]);
+
   const live = useLiveSupervisors({
     enabled: true,
-    intervalMs: 3500,
+    intervalMs: 2000,
     currentVersion: dataVersion,
     onSnapshot: handleLiveSnapshot,
     onRows: mergeLiveRows,
@@ -576,6 +598,7 @@ const App: React.FC = () => {
     const target = updated.find(s => s.id === id || s.studentId === id);
     setStudentStatuses(updated);
     if (target) recentLocal.current[target.id] = { value: name, at: Date.now() };
+    bcRef.current?.postMessage({ type: 'supervisor', payload: { id: target?.id || id, supervisor: name, lastUpdated: Date.now() } });
 
     if (liveSupported) {
       setIsSyncing(true);

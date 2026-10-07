@@ -143,18 +143,20 @@ function handleSupervisorSave(params) {
 
     var sheet = getSS().getSheetByName("StudentStatuses") || getSS().getSheetByName("studentStatuses");
     if (!sheet) return { status: "error", message: "Sheet not found" };
-    var lastCol = Math.max(sheet.getLastColumn(), 1);
-    var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-    if (headers.indexOf("supervisor") === -1) {
+
+    var data = sheet.getDataRange().getValues();
+    if (data.length === 0) return { status: "error", message: "Empty sheet" };
+    var headers = data[0];
+    var supCol = headers.indexOf("supervisor");
+    if (supCol === -1) {
       sheet.getRange(1, headers.length + 1).setValue("supervisor");
+      supCol = headers.length;
       headers.push("supervisor");
     }
     var idCol = headers.indexOf("id");
     var sidCol = headers.indexOf("studentId");
-    var supCol = headers.indexOf("supervisor");
     var updCol = headers.indexOf("lastUpdated");
 
-    var data = sheet.getDataRange().getValues();
     var rowIndex = -1;
     for (var i = 1; i < data.length; i++) {
       if (idCol !== -1 && String(data[i][idCol]).trim() === id) { rowIndex = i + 1; break; }
@@ -167,8 +169,10 @@ function handleSupervisorSave(params) {
     if (rowIndex === -1) return { status: "error", message: "Row not found" };
 
     var now = Date.now();
-    sheet.getRange(rowIndex, supCol + 1).setValue(String(params.supervisor || ""));
-    if (updCol !== -1) sheet.getRange(rowIndex, updCol + 1).setValue(now);
+    data[rowIndex - 1][supCol] = String(params.supervisor || "");
+    if (updCol !== -1) data[rowIndex - 1][updCol] = now;
+
+    sheet.getRange(rowIndex, 1, 1, headers.length).setValues([data[rowIndex - 1]]);
 
     if (locks[id]) {
       delete locks[id];
@@ -394,11 +398,22 @@ function uploadPdf(params) {
 /* ------------------------------------------------------------------ */
 
 function adminPasswords() {
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get("admin_passwords");
+  if (hit) {
+    try { return JSON.parse(hit); } catch (e) {}
+  }
   var sheet = getSS().getSheetByName("Admins") || getSS().getSheetByName("admins");
   if (!sheet) return [];
-  return sheetToObjects(sheet)
+  var list = sheetToObjects(sheet)
     .map(function(a) { return String(a.password || "").trim(); })
     .filter(function(p) { return p.length > 0; });
+  try { cache.put("admin_passwords", JSON.stringify(list), 3600); } catch (e) {}
+  return list;
+}
+
+function invalidateAdminPasswords() {
+  try { CacheService.getScriptCache().remove("admin_passwords"); } catch (e) {}
 }
 
 function isAdminKey(key) {
@@ -1073,18 +1088,22 @@ function handlePost(e) {
     sheet.appendRow(DEFAULT_HEADERS[type]);
   }
 
-  // Add a column for any field the sheet does not have yet, so nothing is silently dropped
-  var lastCol = Math.max(sheet.getLastColumn(), 1);
-  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].filter(function(h) { return String(h) !== ""; });
+  var data = sheet.getDataRange().getValues();
+  var headers = data.length > 0 ? data[0].filter(function(h) { return String(h) !== ""; }) : DEFAULT_HEADERS[type].slice();
   var incoming = action === "all" ? (params.data || []) : (params.item ? [params.item] : []);
   var wanted = DEFAULT_HEADERS[type].slice();
   incoming.forEach(function(it) { Object.keys(it || {}).forEach(function(k) { if (k.charAt(0) !== "_" && wanted.indexOf(k) < 0) wanted.push(k); }); });
+  var addedHeader = false;
   wanted.forEach(function(h) {
     if (headers.indexOf(h) < 0) {
       sheet.getRange(1, headers.length + 1).setValue(h);
       headers.push(h);
+      addedHeader = true;
     }
   });
+  if (addedHeader) {
+    data = sheet.getDataRange().getValues();
+  }
 
   if (action === "all") {
     sheet.clearContents();
@@ -1098,7 +1117,6 @@ function handlePost(e) {
     }
   } else if (action === "add" || action === "update") {
     var item = params.item;
-    var data = sheet.getDataRange().getValues();
     var rowIndex = -1;
 
     var searchKey = (type === "admins") ? "password" : "id";
@@ -1153,6 +1171,9 @@ function handlePost(e) {
   if (type) {
     invalidateSheetCache(type);
     v = bumpDataVersion(type);
+  }
+  if (type === "admins") {
+    invalidateAdminPasswords();
   }
   if (type === "studentStatuses") {
     _memStatusRows = null;
