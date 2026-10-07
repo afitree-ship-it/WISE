@@ -163,8 +163,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const onBackgroundPointerDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button, a, input, header, [role="dialog"], .wl-float, .wl-lockup, h1')) return;
     const id = Date.now() + Math.random();
-    setRipples(r => [...r.slice(-4), { id, x: e.clientX, y: e.clientY }]);
-    setTimeout(() => setRipples(r => r.filter(p => p.id !== id)), 2000);
+    setRipples([{ id, x: e.clientX, y: e.clientY }]);
+    setTimeout(() => setRipples(r => r.filter(p => p.id !== id)), 850);
   };
 
   // Subtle parallax of the arch following the cursor (desktop only)
@@ -440,7 +440,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
           <React.Fragment key={r.id}>
             <div className="wl-pattern wl-bg wl-ripple" style={pos} aria-hidden="true" />
             <span className="wl-ring" style={pos} aria-hidden="true" />
-            <span className="wl-ring wl-ring--2" style={pos} aria-hidden="true" />
           </React.Fragment>
         );
       })}
