@@ -205,6 +205,8 @@ const App: React.FC = () => {
   // Values this browser just saved; ignore stale remote values for a short while
   const recentLocal = useRef<Record<string, { value: string; at: number }>>({});
   const isFetchingRef = useRef(false);
+  const hasDataRef = useRef(false);
+  hasDataRef.current = studentStatuses.length > 0 || sites.length > 0;
 
   const fetchFromSheets = useCallback(async (force = false) => {
     if (!SHEET_API_URL || isFetchingRef.current) return;
@@ -216,8 +218,7 @@ const App: React.FC = () => {
     }
 
     isFetchingRef.current = true;
-    const hasData = studentStatuses.length > 0 || sites.length > 0;
-    if (!hasData) {
+    if (!hasDataRef.current) {
       setIsLoading(true);
     }
     try {
@@ -264,7 +265,7 @@ const App: React.FC = () => {
       setIsLoading(false);
       isFetchingRef.current = false;
     }
-  }, [studentStatuses.length, sites.length, sanitizeData]);
+  }, [sanitizeData]);
 
   const formatStudentStatusForSync = (record: StudentStatusRecord) => {
     // Key order mapped to Google Sheets columns:
@@ -579,7 +580,7 @@ const App: React.FC = () => {
 
   const live = useLiveSupervisors({
     enabled: true,
-    intervalMs: 2000,
+    intervalMs: 3500,
     currentVersion: dataVersion,
     onSnapshot: handleLiveSnapshot,
     onRows: mergeLiveRows,

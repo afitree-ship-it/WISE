@@ -9,12 +9,22 @@ interface Options {
   onRows?: (rows: LiveRow[]) => void;
 }
 
+const shallowLocksEqual = (a: LockMap, b: LockMap): boolean => {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (const k of aKeys) {
+    if (!b[k] || a[k].by !== b[k].by || a[k].until !== b[k].until) return false;
+  }
+  return true;
+};
+
 /**
  * Polls the lightweight `live` endpoint for supervisor values and field locks.
  * `supported` is null until the first response, false when the backend is an older
  * version without the endpoint (callers then fall back to full refreshes).
  */
-export const useLiveSupervisors = ({ enabled, intervalMs = 2000, currentVersion, onSnapshot, onRows }: Options) => {
+export const useLiveSupervisors = ({ enabled, intervalMs = 3500, currentVersion, onSnapshot, onRows }: Options) => {
   const [supported, setSupported] = useState<boolean | null>(null);
   const [locks, setLocks] = useState<LockMap>({});
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
@@ -45,7 +55,15 @@ export const useLiveSupervisors = ({ enabled, intervalMs = 2000, currentVersion,
       Object.entries(snap.locks || {}).forEach(([id, l]) => {
         if (l && l.by !== me) others[id] = l;
       });
-      setLocks(others);
+
+      // Avoid triggering React re-renders if locks haven't changed
+      setLocks(prev => (shallowLocksEqual(prev, others) ? prev : others));
+
+      // If data is unchanged, do not trigger any re-renders or updates
+      if (snap.unchanged) {
+        return;
+      }
+
       setLastSyncAt(Date.now());
       if (onSnapshotRef.current) onSnapshotRef.current(snap);
       if (snap.rows && onRowsRef.current) onRowsRef.current(snap.rows);
