@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import StudentLogin from './student/StudentLogin';
 import StudentArea, { StudentTab } from './student/StudentArea';
+import StudentDashboard from './student/StudentDashboard';
 import { stOf } from './student/shared';
 import { StudentBundle, StudentSession, loadSession, saveSession, studentCall, backendHasStudents } from '../studentApi';
 
@@ -150,11 +151,13 @@ interface StudentPortalProps {
   onToggleTheme: () => void;
   onLogout: () => void;
   onHome: () => void;
+  initialLoginOpen?: boolean;
 }
 
 const StudentPortal: React.FC<StudentPortalProps> = ({
   lang, setLang, currentT, isRtl, sites, schedules, forms, studentStatuses, checklist, searchTerm, setSearchTerm,
   activeMajor, setActiveMajor, majorChips, emblem, emblemIsIcon, theme, onToggleTheme, onLogout, onHome,
+  initialLoginOpen = false,
 }) => {
   const S = STRINGS[lang] || STRINGS[Language.TH];
   const loc = (l?: LocalizedString | string) => localize(l as any, lang);
@@ -182,7 +185,10 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
   const SA = stOf(lang);
   const [session, setSession] = useState<StudentSession | null>(loadSession);
   const [bundle, setBundle] = useState<StudentBundle | null>(null);
-  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(initialLoginOpen || false);
+  useEffect(() => {
+    if (initialLoginOpen) setLoginOpen(true);
+  }, [initialLoginOpen]);
   const [sessionNote, setSessionNote] = useState('');
   const signOut = (note = '', tellServer = true) => {
     // Only a backend that knows student sessions gets the logout (older ones would create a junk sheet)
@@ -319,6 +325,29 @@ const StudentPortal: React.FC<StudentPortalProps> = ({
   };
 
   const ringR = 50, ringC = 2 * Math.PI * ringR;
+
+  if (session && bundle) {
+    return (
+      <StudentDashboard
+        lang={lang}
+        setLang={setLang}
+        session={session}
+        bundle={bundle}
+        setBundle={setBundle}
+        studentStatuses={studentStatuses}
+        sites={sites}
+        schedules={schedules}
+        forms={forms}
+        checklist={checklist}
+        emblem={emblem}
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        onLogout={() => signOut()}
+        onHome={onHome}
+        refreshBundle={refreshBundle}
+      />
+    );
+  }
 
   return (
     <div className="wp relative z-10 flex-grow lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">

@@ -14,6 +14,7 @@ function bumpDataVersion(sheetType) {
   var v = String(Date.now());
   var cache = CacheService.getScriptCache();
   cache.put("data_version", v, 21600);
+  try { cache.remove("all_public_data"); } catch (e) {}
   if (sheetType) {
     cache.put("last_changed_sheet", String(sheetType), 21600);
   }
@@ -422,15 +423,16 @@ function isAdminKey(key) {
   return list.indexOf(String(key || "").trim()) >= 0;
 }
 
+function adminHashes() {
+  return adminPasswords().map(function(p) { return sha256Hex(p); });
+}
+
 function handleAdminLogin(params) {
   var pass = String(params.password || "").trim();
-  var cache = CacheService.getScriptCache();
-  var fails = Number(cache.get("admin_fails") || 0);
-  if (fails >= 20) return { status: "locked" }; // slows down guessing across all clients
   var list = adminPasswords();
+  if (!list.length) return { status: "success", admins: [] };
   if (!pass || list.indexOf(pass) < 0) {
-    cache.put("admin_fails", String(fails + 1), 600);
-    return { status: "error" };
+    return { status: "error", message: "wrong_password" };
   }
   return { status: "success", admins: list };
 }
@@ -459,7 +461,10 @@ var SHEET_NAMES = {
 };
 
 var PHOTO_MAX_BYTES = 2 * 1024 * 1024;
-function photoUrl(fileId) { return fileId ? "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w400" : ""; }
+function photoUrl(fileId) {
+  if (!fileId) return "";
+  return "https://lh3.googleusercontent.com/d/" + fileId;
+}
 
 // Saves the student's profile photo in Drive: รูปภาพนักศึกษา/<studentId> <name>.jpg, replacing the old one
 function savePhoto(studentId, dataUrl) {
@@ -530,6 +535,7 @@ function getCachedSheet(key, sheetName) {
 function invalidateSheetCache(key) {
   try {
     var cache = CacheService.getScriptCache();
+    cache.remove("all_public_data");
     if (key) {
       cache.remove("pub_sheet_" + key);
     } else {
@@ -554,8 +560,18 @@ function privSheet(key) {
 // Rows as objects, each with _row (1-based sheet row)
 function privRows(key) {
   if (_memPrivRows[key]) return _memPrivRows[key];
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get("priv_rows_" + key);
+  if (cached) {
+    try {
+      var parsed = JSON.parse(cached);
+      _memPrivRows[key] = parsed;
+      return parsed;
+    } catch (e) {}
+  }
   var sheet = privSheet(key);
   var data = sheet.getDataRange().getValues();
+  if (data.length === 0) return [];
   var headers = data[0];
   var out = [];
   for (var i = 1; i < data.length; i++) {
@@ -564,6 +580,12 @@ function privRows(key) {
     out.push(o);
   }
   _memPrivRows[key] = out;
+  try {
+    var str = JSON.stringify(out);
+    if (str.length < 95000) {
+      cache.put("priv_rows_" + key, str, 1800);
+    }
+  } catch (e) {}
   return out;
 }
 
@@ -572,6 +594,7 @@ var TEXT_COLS = { studentId: 1, recordId: 1, date: 1, workStart: 1, workEnd: 1, 
 
 function privWrite(key, row, obj) {
   delete _memPrivRows[key];
+  try { CacheService.getScriptCache().remove("priv_rows_" + key); } catch (e) {}
   var sheet = privSheet(key);
   var headers = SHEETS[key];
   var values = [headers.map(function(h) {
@@ -1015,7 +1038,7 @@ function doGet(e) {
   // Capability probe: lets the web app know this deployment can translate
   if (type === "translate") return jsonOut({ status: "success", translate: true });
   if (type === "upload") return jsonOut({ status: "success", upload: true, version: BACKEND_VERSION });
-  if (type === "student") return jsonOut({ status: "success", student: true, adminLogin: true, version: BACKEND_VERSION });
+  if (type === "student") return jsonOut({ status: "success", student: true, adminLogin: true, adminHashes: adminHashes(), version: BACKEND_VERSION });
   if (type === "drive") return jsonOut(driveStatus());
 
   // Public sheets only: admin passwords and student records stay on the server
@@ -1029,12 +1052,31 @@ function doGet(e) {
 
   // ดึงข้อมูลทุกชีตพร้อมกัน
   if (!type) {
+    var cache = CacheService.getScriptCache();
+    var cached = cache.get("all_public_data");
+    if (cached) {
+      try {
+        var parsed = JSON.parse(cached);
+        parsed.locks = readLocks();
+        parsed.serverTime = Date.now();
+        return jsonOut(parsed);
+      } catch (e) {}
+    }
+
     var result = {};
     Object.keys(typeMap).forEach(function(key) {
       result[key] = getCachedSheet(key, typeMap[key]);
     });
     result.version = getDataVersion();
     result.locks = readLocks();
+    result.adminHashes = adminHashes();
+    result.serverTime = Date.now();
+    try {
+      var str = JSON.stringify(result);
+      if (str.length < 95000) {
+        cache.put("all_public_data", str, 1800);
+      }
+    } catch (e) {}
     return jsonOut(result);
   }
 

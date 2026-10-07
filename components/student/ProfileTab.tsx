@@ -65,14 +65,53 @@ const ProfileTab: React.FC<ProfileProps> = ({ lang, bundle, record, go, token, o
   const L = isTH(lang) ? T.th : T.en;
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoErr, setPhotoErr] = useState('');
+  const [photoSrc, setPhotoSrc] = useState<string | null>(() => {
+    try {
+      const local = localStorage.getItem(`wise_photo_${bundle.studentId}`);
+      if (local) return local;
+    } catch {}
+    return bundle.photo || null;
+  });
+
+  useEffect(() => {
+    let s = bundle.photo || null;
+    try {
+      const local = localStorage.getItem(`wise_photo_${bundle.studentId}`);
+      if (local) s = local;
+    } catch {}
+    setPhotoSrc(s);
+  }, [bundle.photo, bundle.studentId]);
+
+  const handlePhotoError = () => {
+    if (!bundle.photo) {
+      setPhotoSrc(null);
+      return;
+    }
+    const m = /id=([\w-]+)|\/d\/([\w-]+)/.exec(bundle.photo);
+    const fileId = m ? (m[1] || m[2]) : '';
+    if (fileId && photoSrc?.includes('lh3.googleusercontent.com')) {
+      setPhotoSrc(`https://drive.google.com/thumbnail?id=${fileId}&sz=w400`);
+    } else if (fileId && photoSrc?.includes('thumbnail')) {
+      setPhotoSrc(`https://drive.google.com/uc?export=view&id=${fileId}`);
+    } else {
+      setPhotoSrc(null);
+    }
+  };
+
   const uploadPhoto = async (f: File) => {
     setPhotoBusy(true); setPhotoErr('');
     try {
       const data = await squarePhoto(f);
+      try { localStorage.setItem(`wise_photo_${bundle.studentId}`, data); } catch {}
+      setPhotoSrc(data);
+      onPatch(b => ({ ...b, photo: data }));
+
       const r = await studentCall('setPhoto', { token, data });
       if (r?.status === 'expired') return onExpired();
       if (r?.status !== 'success') throw new Error(r?.message || '');
-      onPatch(b => ({ ...b, photo: r.photo }));
+      if (r.photo) {
+        onPatch(b => ({ ...b, photo: r.photo }));
+      }
     } catch (e: any) {
       setPhotoErr(String(e?.message || '').startsWith('drive') ? L.photoDrive : L.photoFail);
     } finally { setPhotoBusy(false); }
@@ -94,13 +133,17 @@ const ProfileTab: React.FC<ProfileProps> = ({ lang, bundle, record, go, token, o
     <div className="space-y-6">
       <SectionHead icon={<UserRound size={17} />} title={L.title} sub={L.sub} />
 
-      <div className="relative overflow-hidden rounded-[26px] bg-[#630330] text-white p-5 sm:p-6">
+      <div className="relative overflow-hidden rounded-[26px] bg-[#630330] text-white p-5 sm:p-6 shadow-md">
         <div className="wl-pattern opacity-[0.14]" />
         <div className="relative flex items-center gap-4">
-          <label className="group relative w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-[#D4AF37] text-[#2a0114] flex items-center justify-center text-[28px] font-bold overflow-hidden cursor-pointer ring-2 ring-[#e8cf7a]/50" title={L.photo}>
-            {bundle.photo ? <img src={bundle.photo} alt={latest.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : (latest.name || '?').replace(/^(นางสาว|นาย|นาง)/, '').trim().charAt(0)}
-            <span className={`absolute inset-x-0 bottom-0 h-7 bg-black/55 text-white text-[11px] font-normal flex items-center justify-center gap-1 transition ${photoBusy ? 'opacity-100' : 'opacity-90 sm:opacity-0 sm:group-hover:opacity-100'}`}>
-              {photoBusy ? <RefreshCw size={12} className="animate-spin" /> : <Camera size={12} />}{bundle.photo ? L.change : L.add}
+          <label className="group relative w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-[#D4AF37] text-[#2a0114] flex items-center justify-center text-[28px] font-bold overflow-hidden cursor-pointer ring-2 ring-[#e8cf7a]/60 shadow-inner" title={L.photo}>
+            {photoSrc ? (
+              <img src={photoSrc} alt={latest.name} onError={handlePhotoError} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              (latest.name || '?').replace(/^(นางสาว|นาย|นาง)/, '').trim().charAt(0)
+            )}
+            <span className={`absolute inset-x-0 bottom-0 h-7 bg-black/65 text-white text-[11px] font-medium flex items-center justify-center gap-1 transition ${photoBusy ? 'opacity-100' : 'opacity-90 sm:opacity-0 sm:group-hover:opacity-100'}`}>
+              {photoBusy ? <RefreshCw size={12} className="animate-spin" /> : <Camera size={12} />}{photoSrc ? L.change : L.add}
             </span>
             <input type="file" accept="image/*" className="sr-only" disabled={photoBusy} onChange={e => { const f = e.target.files?.[0]; e.currentTarget.value = ''; if (f) uploadPhoto(f); }} />
           </label>
@@ -110,7 +153,7 @@ const ProfileTab: React.FC<ProfileProps> = ({ lang, bundle, record, go, token, o
               <span className="wl-latin tabular-nums">{bundle.studentId}</span>
               <span className="flex items-center gap-1"><GraduationCap size={13} />{majorName(latest.major, lang)}</span>
             </p>
-            {photoErr ? <p className="mt-2 text-[12px] text-rose-200">{photoErr}</p> : !bundle.photo && <p className="mt-2 text-[12px] text-white/60">{L.photoHint}</p>}
+            {photoErr ? <p className="mt-2 text-[12px] text-rose-200">{photoErr}</p> : !photoSrc && <p className="mt-2 text-[12px] text-white/60">{L.photoHint}</p>}
           </div>
         </div>
       </div>

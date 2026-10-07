@@ -14,7 +14,7 @@ import {
 } from './types';
 import { SHEET_API_URL } from './config';
 import { parseChecklist } from './checklist';
-import { backendHasStudents, post as apiPost, getAdminKey, setAdminKey, parseCriteria } from './studentApi';
+import { backendHasStudents, post as apiPost, getAdminKey, setAdminKey, parseCriteria, getCachedAdminHashes, setCachedAdminHashes, sha256 } from './studentApi';
 import EvaluationPage from './components/student/EvaluationPage';
 import { fetchLive, saveSupervisor, LiveRow, FieldLock, LiveSnapshot } from './liveSync';
 import { useLiveSupervisors } from './useLiveSupervisors';
@@ -109,6 +109,7 @@ const App: React.FC = () => {
   
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, visible: boolean }>({ x: 0, y: 0, visible: false });
   const [activeElement, setActiveElement] = useState<HTMLElement | null>(null);
+  const [openStudentLogin, setOpenStudentLogin] = useState(false);
 
   // Data States
   const sanitizeData = useCallback((data: any[], prefix: string) => {
@@ -252,6 +253,9 @@ const App: React.FC = () => {
           .filter((p: string) => p.length > 0);
         setAdminPasswords(passwords);
       }
+      if (Array.isArray(cloudData.adminHashes)) {
+        setCachedAdminHashes(cloudData.adminHashes);
+      }
       if (Array.isArray(cloudData.settings)) {
         setSiteSettings(settingsFromRows(cloudData.settings));
       }
@@ -339,15 +343,16 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchFromSheets();
+    // Force immediate fetch upon entering the site so visitors see real-time synced data instantly
+    fetchFromSheets(true);
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        fetchFromSheets();
+        fetchFromSheets(true);
       }
     };
     const handleFocus = () => {
-      fetchFromSheets();
+      fetchFromSheets(true);
     };
 
     window.addEventListener('visibilitychange', handleVisibility);
@@ -639,12 +644,35 @@ const App: React.FC = () => {
     if (!password) return false;
     const normalizedPassword = password.trim();
 
-    // New backend: the password is checked on the server and never downloaded
-    if (await backendHasStudents()) {
-      try {
-        setIsSyncing(true);
-        const r = await apiPost({ type: 'adminLogin', password: normalizedPassword });
-        if (r?.status !== 'success') return false;
+    // 1. Instant check against memory passwords (0 ms)
+    if (adminPasswords.length > 0 && adminPasswords.includes(normalizedPassword)) {
+      setAdminKey(normalizedPassword);
+      setRole(UserRole.ADMIN);
+      sessionStorage.setItem('wise_role', UserRole.ADMIN);
+      setViewState('dashboard');
+      window.history.pushState({ view: 'dashboard' }, '');
+      return true;
+    }
+
+    // 2. Instant check against cached SHA-256 hashes (0 ms)
+    try {
+      const hash = await sha256(normalizedPassword);
+      const cachedHashes = getCachedAdminHashes();
+      if (hash && cachedHashes.length > 0 && cachedHashes.includes(hash)) {
+        setAdminKey(normalizedPassword);
+        setRole(UserRole.ADMIN);
+        sessionStorage.setItem('wise_role', UserRole.ADMIN);
+        setViewState('dashboard');
+        window.history.pushState({ view: 'dashboard' }, '');
+        return true;
+      }
+    } catch (e) {}
+
+    // 3. Direct server verification (no blocking probe)
+    try {
+      setIsSyncing(true);
+      const r = await apiPost({ type: 'adminLogin', password: normalizedPassword });
+      if (r?.status === 'success') {
         if (Array.isArray(r.admins)) setAdminPasswords(r.admins.map((p: any) => String(p)));
         setAdminKey(normalizedPassword);
         setRole(UserRole.ADMIN);
@@ -652,49 +680,14 @@ const App: React.FC = () => {
         setViewState('dashboard');
         window.history.pushState({ view: 'dashboard' }, '');
         return true;
-      } catch (e) {
-        console.error('Admin login failed:', e);
-        return false;
-      } finally {
-        setIsSyncing(false);
       }
+      return false;
+    } catch (e) {
+      console.error('Admin login request failed:', e);
+      return false;
+    } finally {
+      setIsSyncing(false);
     }
-
-    // ✅ If adminPasswords is empty, fetch fresh data first
-    let passwords = adminPasswords;
-    if (passwords.length === 0) {
-      try {
-        setIsSyncing(true);
-        const now = Date.now();
-        const response = await fetchWithRetry(`${SHEET_API_URL}${SHEET_API_URL.includes('?') ? '&' : '?'}cache_bust=${now}`);
-        const cloudData = await response.json();
-        if (cloudData.admins && Array.isArray(cloudData.admins)) {
-          passwords = cloudData.admins
-            .map((a: any) => String(a.password || '').trim())
-            .filter((p: string) => p.length > 0);
-          setAdminPasswords(passwords);
-        }
-      } catch (e) {
-        console.error('Failed to fetch admin passwords:', e);
-      } finally {
-        setIsSyncing(false);
-      }
-    }
-
-    // Check password against the freshly fetched passwords
-    const isAuthorized = passwords.includes(normalizedPassword);
-    if (isAuthorized) {
-      setAdminKey(normalizedPassword);
-      setRole(UserRole.ADMIN);
-      sessionStorage.setItem('wise_role', UserRole.ADMIN);
-      setTimeout(() => {
-        setViewState('dashboard');
-        window.history.pushState({ view: 'dashboard' }, '');
-      }, 400);
-      return true;
-    }
-
-    return false;
   };
 
   const handleEnterDashboard = () => {
@@ -702,6 +695,15 @@ const App: React.FC = () => {
     // This ensures that an Admin who navigated back to Home will be treated as a Student upon re-entering.
     setRole(UserRole.STUDENT);
     sessionStorage.removeItem('wise_role');
+    setOpenStudentLogin(false);
+    setViewState('dashboard');
+    window.history.pushState({ view: 'dashboard' }, '');
+  };
+
+  const handleOpenStudentLogin = () => {
+    setRole(UserRole.STUDENT);
+    sessionStorage.removeItem('wise_role');
+    setOpenStudentLogin(true);
     setViewState('dashboard');
     window.history.pushState({ view: 'dashboard' }, '');
   };
@@ -785,6 +787,7 @@ const App: React.FC = () => {
         <LandingPage
           lang={lang} setLang={setLang} currentT={currentT} isRtl={isRtl}
           onEnterDashboard={handleEnterDashboard}
+          onOpenStudentLogin={handleOpenStudentLogin}
           onAdminLogin={handleAdminLogin as any}
           studentStatuses={studentStatuses}
           logo={siteSettings.logo}
@@ -927,6 +930,7 @@ const App: React.FC = () => {
           activeMajor={activeMajor}
           setActiveMajor={setActiveMajor}
           majorChips={majorChips}
+          initialLoginOpen={openStudentLogin}
         />
       )}
       {contextMenu.visible && (

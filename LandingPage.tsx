@@ -46,6 +46,7 @@ interface LandingPageProps {
   currentT: Translation;
   isRtl: boolean;
   onEnterDashboard: () => void;
+  onOpenStudentLogin?: () => void;
   onAdminLogin: (password: string) => Promise<boolean>;
   studentStatuses: StudentStatusRecord[];
   logo?: string;
@@ -61,6 +62,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   currentT, 
   isRtl, 
   onEnterDashboard, 
+  onOpenStudentLogin,
   onAdminLogin,
   studentStatuses,
   logo,
@@ -278,40 +280,32 @@ const LandingPage: React.FC<LandingPageProps> = ({
     setIsVerifying(true);
     setLoginError(false);
     
-    // Start optimistic UI / Scanning feeling
-    const startTime = Date.now();
-    
-    const success = await onAdminLogin(adminPassInput);
-    
-    // Calculate elapsed time to ensure user sees at least some feedback if the response is too fast, 
-    // but keep it very short for "fast" feeling.
-    const elapsedTime = Date.now() - startTime;
-    const minFeedbackTime = 150; 
-    const waitTime = Math.max(0, minFeedbackTime - elapsedTime);
-
-    setTimeout(() => {
+    try {
+      const success = await onAdminLogin(adminPassInput);
       if (success) {
         setLoginSuccess(true);
-        // Instant visual feedback for success before component unmounts
         setIsVerifying(false);
-      } else {
-        setIsVerifying(false);
-        const newAttempts = failedAttempts + 1;
-        setFailedAttempts(newAttempts);
-        localStorage.setItem('wise_failed_attempts', newAttempts.toString());
-        setLoginError(true);
-        setAdminPassInput('');
-        
-        setShake(true);
-        setTimeout(() => setShake(false), 450);
-
-        if (newAttempts >= maxAttempts) {
-          const lockedUntil = Date.now() + (lockoutDuration * 1000);
-          localStorage.setItem('wise_locked_until', lockedUntil.toString());
-          setLockoutTimeLeft(lockoutDuration);
-        }
+        return;
       }
-    }, waitTime);
+
+      setIsVerifying(false);
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+      localStorage.setItem('wise_failed_attempts', newAttempts.toString());
+      setLoginError(true);
+      setAdminPassInput('');
+      setShake(true);
+      setTimeout(() => setShake(false), 450);
+
+      if (newAttempts >= maxAttempts) {
+        const lockedUntil = Date.now() + (lockoutDuration * 1000);
+        localStorage.setItem('wise_locked_until', lockedUntil.toString());
+        setLockoutTimeLeft(lockoutDuration);
+      }
+    } catch {
+      setIsVerifying(false);
+      setLoginError(true);
+    }
   };
 
   const handleCheckStatus = (e: React.FormEvent) => {
@@ -442,14 +436,24 @@ const LandingPage: React.FC<LandingPageProps> = ({
             <span className="ar-accent hidden sm:block truncate text-[11.5px] font-light text-[#8b7380]">{universityName}</span>
           </span>
         </div>
-        <button
-          onClick={() => { setLoginError(false); setLoginSuccess(false); setShowAdminLogin(true); }}
-          className="shrink-0 flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:px-4 rounded-full bg-white border border-[#e5d6c0] text-[13px] font-medium text-[#630330] hover:bg-[#630330] hover:text-white hover:border-[#630330] transition"
-          title="Staff Access"
-        >
-          <LockKeyhole size={15} />
-          <span className="hidden sm:inline">{t3.staff}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenStudentLogin || onEnterDashboard}
+            className="shrink-0 flex items-center justify-center gap-1.5 h-10 px-3.5 sm:px-4 rounded-full bg-[#630330] text-white text-[13px] font-semibold hover:bg-[#7a0b3d] shadow-sm transition active:scale-95"
+            title={lang === Language.TH ? 'ล็อกอินนักศึกษา' : 'Student Sign In'}
+          >
+            <UserCircle size={16} />
+            <span>{lang === Language.TH ? 'ล็อกอินนักศึกษา' : 'Student Sign In'}</span>
+          </button>
+          <button
+            onClick={() => { setLoginError(false); setLoginSuccess(false); setShowAdminLogin(true); }}
+            className="shrink-0 flex items-center justify-center gap-1.5 h-10 w-10 sm:w-auto sm:px-3.5 rounded-full bg-white border border-[#e5d6c0] text-[13px] font-medium text-[#630330] hover:bg-[#630330] hover:text-white hover:border-[#630330] transition"
+            title="Staff Access"
+          >
+            <LockKeyhole size={15} />
+            <span className="hidden sm:inline">{t3.staff}</span>
+          </button>
+        </div>
       </header>
 
       <main className="relative z-10 mx-auto w-full max-w-[720px] lg:max-w-none lg:w-[min(1180px,calc(100%-48px))] px-[22px] sm:px-10 lg:px-0 pt-9 sm:pt-14 pb-12 lg:py-0 lg:min-h-[calc(100svh-90px)] grid lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-16 items-center">
@@ -693,6 +697,19 @@ const LandingPage: React.FC<LandingPageProps> = ({
                           <span className="inline-flex items-center gap-1.5"><Activity size={12} /> {currentT.lastUpdated} {new Date(record.lastUpdated).toLocaleDateString(lang === Language.TH ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                           {record.remarks && <span className="text-rose-500 truncate max-w-full">{record.remarks}</span>}
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowStatusCheckModal(false);
+                            if (onOpenStudentLogin) onOpenStudentLogin();
+                            else onEnterDashboard();
+                          }}
+                          className="mt-3 w-full h-10 rounded-xl bg-[#630330] hover:bg-[#7a0b3d] text-white text-[13px] font-semibold flex items-center justify-center gap-2 transition shadow-sm active:scale-[0.98]"
+                        >
+                          <UserCircle size={16} />
+                          <span>{lang === Language.TH ? 'เข้าสู่ระบบนักศึกษา' : 'Sign in as student'}</span>
+                        </button>
                       </div>
                     );
                   })

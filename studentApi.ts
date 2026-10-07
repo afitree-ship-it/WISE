@@ -123,6 +123,23 @@ export const getAdminKey = () => { try { return sessionStorage.getItem(ADMIN_KEY
 export const setAdminKey = (k: string | null) => {
   try { if (k) sessionStorage.setItem(ADMIN_KEY, k); else sessionStorage.removeItem(ADMIN_KEY); } catch { /* storage blocked */ }
 };
+export const getCachedAdminHashes = (): string[] => {
+  try { return JSON.parse(localStorage.getItem('wise_admin_hashes') || '[]'); } catch { return []; }
+};
+export const setCachedAdminHashes = (hashes: string[]) => {
+  try { localStorage.setItem('wise_admin_hashes', JSON.stringify(hashes)); } catch {}
+};
+export const sha256 = async (message: string): Promise<string> => {
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    try {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch {}
+  }
+  return '';
+};
 export const adminCall = (op: string, data: Record<string, unknown> = {}) => post({ type: 'studentAdmin', op, adminKey: getAdminKey(), ...data });
 
 /* ------------------------------------------------------------------ */
