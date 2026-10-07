@@ -13,6 +13,7 @@ var BACKEND_VERSION = "2026-10-06";
 /* 4. Deploy → Manage deployments → ดินสอ → New version → Deploy          */
 /* ================================================================== */
 function setupDrive() {
+  CacheService.getScriptCache().remove("drive_status");
   // Forget cached folder ids, in case the shared folder became reachable
   CacheService.getScriptCache().removeAll(Object.keys(DRIVE_FOLDERS).map(function(k) { return "fld_" + k; }));
   var root = driveRoot();
@@ -152,6 +153,11 @@ function handleSupervisorSave(params) {
       delete locks[id];
       writeLocks(locks);
     }
+    invalidateSheetCache("studentStatuses");
+    if (params.studentId) {
+      invalidateStudentCheck(params.studentId);
+      invalidateStudentBundle(params.studentId);
+    }
     return { status: "success", lastUpdated: now };
   });
 }
@@ -181,6 +187,7 @@ function handleSettingsSave(params) {
     var values = items.map(function(it) { return [String(it.key), String(it.value || "")]; });
     sheet.getRange(2, 1, values.length, 2).setValues(values);
   }
+  invalidateSheetCache("settings");
   return { status: "success" };
 }
 
@@ -275,16 +282,26 @@ function driveFolder(kind) {
 
 // Read-only health check shown on the admin upload screen
 function driveStatus() {
-  // Public answer: no folder ids or links, only whether uploads will work
-  if (!driveRootId()) return { status: "success", drive: true, fallback: true, reason: "no_folder" };
-  try {
-    var r = DriveApp.getFolderById(driveRootId());
-    return { status: "success", drive: true, fallback: false, folder: r.getName() };
-  } catch (err) {
-    var msg = String(err && err.message || err);
-    if (/permission.*DriveApp|auth\/drive/i.test(msg)) return { status: "success", drive: false, reason: "not_authorized" };
-    return { status: "success", drive: true, fallback: true, reason: "no_access" };
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get("drive_status");
+  if (hit) {
+    try { return JSON.parse(hit); } catch (e) {}
   }
+  var res;
+  if (!driveRootId()) {
+    res = { status: "success", drive: true, fallback: true, reason: "no_folder" };
+  } else {
+    try {
+      var r = DriveApp.getFolderById(driveRootId());
+      res = { status: "success", drive: true, fallback: false, folder: r.getName() };
+    } catch (err) {
+      var msg = String(err && err.message || err);
+      if (/permission.*DriveApp|auth\/drive/i.test(msg)) res = { status: "success", drive: false, reason: "not_authorized" };
+      else res = { status: "success", drive: true, fallback: true, reason: "no_access" };
+    }
+  }
+  try { cache.put("drive_status", JSON.stringify(res), 1800); } catch (e) {}
+  return res;
 }
 
 function shareByLink(file) {
@@ -324,6 +341,7 @@ function uploadPdf(params) {
   if (sub) { var parent = folder; folder = cachedFolder(parent.getId() + "/" + sub, function() { return subFolder(parent, sub); }); }
   var file = folder.createFile(Utilities.newBlob(bytes, "application/pdf", name));
   shareByLink(file);
+  invalidateSheetCache("forms");
   return { status: "success", id: file.getId(), url: "https://drive.google.com/file/d/" + file.getId() + "/view" };
 }
 
@@ -430,6 +448,36 @@ function invalidateStudentCheck(studentId) {
   try {
     var sidNorm = normId(studentId);
     CacheService.getScriptCache().remove("st_chk_" + sidNorm);
+  } catch (e) {}
+}
+
+function getCachedSheet(key, sheetName) {
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get("pub_sheet_" + key);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) {}
+  }
+  var sheet = ss.getSheetByName(sheetName) || ss.getSheetByName(key);
+  var rows = sheet ? sheetToObjects(sheet) : [];
+  try {
+    var str = JSON.stringify(rows);
+    if (str.length < 95000) {
+      cache.put("pub_sheet_" + key, str, 1800);
+    }
+  } catch (e) {}
+  return rows;
+}
+
+function invalidateSheetCache(key) {
+  try {
+    var cache = CacheService.getScriptCache();
+    if (key) {
+      cache.remove("pub_sheet_" + key);
+    } else {
+      ["sites", "schedules", "forms", "studentStatuses", "settings"].forEach(function(k) {
+        cache.remove("pub_sheet_" + k);
+      });
+    }
   } catch (e) {}
 }
 
@@ -924,20 +972,14 @@ function doGet(e) {
   if (!type) {
     var result = {};
     Object.keys(typeMap).forEach(function(key) {
-      var sheet = ss.getSheetByName(typeMap[key]) || ss.getSheetByName(key);
-      if (sheet) result[key] = sheetToObjects(sheet);
+      result[key] = getCachedSheet(key, typeMap[key]);
     });
     result.locks = readLocks();
     return jsonOut(result);
   }
 
   if (!typeMap[type]) return jsonOut({ status: "error", message: "Not available: " + type });
-  var sheet = ss.getSheetByName(typeMap[type]) || ss.getSheetByName(type);
-
-  if (!sheet) {
-    return jsonOut({ status: "error", message: "Sheet not found: " + type });
-  }
-  return jsonOut(sheetToObjects(sheet));
+  return jsonOut(getCachedSheet(type, typeMap[type]));
 }
 
 // Always answer with JSON, so the web page can show what went wrong
@@ -1062,6 +1104,9 @@ function handlePost(e) {
     }
   }
 
+  if (type) {
+    invalidateSheetCache(type);
+  }
   if (type === "studentStatuses") {
     _memStatusRows = null;
     if (params.item && params.item.studentId) {

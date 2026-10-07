@@ -71,7 +71,7 @@ const hashView = (): 'summary' | 'stats' | null => {
   const v = params.get('view');
   return v === 'summary' || v === 'stats' ? v : null;
 };
-const CACHE_EXPIRY = 30 * 60 * 1000; // 30 Minutes
+const CACHE_MIN_INTERVAL = 15 * 1000; // 15 seconds cooldown between automatic background fetches
 
 const App: React.FC = () => {
   const [lang, setLang] = useState<Language>(() => {
@@ -199,6 +199,8 @@ const App: React.FC = () => {
     }
   };
 
+  // Values this browser just saved; ignore stale remote values for a short while
+  const recentLocal = useRef<Record<string, { value: string; at: number }>>({});
   const isFetchingRef = useRef(false);
 
   const fetchFromSheets = useCallback(async (force = false) => {
@@ -206,7 +208,7 @@ const App: React.FC = () => {
 
     const now = Date.now();
     const lastSyncTime = localStorage.getItem(CACHE_KEY);
-    if (!force && lastSyncTime && (now - parseInt(lastSyncTime)) < CACHE_EXPIRY) {
+    if (!force && lastSyncTime && (now - parseInt(lastSyncTime, 10)) < CACHE_MIN_INTERVAL) {
       return;
     }
 
@@ -225,9 +227,9 @@ const App: React.FC = () => {
         const newStatuses = sanitizeData(cloudData.studentStatuses, 'st');
         setStudentStatuses(prev => {
           return newStatuses.map(incoming => {
-            const existing = prev.find(p => p.id === incoming.id || (p.studentId && incoming.studentId && p.studentId === incoming.studentId));
-            if (existing && existing.supervisor && (!incoming.supervisor || (existing.lastUpdated || 0) > (incoming.lastUpdated || 0))) {
-              return { ...incoming, supervisor: existing.supervisor, lastUpdated: existing.lastUpdated };
+            const recent = recentLocal.current[incoming.id] || (incoming.studentId ? recentLocal.current[incoming.studentId] : null);
+            if (recent && (Date.now() - recent.at) < 15000) {
+              return { ...incoming, supervisor: recent.value };
             }
             return incoming;
           });
@@ -323,6 +325,22 @@ const App: React.FC = () => {
 
   useEffect(() => {
     fetchFromSheets();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchFromSheets();
+      }
+    };
+    const handleFocus = () => {
+      fetchFromSheets();
+    };
+
+    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [fetchFromSheets]);
 
   useEffect(() => {
@@ -477,8 +495,6 @@ const App: React.FC = () => {
 
   const [adminLiveActive, setAdminLiveActive] = useState(false);
   const [backendLive, setBackendLive] = useState<boolean | null>(null);
-  // Values this browser just saved; ignore stale remote values for a short while
-  const recentLocal = useRef<Record<string, { value: string; at: number }>>({});
 
   const mergeLiveRows = useCallback((rows: LiveRow[]) => {
     const byId = new Map<string, LiveRow>();
