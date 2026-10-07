@@ -224,10 +224,11 @@ function handleTranslate(params) {
 
 var UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 
-// All uploads live in one Drive folder, one sub-folder per kind of file. Its ID is kept in
-// Project Settings → Script Properties as DRIVE_ROOT_ID (the folder link works too), not in this file.
+// All uploads live in this Drive folder, one sub-folder per kind of file
+var DRIVE_ROOT_ID = "1Tmz9c0uTuXyR2Qq6Z0UZF2Km23nQ5kpr";
+
 function driveRootId() {
-  var v = String(PropertiesService.getScriptProperties().getProperty("DRIVE_ROOT_ID") || "").trim();
+  var v = String(PropertiesService.getScriptProperties().getProperty("DRIVE_ROOT_ID") || DRIVE_ROOT_ID || "").trim();
   var m = /folders\/([\w-]+)/.exec(v);
   return m ? m[1] : v;
 }
