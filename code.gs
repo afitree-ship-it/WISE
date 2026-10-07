@@ -1,5 +1,26 @@
-var ss = SpreadsheetApp.getActiveSpreadsheet();
-var BACKEND_VERSION = "2026-10-06";
+var _ssInstance = null;
+function getSS() {
+  if (!_ssInstance) {
+    _ssInstance = SpreadsheetApp.getActiveSpreadsheet();
+  }
+  return _ssInstance;
+}
+
+function getDataVersion() {
+  return CacheService.getScriptCache().get("data_version") || "1";
+}
+
+function bumpDataVersion(sheetType) {
+  var v = String(Date.now());
+  var cache = CacheService.getScriptCache();
+  cache.put("data_version", v, 21600);
+  if (sheetType) {
+    cache.put("last_changed_sheet", String(sheetType), 21600);
+  }
+  return v;
+}
+
+var BACKEND_VERSION = "2026-10-07";
 
 /* ================================================================== */
 /* ขั้นตอนครั้งแรก: อนุญาตให้สคริปต์ใช้ Google Drive                   */
@@ -120,7 +141,7 @@ function handleSupervisorSave(params) {
       return { status: "locked", lock: locks[id] };
     }
 
-    var sheet = ss.getSheetByName("StudentStatuses") || ss.getSheetByName("studentStatuses");
+    var sheet = getSS().getSheetByName("StudentStatuses") || getSS().getSheetByName("studentStatuses");
     if (!sheet) return { status: "error", message: "Sheet not found" };
     var lastCol = Math.max(sheet.getLastColumn(), 1);
     var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
@@ -154,23 +175,45 @@ function handleSupervisorSave(params) {
       writeLocks(locks);
     }
     invalidateSheetCache("studentStatuses");
+    var v = bumpDataVersion("studentStatuses");
     if (params.studentId) {
       invalidateStudentCheck(params.studentId);
       invalidateStudentBundle(params.studentId);
     }
-    return { status: "success", lastUpdated: now };
+    return { status: "success", lastUpdated: now, version: v };
   });
 }
 
-function handleLive() {
-  var sheet = ss.getSheetByName("StudentStatuses") || ss.getSheetByName("studentStatuses");
-  var rows = [];
-  if (sheet) {
-    rows = sheetToObjects(sheet).map(function(r) {
-      return { id: r.id, studentId: r.studentId, supervisor: r.supervisor || "", lastUpdated: r.lastUpdated };
-    });
+function handleLive(params) {
+  var cache = CacheService.getScriptCache();
+  var currentVersion = getDataVersion();
+  var clientVersion = (params && params.v) ? String(params.v).trim() : "";
+  var locks = readLocks();
+
+  if (clientVersion && clientVersion === currentVersion) {
+    return {
+      status: "success",
+      serverTime: Date.now(),
+      version: currentVersion,
+      unchanged: true,
+      locks: locks
+    };
   }
-  return { serverTime: Date.now(), rows: rows, locks: readLocks() };
+
+  var statuses = getCachedSheet("studentStatuses", "StudentStatuses");
+  var changedSheet = cache.get("last_changed_sheet") || "studentStatuses";
+  return {
+    status: "success",
+    serverTime: Date.now(),
+    version: currentVersion,
+    unchanged: false,
+    changedSheet: changedSheet,
+    studentStatuses: statuses,
+    rows: statuses.map(function(r) {
+      return { id: r.id, studentId: r.studentId, supervisor: r.supervisor || "", lastUpdated: r.lastUpdated };
+    }),
+    locks: locks
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -178,8 +221,8 @@ function handleLive() {
 /* ------------------------------------------------------------------ */
 
 function handleSettingsSave(params) {
-  var sheet = ss.getSheetByName("Settings");
-  if (!sheet) sheet = ss.insertSheet("Settings");
+  var sheet = getSS().getSheetByName("Settings");
+  if (!sheet) sheet = getSS().insertSheet("Settings");
   sheet.clearContents();
   sheet.appendRow(["key", "value"]);
   var items = params.data || [];
@@ -188,7 +231,8 @@ function handleSettingsSave(params) {
     sheet.getRange(2, 1, values.length, 2).setValues(values);
   }
   invalidateSheetCache("settings");
-  return { status: "success" };
+  var v = bumpDataVersion("settings");
+  return { status: "success", version: v };
 }
 
 /* ------------------------------------------------------------------ */
@@ -350,7 +394,7 @@ function uploadPdf(params) {
 /* ------------------------------------------------------------------ */
 
 function adminPasswords() {
-  var sheet = ss.getSheetByName("Admins") || ss.getSheetByName("admins");
+  var sheet = getSS().getSheetByName("Admins") || getSS().getSheetByName("admins");
   if (!sheet) return [];
   return sheetToObjects(sheet)
     .map(function(a) { return String(a.password || "").trim(); })
@@ -457,7 +501,7 @@ function getCachedSheet(key, sheetName) {
   if (cached) {
     try { return JSON.parse(cached); } catch (e) {}
   }
-  var sheet = ss.getSheetByName(sheetName) || ss.getSheetByName(key);
+  var sheet = getSS().getSheetByName(sheetName) || getSS().getSheetByName(key);
   var rows = sheet ? sheetToObjects(sheet) : [];
   try {
     var str = JSON.stringify(rows);
@@ -483,9 +527,9 @@ function invalidateSheetCache(key) {
 
 function privSheet(key) {
   var name = SHEET_NAMES[key];
-  var sheet = ss.getSheetByName(name);
+  var sheet = getSS().getSheetByName(name);
   if (!sheet) {
-    sheet = ss.insertSheet(name);
+    sheet = getSS().insertSheet(name);
     sheet.appendRow(SHEETS[key]);
     sheet.setFrozenRows(1);
   }
@@ -553,7 +597,7 @@ function newToken() { return (Utilities.getUuid() + Utilities.getUuid()).replace
 
 function statusRows() {
   if (_memStatusRows) return _memStatusRows;
-  var sheet = ss.getSheetByName("StudentStatuses") || ss.getSheetByName("studentStatuses");
+  var sheet = getSS().getSheetByName("StudentStatuses") || getSS().getSheetByName("studentStatuses");
   _memStatusRows = sheet ? sheetToObjects(sheet) : [];
   return _memStatusRows;
 }
@@ -590,7 +634,7 @@ var DEFAULT_CRITERIA = [
 ];
 
 function evalCriteria() {
-  var sheet = ss.getSheetByName("Settings");
+  var sheet = getSS().getSheetByName("Settings");
   if (sheet) {
     var rows = sheetToObjects(sheet);
     for (var i = 0; i < rows.length; i++) {
@@ -952,7 +996,7 @@ function handleStudentAdmin(params) {
 function doGet(e) {
   var type = (e && e.parameter) ? e.parameter.type : null;
 
-  if (type === "live") return jsonOut(handleLive());
+  if (type === "live") return jsonOut(handleLive(e ? e.parameter : null));
   // Capability probe: lets the web app know this deployment can translate
   if (type === "translate") return jsonOut({ status: "success", translate: true });
   if (type === "upload") return jsonOut({ status: "success", upload: true, version: BACKEND_VERSION });
@@ -974,6 +1018,7 @@ function doGet(e) {
     Object.keys(typeMap).forEach(function(key) {
       result[key] = getCachedSheet(key, typeMap[key]);
     });
+    result.version = getDataVersion();
     result.locks = readLocks();
     return jsonOut(result);
   }
@@ -1021,10 +1066,10 @@ function handlePost(e) {
     admins: ["password"]
   };
   var sheetName = SHEET_OF[type];
-  var sheet = ss.getSheetByName(sheetName) || ss.getSheetByName(type);
+  var sheet = getSS().getSheetByName(sheetName) || getSS().getSheetByName(type);
 
   if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
+    sheet = getSS().insertSheet(sheetName);
     sheet.appendRow(DEFAULT_HEADERS[type]);
   }
 
@@ -1104,8 +1149,10 @@ function handlePost(e) {
     }
   }
 
+  var v = "1";
   if (type) {
     invalidateSheetCache(type);
+    v = bumpDataVersion(type);
   }
   if (type === "studentStatuses") {
     _memStatusRows = null;
@@ -1115,5 +1162,5 @@ function handlePost(e) {
     }
   }
 
-  return jsonOut({ status: "success" });
+  return jsonOut({ status: "success", version: v });
 }

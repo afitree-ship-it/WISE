@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { fetchLive, getClientId, LiveRow, LockMap } from './liveSync';
+import { fetchLive, getClientId, LiveRow, LiveSnapshot, LockMap } from './liveSync';
 
 interface Options {
   enabled: boolean;
   intervalMs?: number;
-  onRows: (rows: LiveRow[]) => void;
+  currentVersion?: string;
+  onSnapshot?: (snap: LiveSnapshot) => void;
+  onRows?: (rows: LiveRow[]) => void;
 }
 
 /**
@@ -12,12 +14,16 @@ interface Options {
  * `supported` is null until the first response, false when the backend is an older
  * version without the endpoint (callers then fall back to full refreshes).
  */
-export const useLiveSupervisors = ({ enabled, intervalMs = 3000, onRows }: Options) => {
+export const useLiveSupervisors = ({ enabled, intervalMs = 3500, currentVersion, onSnapshot, onRows }: Options) => {
   const [supported, setSupported] = useState<boolean | null>(null);
   const [locks, setLocks] = useState<LockMap>({});
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const onRowsRef = useRef(onRows);
   onRowsRef.current = onRows;
+  const onSnapshotRef = useRef(onSnapshot);
+  onSnapshotRef.current = onSnapshot;
+  const currentVersionRef = useRef(currentVersion);
+  currentVersionRef.current = currentVersion;
   const inFlight = useRef(false);
   const supportedRef = useRef<boolean | null>(null);
 
@@ -26,7 +32,7 @@ export const useLiveSupervisors = ({ enabled, intervalMs = 3000, onRows }: Optio
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     inFlight.current = true;
     try {
-      const snap = await fetchLive();
+      const snap = await fetchLive(currentVersionRef.current);
       if (!snap) {
         supportedRef.current = false;
         setSupported(false);
@@ -41,7 +47,8 @@ export const useLiveSupervisors = ({ enabled, intervalMs = 3000, onRows }: Optio
       });
       setLocks(others);
       setLastSyncAt(Date.now());
-      onRowsRef.current(snap.rows);
+      if (onSnapshotRef.current) onSnapshotRef.current(snap);
+      if (snap.rows && onRowsRef.current) onRowsRef.current(snap.rows);
     } catch (e) {
       console.warn('live poll failed', e);
     } finally {
@@ -54,10 +61,13 @@ export const useLiveSupervisors = ({ enabled, intervalMs = 3000, onRows }: Optio
     poll();
     const t = setInterval(poll, intervalMs);
     const onVis = () => { if (document.visibilityState === 'visible') poll(); };
+    const onFocus = () => { poll(); };
     document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', onFocus);
     return () => {
       clearInterval(t);
       document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', onFocus);
     };
   }, [enabled, intervalMs, poll]);
 

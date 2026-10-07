@@ -17,7 +17,11 @@ export interface LiveRow {
 
 export interface LiveSnapshot {
   serverTime: number;
-  rows: LiveRow[];
+  version?: string;
+  unchanged?: boolean;
+  changedSheet?: string;
+  studentStatuses?: any[];
+  rows?: LiveRow[];
   locks: LockMap;
 }
 
@@ -58,11 +62,12 @@ const post = async (payload: object): Promise<any> => {
 };
 
 /** Returns null when the backend has not been updated with the live endpoint yet. */
-export const fetchLive = async (): Promise<LiveSnapshot | null> => {
-  const res = await fetch(withCacheBust(SHEET_API_URL, 'type=live'), { redirect: 'follow' });
+export const fetchLive = async (clientVersion?: string): Promise<LiveSnapshot | null> => {
+  const param = clientVersion ? `type=live&v=${encodeURIComponent(clientVersion)}` : 'type=live';
+  const res = await fetch(withCacheBust(SHEET_API_URL, param), { redirect: 'follow' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
-  if (!json || typeof json.serverTime !== 'number' || !Array.isArray(json.rows)) return null;
+  if (!json || typeof json.serverTime !== 'number') return null;
   return json as LiveSnapshot;
 };
 
@@ -79,11 +84,11 @@ export const acquireLock = async (id: string): Promise<LockResult> => {
 export const releaseLock = (id: string) =>
   post({ type: 'lock', action: 'release', id, clientId: getClientId() }).catch(() => undefined);
 
-export type SaveResult = { ok: true; lastUpdated: number } | { ok: false; lock?: FieldLock; unsupported?: boolean };
+export type SaveResult = { ok: true; lastUpdated: number; version?: string } | { ok: false; lock?: FieldLock; unsupported?: boolean };
 
 export const saveSupervisor = async (id: string, studentId: string, supervisor: string): Promise<SaveResult> => {
   const r = await post({ type: 'supervisor', id, studentId, supervisor, clientId: getClientId() });
-  if (r?.status === 'success') return { ok: true, lastUpdated: r.lastUpdated || Date.now() };
+  if (r?.status === 'success') return { ok: true, lastUpdated: r.lastUpdated || Date.now(), version: r.version };
   if (r?.status === 'locked') return { ok: false, lock: r.lock };
   return { ok: false, unsupported: true };
 };

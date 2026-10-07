@@ -16,7 +16,7 @@ import { SHEET_API_URL } from './config';
 import { parseChecklist } from './checklist';
 import { backendHasStudents, post as apiPost, getAdminKey, setAdminKey, parseCriteria } from './studentApi';
 import EvaluationPage from './components/student/EvaluationPage';
-import { fetchLive, saveSupervisor, LiveRow, FieldLock } from './liveSync';
+import { fetchLive, saveSupervisor, LiveRow, FieldLock, LiveSnapshot } from './liveSync';
 import { useLiveSupervisors } from './useLiveSupervisors';
 import DashboardPage from './DashboardPage';
 import { TRANSLATIONS, INITIAL_SITES, INITIAL_FORMS, INITIAL_SCHEDULE, INITIAL_STUDENT_STATUSES } from './constants';
@@ -174,6 +174,9 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [dataVersion, setDataVersion] = useState<string>(() => {
+    try { return localStorage.getItem('wise_data_version') || '0'; } catch { return '0'; }
+  });
   const [lastSync, setLastSync] = useState<number | null>(() => {
     const saved = localStorage.getItem(CACHE_KEY);
     return saved ? parseInt(saved) : null;
@@ -213,13 +216,20 @@ const App: React.FC = () => {
     }
 
     isFetchingRef.current = true;
-    setIsLoading(true);
+    const hasData = studentStatuses.length > 0 || sites.length > 0;
+    if (!hasData) {
+      setIsLoading(true);
+    }
     try {
       // Add cache buster to URL
       const url = `${SHEET_API_URL}${SHEET_API_URL.includes('?') ? '&' : '?'}cache_bust=${now}`;
       const response = await fetchWithRetry(url);
       const cloudData = await response.json();
       
+      if (cloudData.version) {
+        setDataVersion(String(cloudData.version));
+        try { localStorage.setItem('wise_data_version', String(cloudData.version)); } catch {}
+      }
       if (cloudData.sites) setSites(sanitizeData(cloudData.sites, 'site'));
       if (cloudData.schedules) setSchedules(sanitizeData(cloudData.schedules, 'sch'));
       if (cloudData.forms) setForms(sanitizeData(cloudData.forms, 'frm'));
@@ -254,7 +264,7 @@ const App: React.FC = () => {
       setIsLoading(false);
       isFetchingRef.current = false;
     }
-  }, []);
+  }, [studentStatuses.length, sites.length, sanitizeData]);
 
   const formatStudentStatusForSync = (record: StudentStatusRecord) => {
     // Key order mapped to Google Sheets columns:
@@ -312,6 +322,10 @@ const App: React.FC = () => {
       if (result?.status === 'unauthorized') {
         window.dispatchEvent(new Event('wise-admin-unauthorized'));
         return;
+      }
+      if (result?.version) {
+        setDataVersion(String(result.version));
+        try { localStorage.setItem('wise_data_version', String(result.version)); } catch {}
       }
       const syncTime = Date.now();
       setLastSync(syncTime);
@@ -516,8 +530,36 @@ const App: React.FC = () => {
     });
   }, []);
 
+  const handleLiveSnapshot = useCallback((snap: LiveSnapshot) => {
+    if (snap.unchanged) return;
+    if (snap.version) {
+      setDataVersion(String(snap.version));
+      try { localStorage.setItem('wise_data_version', String(snap.version)); } catch {}
+    }
+
+    if (Array.isArray(snap.studentStatuses) && snap.studentStatuses.length > 0) {
+      const sanitized = sanitizeData(snap.studentStatuses, 'st');
+      setStudentStatuses(prev => {
+        return sanitized.map(incoming => {
+          const recent = recentLocal.current[incoming.id] || (incoming.studentId ? recentLocal.current[incoming.studentId] : null);
+          if (recent && (Date.now() - recent.at) < 15000) {
+            return { ...incoming, supervisor: recent.value };
+          }
+          return incoming;
+        });
+      });
+    }
+
+    if (snap.changedSheet && snap.changedSheet !== 'studentStatuses') {
+      fetchFromSheets(true);
+    }
+  }, [sanitizeData, fetchFromSheets]);
+
   const live = useLiveSupervisors({
-    enabled: viewState === 'summary' || (role === UserRole.ADMIN && adminLiveActive),
+    enabled: true,
+    intervalMs: 3500,
+    currentVersion: dataVersion,
+    onSnapshot: handleLiveSnapshot,
     onRows: mergeLiveRows,
   });
   const liveSupported = live.supported ?? backendLive;
@@ -539,7 +581,13 @@ const App: React.FC = () => {
       setIsSyncing(true);
       try {
         const res = await saveSupervisor(target?.id || id, studentCode || target?.studentId || '', name);
-        if (res.ok) return { ok: true };
+        if (res.ok) {
+          if (res.version) {
+            setDataVersion(String(res.version));
+            try { localStorage.setItem('wise_data_version', String(res.version)); } catch {}
+          }
+          return { ok: true };
+        }
         if ('lock' in res && res.lock) {
           // Someone else holds the field: roll back our optimistic value
           delete recentLocal.current[target?.id || id];
